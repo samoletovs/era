@@ -369,3 +369,132 @@ export async function getInvoicePostings(companyId: string, invoiceId: string) {
     .fetchAll();
   return resources;
 }
+
+// ─── Credit Notes ───────────────────────────────────────────
+
+interface CreateCreditNoteInput {
+  companyId: string;
+  originalInvoiceId: string;
+  reason: string;
+  lines?: Array<{
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    vatRate: number;
+    accountCode: string;
+    itemId?: string;
+  }>;
+  createdBy: string;
+}
+
+export async function createCreditNote(input: CreateCreditNoteInput): Promise<Invoice> {
+  const { resource: original } = await containers.documents()
+    .item(input.originalInvoiceId, input.companyId)
+    .read<Invoice>();
+
+  if (!original) throw new GLError("NOT_FOUND", "Original invoice not found");
+  if (original.status === "draft" || original.status === "cancelled") {
+    throw new GLError("INVALID_STATUS", "Cannot create credit note for draft or cancelled invoice");
+  }
+
+  const { resource: company } = await containers.companies()
+    .item(input.companyId, input.companyId)
+    .read<Company>();
+  if (!company) throw new GLError("COMPANY_NOT_FOUND", "Company not found");
+
+  // Use original lines if none provided (full credit)
+  const creditLines = (input.lines || original.lines.map(l => ({
+    description: l.description,
+    quantity: l.quantity,
+    unitPrice: l.unitPrice,
+    vatRate: l.vatRate,
+    accountCode: l.accountCode,
+    itemId: l.itemId,
+  }))).map(calcLineTotals);
+
+  const subtotal = roundCurrency(creditLines.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
+  const vatAmount = roundCurrency(creditLines.reduce((s, l) => s + l.vatAmount, 0));
+  const total = roundCurrency(subtotal + vatAmount);
+
+  const invoiceNumber = await nextInvoiceNumber(company, original.type);
+  const now = new Date().toISOString();
+
+  const creditNote: Invoice = {
+    id: uuidv4(),
+    companyId: input.companyId,
+    invoiceNumber,
+    type: original.type,
+    contactId: original.contactId,
+    contactName: original.contactName,
+    date: now.slice(0, 10),
+    dueDate: now.slice(0, 10),
+    lines: creditLines,
+    subtotal: -subtotal,
+    vatAmount: -vatAmount,
+    total: -total,
+    amountPaid: 0,
+    status: "draft",
+    currency: "EUR",
+    documentNumber: invoiceNumber,
+    documentDate: now.slice(0, 10),
+    paymentJournalEntryIds: [],
+    isActive: true,
+    createdAt: now,
+    updatedAt: now,
+    createdBy: input.createdBy,
+    creditNoteFor: input.originalInvoiceId,
+    creditNoteReason: input.reason,
+  } as Invoice & { creditNoteFor: string; creditNoteReason: string };
+
+  await containers.documents().items.create(creditNote);
+
+  // Auto-post the credit note (reverses the original GL entries)
+  const journalLines = buildInvoiceJournalLines({
+    ...creditNote,
+    subtotal: Math.abs(subtotal),
+    vatAmount: Math.abs(vatAmount),
+    total: Math.abs(total),
+    lines: creditLines,
+  } as Invoice);
+
+  // Flip all debits/credits for the credit note
+  const reversedLines = journalLines.map(l => ({
+    ...l,
+    debit: l.credit,
+    credit: l.debit,
+  }));
+
+  const journalEntry = await postJournalEntry({
+    companyId: input.companyId,
+    date: creditNote.date,
+    description: `Credit note ${invoiceNumber} for ${original.invoiceNumber} — ${input.reason}`,
+    lines: reversedLines,
+    sourceType: "adjustment",
+    sourceId: creditNote.id,
+    createdBy: input.createdBy,
+  });
+
+  creditNote.status = "posted";
+  (creditNote as any).journalEntryId = journalEntry.id;
+  creditNote.updatedAt = new Date().toISOString();
+  await containers.documents().item(creditNote.id, input.companyId).replace(creditNote);
+
+  // Update original invoice's amountPaid (credit note reduces outstanding)
+  original.amountPaid = roundCurrency(original.amountPaid + total);
+  if (original.amountPaid >= original.total) original.status = "paid";
+  else if (original.amountPaid > 0) original.status = "partially_paid";
+  original.updatedAt = new Date().toISOString();
+  await containers.documents().item(original.id, input.companyId).replace(original);
+
+  await emitEvent({
+    companyId: input.companyId,
+    type: "creditnote.posted",
+    actor: input.createdBy,
+    documentType: "invoice",
+    documentId: creditNote.id,
+    journalEntryId: journalEntry.id,
+    data: { creditNoteNumber: invoiceNumber, originalInvoice: original.invoiceNumber, total: -total, reason: input.reason },
+  });
+
+  return creditNote;
+}

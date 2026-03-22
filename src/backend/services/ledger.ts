@@ -234,7 +234,7 @@ export async function getTrialBalance(companyId: string): Promise<{
 }> {
   const { resources: accounts } = await containers.ledger().items
     .query<Account>({
-      query: "SELECT * FROM c WHERE c.companyId = @cid AND IS_DEFINED(c.code) AND IS_DEFINED(c.normalSide) AND c.isPostable = true ORDER BY c.code",
+      query: "SELECT * FROM c WHERE c.companyId = @cid AND IS_DEFINED(c.code) AND IS_DEFINED(c.normalSide) AND (c.isPostable = true OR NOT IS_DEFINED(c.isPostable)) ORDER BY c.code",
       parameters: [{ name: "@cid", value: companyId }],
     })
     .fetchAll();
@@ -244,7 +244,7 @@ export async function getTrialBalance(companyId: string): Promise<{
   let totalCredit = 0;
 
   for (const account of accounts) {
-    if (account.balance === 0) continue;
+    if (!account.balance || account.balance === 0) continue;
     const isDebitBalance = account.balance > 0;
     const absBalance = Math.abs(account.balance);
 

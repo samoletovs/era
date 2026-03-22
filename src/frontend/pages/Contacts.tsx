@@ -48,8 +48,18 @@ export function Contacts() {
                 <div className="detail-row"><span className="detail-label">VAT number</span><span className="mono">{selected.vatNumber || "—"}</span></div>
                 <div className="detail-row"><span className="detail-label">Email</span><span>{selected.email || "—"}</span></div>
                 <div className="detail-row"><span className="detail-label">Phone</span><span>{selected.phone || "—"}</span></div>
-                <div className="detail-row"><span className="detail-label">Address</span><span>{selected.address?.line1 || "—"}</span></div>
-                <div className="detail-row"><span className="detail-label">City</span><span>{selected.address?.city || "—"}</span></div>
+                <div className="detail-row" style={{ alignItems: "flex-start" }}>
+                  <span className="detail-label">Address</span>
+                  <span style={{ textAlign: "right", lineHeight: 1.5 }}>
+                    {selected.address?.line1 || selected.address?.city ? (
+                      <>
+                        {selected.address?.line1 && <span>{selected.address.line1}</span>}
+                        {selected.address?.city && <><br />{[selected.address.city, selected.address.postalCode].filter(Boolean).join(", ")}</>}
+                        {selected.address?.country && <><br />{selected.address.country}</>}
+                      </>
+                    ) : "—"}
+                  </span>
+                </div>
                 <div className="detail-row"><span className="detail-label">Payment terms</span><span>{selected.paymentTermsDays} days</span></div>
               </div>
             </div>

@@ -2,15 +2,17 @@ import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.js";
 import { createCompany, getCompany, updateCompany } from "../services/company.js";
 import { postJournalEntry, reverseJournalEntry, getTrialBalance, GLError } from "../services/ledger.js";
-import { createInvoice, postInvoice, getInvoice, listInvoices, findDuplicateInvoice, cancelInvoice, getInvoicePostings } from "../services/invoice.js";
+import { createInvoice, postInvoice, getInvoice, listInvoices, findDuplicateInvoice, cancelInvoice, getInvoicePostings, createCreditNote } from "../services/invoice.js";
 import { createAndPostPayment, listPayments } from "../services/payment.js";
 import { createContact, getContact, listContacts } from "../services/contact.js";
 import { createItem, listItems } from "../services/inventory.js";
-import { generateVatReturn, getBalanceSheet, getProfitAndLoss } from "../services/reporting.js";
+import { generateVatReturn, getBalanceSheet, getProfitAndLoss, generateVatDeclaration, generateAnnualReport } from "../services/reporting.js";
 import { searchCompanyByName, searchCompanyByRegNumber } from "../services/company-lookup.js";
 import { recognizeInvoice } from "../services/invoice-recognition.js";
 import { handleChat } from "../services/agent.js";
 import { seedRules, getActiveRule } from "../services/posting-rules.js";
+import { closePeriod, reopenPeriod, yearEndClose, getPeriodStatus } from "../services/period-close.js";
+import { generateInvoicePdf } from "../services/invoice-pdf.js";
 import { containers } from "../services/cosmos.js";
 import type { ApiResponse, Account, Company, Feedback, PostingRule, BusinessEvent } from "@shared/types";
 
@@ -745,5 +747,99 @@ router.get("/companies/:companyId/events", async (req, res) => {
     res.json({ data: resources } as ApiResponse);
   } catch (err) {
     res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
+  }
+});
+
+// ─── Period Close & Year-End ────────────────────────────────
+
+router.post("/companies/:companyId/periods/:period/close", async (req, res) => {
+  try {
+    const result = await closePeriod(req.params.companyId, req.params.period, req.user!.id);
+    res.json({ data: result } as ApiResponse);
+  } catch (err) {
+    handleGLError(err, res);
+  }
+});
+
+router.post("/companies/:companyId/periods/:period/reopen", async (req, res) => {
+  try {
+    const result = await reopenPeriod(req.params.companyId, req.params.period, req.user!.id);
+    res.json({ data: result } as ApiResponse);
+  } catch (err) {
+    handleGLError(err, res);
+  }
+});
+
+router.get("/companies/:companyId/periods/:period", async (req, res) => {
+  const result = await getPeriodStatus(req.params.companyId, req.params.period);
+  res.json({ data: result || { period: req.params.period, status: "open" } } as ApiResponse);
+});
+
+router.post("/companies/:companyId/year-end-close", async (req, res) => {
+  try {
+    const { fiscalYear } = req.body;
+    if (!fiscalYear) {
+      res.status(400).json({ error: { code: "MISSING_YEAR", message: "fiscalYear is required" } });
+      return;
+    }
+    const result = await yearEndClose(req.params.companyId, fiscalYear, req.user!.id);
+    res.json({ data: result } as ApiResponse);
+  } catch (err) {
+    handleGLError(err, res);
+  }
+});
+
+// ─── Credit Notes ───────────────────────────────────────────
+
+router.post("/companies/:companyId/invoices/:invoiceId/credit-note", async (req, res) => {
+  try {
+    const creditNote = await createCreditNote({
+      companyId: req.params.companyId,
+      originalInvoiceId: req.params.invoiceId,
+      reason: req.body.reason || "Credit note",
+      lines: req.body.lines,
+      createdBy: req.user!.id,
+    });
+    res.status(201).json({ data: creditNote } as ApiResponse);
+  } catch (err) {
+    handleGLError(err, res);
+  }
+});
+
+// ─── Invoice PDF ────────────────────────────────────────────
+
+router.get("/companies/:companyId/invoices/:invoiceId/pdf", async (req, res) => {
+  try {
+    const pdf = await generateInvoicePdf(req.params.companyId, req.params.invoiceId);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `inline; filename="invoice-${req.params.invoiceId}.pdf"`);
+    res.send(pdf);
+  } catch (err) {
+    res.status(500).json({ error: { code: "PDF_FAILED", message: String(err) } });
+  }
+});
+
+// ─── VAT Declaration Export ─────────────────────────────────
+
+router.get("/companies/:companyId/reports/vat-declaration", async (req, res) => {
+  try {
+    const year = parseInt(req.query.year as string) || new Date().getFullYear();
+    const month = parseInt(req.query.month as string) || new Date().getMonth() + 1;
+    const declaration = await generateVatDeclaration(req.params.companyId, year, month);
+    res.json({ data: declaration } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "VAT_FAILED", message: String(err) } });
+  }
+});
+
+// ─── Annual Financial Statements ────────────────────────────
+
+router.get("/companies/:companyId/reports/annual", async (req, res) => {
+  try {
+    const year = parseInt(req.query.year as string) || new Date().getFullYear() - 1;
+    const report = await generateAnnualReport(req.params.companyId, year);
+    res.json({ data: report } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "REPORT_FAILED", message: String(err) } });
   }
 });

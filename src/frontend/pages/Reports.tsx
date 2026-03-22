@@ -32,67 +32,78 @@ export function Reports() {
       </div>
 
       {loading ? <p style={{ color: "#A0A0A0" }}>Loading...</p> : !data ? (
-        <div className="empty-state"><div className="icon">📊</div><h3>No data</h3></div>
+        <div className="empty-state"><div className="icon">📊</div><h3>No data available</h3><p>Post some invoices to see financial reports.</p></div>
       ) : view === "pl" ? <ProfitLoss data={data} /> : view === "bs" ? <BalanceSheet data={data} /> : <TrialBalance data={data} />}
     </div>
   );
 }
 
 function ProfitLoss({ data }: { data: any }) {
+  const revenue = data?.revenue || [];
+  const expenses = data?.expenses || [];
+  const totalRevenue = data?.totalRevenue ?? 0;
+  const totalExpenses = data?.totalExpenses ?? 0;
+  const netProfit = data?.netProfit ?? 0;
+
   return (
     <div className="metric-card">
-      <h3 style={{ marginBottom: 16, fontSize: 16, fontWeight: 600 }}>Profit & loss — {data.periodStart} to {data.periodEnd}</h3>
+      <h3 style={{ marginBottom: 16, fontSize: 16, fontWeight: 600 }}>Profit & loss — {data?.periodStart || ""} to {data?.periodEnd || ""}</h3>
       <div className="label">Revenue</div>
       <table className="data-table">
         <tbody>
-          {data.revenue.map((r: any) => <tr key={r.code}><td className="mono">{r.code}</td><td>{r.name}</td><td className="num">€{r.amount.toFixed(2)}</td></tr>)}
-          <tr className="total-row"><td></td><td><strong>Total revenue</strong></td><td className="num"><strong>€{data.totalRevenue.toFixed(2)}</strong></td></tr>
+          {revenue.map((r: any) => <tr key={r.code}><td className="mono">{r.code}</td><td>{r.name}</td><td className="num">€{(r.amount ?? 0).toFixed(2)}</td></tr>)}
+          <tr className="total-row"><td></td><td><strong>Total revenue</strong></td><td className="num"><strong>€{totalRevenue.toFixed(2)}</strong></td></tr>
         </tbody>
       </table>
       <div className="label" style={{ marginTop: 16 }}>Expenses</div>
       <table className="data-table">
         <tbody>
-          {data.expenses.map((e: any) => <tr key={e.code}><td className="mono">{e.code}</td><td>{e.name}</td><td className="num">€{e.amount.toFixed(2)}</td></tr>)}
-          <tr className="total-row"><td></td><td><strong>Total expenses</strong></td><td className="num"><strong>€{data.totalExpenses.toFixed(2)}</strong></td></tr>
+          {expenses.map((e: any) => <tr key={e.code}><td className="mono">{e.code}</td><td>{e.name}</td><td className="num">€{(e.amount ?? 0).toFixed(2)}</td></tr>)}
+          <tr className="total-row"><td></td><td><strong>Total expenses</strong></td><td className="num"><strong>€{totalExpenses.toFixed(2)}</strong></td></tr>
         </tbody>
       </table>
       <div style={{ marginTop: 20, padding: "16px 0", borderTop: "2px solid #1C1C1C", display: "flex", justifyContent: "space-between" }}>
         <span style={{ fontSize: 16, fontWeight: 600 }}>Net profit</span>
-        <span style={{ fontSize: 20, fontWeight: 600, color: data.netProfit >= 0 ? "#34C759" : "#FF3B30" }}>€{data.netProfit.toFixed(2)}</span>
+        <span style={{ fontSize: 20, fontWeight: 600, color: netProfit >= 0 ? "#34C759" : "#FF3B30" }}>€{netProfit.toFixed(2)}</span>
       </div>
     </div>
   );
 }
 
 function BalanceSheet({ data }: { data: any }) {
+  const assets = data?.assets || [];
+  const liabilities = data?.liabilities || [];
+  const equity = data?.equity || [];
+
   const Section = ({ title, items, total }: { title: string; items: any[]; total: number }) => (
     <>
       <div className="label" style={{ marginTop: 16 }}>{title}</div>
       <table className="data-table"><tbody>
-        {items.map((a: any) => <tr key={a.code}><td className="mono">{a.code}</td><td>{a.name}</td><td className="num">€{a.balance.toFixed(2)}</td></tr>)}
-        <tr className="total-row"><td></td><td><strong>Total {title.toLowerCase()}</strong></td><td className="num"><strong>€{total.toFixed(2)}</strong></td></tr>
+        {items.map((a: any, i: number) => <tr key={a.code || i}><td className="mono">{a.code}</td><td>{a.name}</td><td className="num">€{(a.balance ?? 0).toFixed(2)}</td></tr>)}
+        <tr className="total-row"><td></td><td><strong>Total {title.toLowerCase()}</strong></td><td className="num"><strong>€{(total ?? 0).toFixed(2)}</strong></td></tr>
       </tbody></table>
     </>
   );
   return (
     <div className="metric-card">
-      <h3 style={{ marginBottom: 16, fontSize: 16, fontWeight: 600 }}>Balance sheet — {data.date}</h3>
-      <Section title="Assets" items={data.assets} total={data.totalAssets} />
-      <Section title="Liabilities" items={data.liabilities} total={data.totalLiabilities} />
-      <Section title="Equity" items={data.equity} total={data.totalEquity} />
+      <h3 style={{ marginBottom: 16, fontSize: 16, fontWeight: 600 }}>Balance sheet — {data?.date || ""}</h3>
+      <Section title="Assets" items={assets} total={data?.totalAssets ?? 0} />
+      <Section title="Liabilities" items={liabilities} total={data?.totalLiabilities ?? 0} />
+      <Section title="Equity" items={equity} total={data?.totalEquity ?? 0} />
     </div>
   );
 }
 
 function TrialBalance({ data }: { data: any }) {
+  const lines = data?.lines || [];
   return (
     <div className="metric-card">
       <h3 style={{ marginBottom: 16, fontSize: 16, fontWeight: 600 }}>Trial balance</h3>
       <table className="data-table">
         <thead><tr><th>Code</th><th>Account</th><th>Debit</th><th>Credit</th></tr></thead>
         <tbody>
-          {data.lines.map((l: any) => (
-            <tr key={l.accountCode}>
+          {lines.map((l: any, i: number) => (
+            <tr key={l.accountCode || i}>
               <td className="mono">{l.accountCode}</td><td>{l.accountName}</td>
               <td className="num">{l.debit ? `€${l.debit.toFixed(2)}` : ""}</td>
               <td className="num">{l.credit ? `€${l.credit.toFixed(2)}` : ""}</td>
@@ -100,8 +111,8 @@ function TrialBalance({ data }: { data: any }) {
           ))}
           <tr className="total-row">
             <td></td><td><strong>Totals</strong></td>
-            <td className="num"><strong>€{data.totalDebit.toFixed(2)}</strong></td>
-            <td className="num"><strong>€{data.totalCredit.toFixed(2)}</strong></td>
+            <td className="num"><strong>€{(data?.totalDebit ?? 0).toFixed(2)}</strong></td>
+            <td className="num"><strong>€{(data?.totalCredit ?? 0).toFixed(2)}</strong></td>
           </tr>
         </tbody>
       </table>

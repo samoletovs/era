@@ -66,4 +66,32 @@ export const api = {
   submitFeedback: (body: { page: string; message: string; companyId?: string }) =>
     apiFetch("/feedback", { method: "POST", body: JSON.stringify(body) }),
   feedback: () => apiFetch("/feedback"),
+
+  // Credit notes
+  createCreditNote: (companyId: string, invoiceId: string, reason: string) =>
+    apiFetch(`/companies/${companyId}/invoices/${invoiceId}/credit-note`, { method: "POST", body: JSON.stringify({ reason }) }),
+
+  // Invoice PDF
+  invoicePdfUrl: (companyId: string, invoiceId: string) =>
+    `${API}/companies/${companyId}/invoices/${invoiceId}/pdf?token=${TOKEN}`,
+
+  // Period close
+  closePeriod: (companyId: string, period: string) =>
+    apiFetch(`/companies/${companyId}/periods/${period}/close`, { method: "POST" }),
+  reopenPeriod: (companyId: string, period: string) =>
+    apiFetch(`/companies/${companyId}/periods/${period}/reopen`, { method: "POST" }),
+  yearEndClose: (companyId: string, fiscalYear: number) =>
+    apiFetch(`/companies/${companyId}/year-end-close`, { method: "POST", body: JSON.stringify({ fiscalYear }) }),
+
+  // VAT declaration
+  vatDeclaration: (companyId: string, year: number, month: number) =>
+    apiFetch(`/companies/${companyId}/reports/vat-declaration?year=${year}&month=${month}`),
+
+  // Annual report
+  annualReport: (companyId: string, year: number) =>
+    apiFetch(`/companies/${companyId}/reports/annual?year=${year}`),
+
+  // Aging reports (Sprint 2)
+  arAging: (companyId: string) => apiFetch(`/companies/${companyId}/reports/ar-aging`),
+  apAging: (companyId: string) => apiFetch(`/companies/${companyId}/reports/ap-aging`),
 };
