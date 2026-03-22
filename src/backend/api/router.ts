@@ -248,7 +248,9 @@ router.post("/companies/:companyId/journal-entries/:entryId/reverse", async (req
 
 router.get("/companies/:companyId/trial-balance", async (req, res) => {
   try {
-    const result = await getTrialBalance(req.params.companyId);
+    const from = req.query.from as string | undefined;
+    const to = req.query.to as string | undefined;
+    const result = await getTrialBalance(req.params.companyId, from, to);
     res.json({ data: result } as ApiResponse);
   } catch (err) {
     res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });

@@ -49,7 +49,7 @@ export function Reports() {
     let fetcher: Promise<any>;
     if (view === "pl") fetcher = api.profitLoss(companyId, dateFrom, dateTo);
     else if (view === "bs") fetcher = api.balanceSheet(companyId, dateTo);
-    else fetcher = api.trialBalance(companyId, dateTo);
+    else fetcher = api.trialBalance(companyId, dateFrom, dateTo);
     fetcher.then(setData).catch(() => setData(null)).finally(() => setLoading(false));
   }, [companyId, view, dateFrom, dateTo]);
 
@@ -71,16 +71,16 @@ export function Reports() {
 
       <div className="report-period-bar">
         <div className="period-dates">
-          {view === "pl" ? (
+          {view === "bs" ? (
             <>
-              <label>From</label>
-              <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-              <label>To</label>
+              <label>As of</label>
               <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
             </>
           ) : (
             <>
-              <label>As of</label>
+              <label>From</label>
+              <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+              <label>To</label>
               <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
             </>
           )}
@@ -164,21 +164,38 @@ function TrialBalance({ data }: { data: any }) {
   const lines = data?.lines || [];
   return (
     <div className="metric-card">
-      <h3 style={{ marginBottom: 16, fontSize: 16, fontWeight: 600 }}>Trial balance</h3>
+      <h3 style={{ marginBottom: 16, fontSize: 16, fontWeight: 600 }}>
+        Trial balance — {data?.periodStart || ""} to {data?.periodEnd || ""}
+      </h3>
       <table className="data-table">
-        <thead><tr><th>Code</th><th>Account</th><th>Debit</th><th>Credit</th></tr></thead>
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Account</th>
+            <th style={{ textAlign: "right" }}>Opening balance</th>
+            <th style={{ textAlign: "right" }}>Debit</th>
+            <th style={{ textAlign: "right" }}>Credit</th>
+            <th style={{ textAlign: "right" }}>Closing balance</th>
+          </tr>
+        </thead>
         <tbody>
           {lines.map((l: any, i: number) => (
             <tr key={l.accountCode || i}>
-              <td className="mono">{l.accountCode}</td><td>{l.accountName}</td>
-              <td className="num">{l.debit ? `€${l.debit.toFixed(2)}` : ""}</td>
-              <td className="num">{l.credit ? `€${l.credit.toFixed(2)}` : ""}</td>
+              <td className="mono">{l.accountCode}</td>
+              <td>{l.accountName}</td>
+              <td className="num">{l.openingBalance ? `€${l.openingBalance.toFixed(2)}` : ""}</td>
+              <td className="num">{l.periodDebit ? `€${l.periodDebit.toFixed(2)}` : ""}</td>
+              <td className="num">{l.periodCredit ? `€${l.periodCredit.toFixed(2)}` : ""}</td>
+              <td className="num" style={{ fontWeight: 500 }}>€{(l.closingBalance ?? 0).toFixed(2)}</td>
             </tr>
           ))}
           <tr className="total-row">
-            <td></td><td><strong>Totals</strong></td>
-            <td className="num"><strong>€{(data?.totalDebit ?? 0).toFixed(2)}</strong></td>
-            <td className="num"><strong>€{(data?.totalCredit ?? 0).toFixed(2)}</strong></td>
+            <td></td>
+            <td><strong>Totals</strong></td>
+            <td className="num"><strong>€{(data?.totalOpeningBalance ?? 0).toFixed(2)}</strong></td>
+            <td className="num"><strong>€{(data?.totalPeriodDebit ?? 0).toFixed(2)}</strong></td>
+            <td className="num"><strong>€{(data?.totalPeriodCredit ?? 0).toFixed(2)}</strong></td>
+            <td className="num"><strong>€{(data?.totalClosingBalance ?? 0).toFixed(2)}</strong></td>
           </tr>
         </tbody>
       </table>

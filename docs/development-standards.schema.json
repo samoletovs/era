@@ -1,0 +1,191 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://era-erp.com/schemas/development-standards.json",
+  "title": "ERA Development Standards",
+  "description": "Machine-readable schema for ERA ERP development standards. See docs/development-standards.md for the human-readable reference.",
+  "type": "object",
+  "properties": {
+    "version": {
+      "const": "1.0.0",
+      "description": "Schema version — increment when standards change"
+    },
+
+    "fieldNaming": {
+      "type": "object",
+      "description": "§2 — Field naming suffix conventions",
+      "properties": {
+        "suffixRules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "suffix": { "type": "string" },
+              "expectedType": { "type": "string", "enum": ["string", "number", "boolean"] },
+              "description": { "type": "string" },
+              "examples": { "type": "array", "items": { "type": "string" } }
+            },
+            "required": ["suffix", "expectedType", "description"]
+          }
+        },
+        "booleanPrefixes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Valid prefixes for boolean fields"
+        },
+        "canonicalTaxFields": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Canonical tax/VAT field names"
+        },
+        "canonicalAmountFields": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Canonical monetary amount field names"
+        },
+        "deprecatedFields": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "field": { "type": "string" },
+              "replacement": { "type": "string" },
+              "entity": { "type": "string" }
+            },
+            "required": ["field", "replacement"]
+          },
+          "description": "Fields that should be migrated to standard names"
+        }
+      }
+    },
+
+    "dataTypes": {
+      "type": "object",
+      "description": "§3 — Standard data types (EDT-inspired)",
+      "properties": {
+        "types": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "tsType": { "type": "string" },
+              "format": { "type": "string" },
+              "pattern": { "type": "string", "description": "Regex pattern for validation" },
+              "zodSchema": { "type": "string", "description": "Zod expression" }
+            },
+            "required": ["name", "tsType", "format"]
+          }
+        }
+      }
+    },
+
+    "containers": {
+      "type": "object",
+      "description": "§1 — Cosmos DB container definitions",
+      "properties": {
+        "definitions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "partitionKey": { "type": "string" },
+              "entityTypes": { "type": "array", "items": { "type": "string" } },
+              "docTypeValues": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Required docType discriminator values (empty = single-type container)"
+              },
+              "tableGroup": {
+                "type": "string",
+                "enum": ["Main", "Transaction", "Parameter", "Worksheet", "Log", "Reference"]
+              }
+            },
+            "required": ["name", "partitionKey", "entityTypes"]
+          }
+        }
+      }
+    },
+
+    "statusLifecycles": {
+      "type": "object",
+      "description": "§5 — Status and lifecycle definitions",
+      "properties": {
+        "entities": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "entity": { "type": "string" },
+              "states": { "type": "array", "items": { "type": "string" } },
+              "transitions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "from": { "type": "string" },
+                    "to": { "type": "string" }
+                  },
+                  "required": ["from", "to"]
+                }
+              },
+              "terminalStates": { "type": "array", "items": { "type": "string" } }
+            },
+            "required": ["entity", "states", "transitions"]
+          }
+        }
+      }
+    },
+
+    "errorCodes": {
+      "type": "object",
+      "description": "§6 — Structured error code system",
+      "properties": {
+        "prefixes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "prefix": { "type": "string" },
+              "category": { "type": "string" },
+              "range": { "type": "string" }
+            },
+            "required": ["prefix", "category"]
+          }
+        }
+      }
+    },
+
+    "auditEvents": {
+      "type": "object",
+      "description": "§7 — Event and audit standards",
+      "properties": {
+        "namingPattern": {
+          "type": "string",
+          "description": "Pattern for event type names"
+        },
+        "mandatoryEvents": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Event types that must always be emitted"
+        },
+        "requiredFields": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Fields every business event must include"
+        }
+      }
+    },
+
+    "coverageTargets": {
+      "type": "object",
+      "description": "§10 — Testing coverage targets",
+      "properties": {
+        "businessLogic": { "type": "number", "minimum": 0, "maximum": 100 },
+        "financialCalculations": { "type": "number", "minimum": 0, "maximum": 100 },
+        "apiRoutes": { "type": "number", "minimum": 0, "maximum": 100 }
+      }
+    }
+  },
+  "required": ["version"]
+}

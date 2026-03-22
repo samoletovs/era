@@ -223,15 +223,25 @@ export interface TrialBalanceLine {
   accountCode: string;
   accountName: string;
   accountType: string;
-  debit: number;
-  credit: number;
+  openingBalance: number;
+  periodDebit: number;
+  periodCredit: number;
+  closingBalance: number;
 }
 
-export async function getTrialBalance(companyId: string): Promise<{
+export async function getTrialBalance(companyId: string, from?: string, to?: string): Promise<{
   lines: TrialBalanceLine[];
-  totalDebit: number;
-  totalCredit: number;
+  periodStart: string;
+  periodEnd: string;
+  totalOpeningBalance: number;
+  totalPeriodDebit: number;
+  totalPeriodCredit: number;
+  totalClosingBalance: number;
 }> {
+  const periodStart = from || `${new Date().getFullYear()}-01-01`;
+  const periodEnd = to || new Date().toISOString().slice(0, 10);
+
+  // Get all postable accounts
   const { resources: accounts } = await containers.ledger().items
     .query<Account>({
       query: "SELECT * FROM c WHERE c.companyId = @cid AND IS_DEFINED(c.code) AND IS_DEFINED(c.normalSide) AND (c.isPostable = true OR NOT IS_DEFINED(c.isPostable)) ORDER BY c.code",
@@ -239,32 +249,82 @@ export async function getTrialBalance(companyId: string): Promise<{
     })
     .fetchAll();
 
+  // Get all posted journal entries
+  const { resources: allEntries } = await containers.ledger().items
+    .query<any>({
+      query: "SELECT * FROM c WHERE c.companyId = @cid AND IS_DEFINED(c.entryNumber) AND c.status = 'posted'",
+      parameters: [{ name: "@cid", value: companyId }],
+    })
+    .fetchAll();
+
+  // Calculate opening balances (entries before period start) and period movements
+  const openingDebits = new Map<string, number>();
+  const openingCredits = new Map<string, number>();
+  const periodDebits = new Map<string, number>();
+  const periodCredits = new Map<string, number>();
+
+  for (const entry of allEntries) {
+    const isBefore = entry.date < periodStart;
+    const isInPeriod = entry.date >= periodStart && entry.date <= periodEnd;
+
+    for (const line of (entry.lines || [])) {
+      const code = line.accountCode;
+      if (!code) continue;
+
+      if (isBefore) {
+        openingDebits.set(code, (openingDebits.get(code) || 0) + (line.debit || 0));
+        openingCredits.set(code, (openingCredits.get(code) || 0) + (line.credit || 0));
+      } else if (isInPeriod) {
+        periodDebits.set(code, (periodDebits.get(code) || 0) + (line.debit || 0));
+        periodCredits.set(code, (periodCredits.get(code) || 0) + (line.credit || 0));
+      }
+    }
+  }
+
   const lines: TrialBalanceLine[] = [];
-  let totalDebit = 0;
-  let totalCredit = 0;
+  let totalOpeningBalance = 0;
+  let totalPeriodDebit = 0;
+  let totalPeriodCredit = 0;
+  let totalClosingBalance = 0;
 
   for (const account of accounts) {
-    if (!account.balance || account.balance === 0) continue;
-    const isDebitBalance = account.balance > 0;
-    const absBalance = Math.abs(account.balance);
+    const od = roundCurrency(openingDebits.get(account.code) || 0);
+    const oc = roundCurrency(openingCredits.get(account.code) || 0);
+    const pd = roundCurrency(periodDebits.get(account.code) || 0);
+    const pc = roundCurrency(periodCredits.get(account.code) || 0);
 
-    const line: TrialBalanceLine = {
+    // Opening balance: net of all entries before period
+    const openingNet = account.normalSide === "credit" ? (oc - od) : (od - oc);
+    const periodNet = account.normalSide === "credit" ? (pc - pd) : (pd - pc);
+    const closingBalance = roundCurrency(openingNet + periodNet);
+
+    // Skip accounts with no activity and no balance
+    if (od === 0 && oc === 0 && pd === 0 && pc === 0) continue;
+
+    lines.push({
       accountCode: account.code,
       accountName: account.name,
       accountType: account.type,
-      debit: isDebitBalance ? absBalance : 0,
-      credit: isDebitBalance ? 0 : absBalance,
-    };
+      openingBalance: roundCurrency(openingNet),
+      periodDebit: pd,
+      periodCredit: pc,
+      closingBalance,
+    });
 
-    totalDebit += line.debit;
-    totalCredit += line.credit;
-    lines.push(line);
+    totalOpeningBalance += openingNet;
+    totalPeriodDebit += pd;
+    totalPeriodCredit += pc;
+    totalClosingBalance += closingBalance;
   }
 
   return {
     lines,
-    totalDebit: roundCurrency(totalDebit),
-    totalCredit: roundCurrency(totalCredit),
+    periodStart,
+    periodEnd,
+    totalOpeningBalance: roundCurrency(totalOpeningBalance),
+    totalPeriodDebit: roundCurrency(totalPeriodDebit),
+    totalPeriodCredit: roundCurrency(totalPeriodCredit),
+    totalClosingBalance: roundCurrency(totalClosingBalance),
   };
 }
 

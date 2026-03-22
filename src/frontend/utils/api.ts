@@ -59,8 +59,13 @@ export const api = {
     const qs = params.toString();
     return apiFetch(`/companies/${companyId}/reports/profit-loss${qs ? `?${qs}` : ""}`);
   },
-  trialBalance: (companyId: string, asOf?: string) =>
-    apiFetch(`/companies/${companyId}/reports/trial-balance${asOf ? `?asOf=${asOf}` : ""}`),
+  trialBalance: (companyId: string, from?: string, to?: string) => {
+    const params = new URLSearchParams();
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    const qs = params.toString();
+    return apiFetch(`/companies/${companyId}/trial-balance${qs ? `?${qs}` : ""}`);
+  },
 
   // Company
   company: (id: string) => apiFetch(`/companies/${id}`),
