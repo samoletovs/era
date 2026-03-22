@@ -37,6 +37,8 @@ npm-debug.log*
 # Temp
 _temp_*/
 tmp/
+*.png
+.playwright-mcp/
 
 # Old skills location (moved to .github/skills/)
 .skills/
