@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useApp } from "../utils/context";
 
 interface Message {
   id: string;
@@ -6,12 +7,13 @@ interface Message {
   content: string;
 }
 
-const API_BASE = "http://localhost:3000/api";
+const API_BASE = "/api";
 
 // TODO: Replace with real auth token from login flow
 const AUTH_TOKEN = "dev-bypass";
 
 export function Chat() {
+  const { companyId, setCompanyId } = useApp();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
@@ -21,7 +23,6 @@ export function Chat() {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [companyId, setCompanyId] = useState<string>("");
 
   async function handleSend() {
     if (!input.trim() || loading) return;

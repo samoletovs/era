@@ -1,3 +1,6 @@
+import { config } from "dotenv";
+config(); // Load .env file
+
 import express from "express";
 import cors from "cors";
 import { router } from "./api/router.js";
@@ -5,7 +8,7 @@ import { router } from "./api/router.js";
 const app = express();
 const port = process.env.PORT || 3000;
 
-app.use(cors({ origin: process.env.FRONTEND_URL || "http://localhost:5173" }));
+app.use(cors({ origin: (origin, cb) => cb(null, true) }));
 app.use(express.json({ limit: "10mb" }));
 
 // Health check (no auth)

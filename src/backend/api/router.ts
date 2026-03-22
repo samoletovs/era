@@ -5,6 +5,8 @@ import { postJournalEntry, reverseJournalEntry, getTrialBalance, GLError } from 
 import { createInvoice, postInvoice, getInvoice, listInvoices } from "../services/invoice.js";
 import { createAndPostPayment, listPayments } from "../services/payment.js";
 import { createContact, getContact, listContacts } from "../services/contact.js";
+import { createItem, listItems } from "../services/inventory.js";
+import { generateVatReturn, getBalanceSheet, getProfitAndLoss } from "../services/reporting.js";
 import { handleChat } from "../services/agent.js";
 import { containers } from "../services/cosmos.js";
 import type { ApiResponse, Account } from "@shared/types";
@@ -280,6 +282,100 @@ router.get("/companies/:companyId/contacts/:contactId", async (req, res) => {
     return;
   }
   res.json({ data: contact } as ApiResponse);
+});
+
+// ─── Inventory ──────────────────────────────────────────────
+
+router.post("/companies/:companyId/items", async (req, res) => {
+  try {
+    const item = await createItem({
+      companyId: req.params.companyId,
+      ...req.body,
+      createdBy: req.user!.id,
+    });
+    res.status(201).json({ data: item } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "CREATE_FAILED", message: String(err) } });
+  }
+});
+
+// ─── Reporting ──────────────────────────────────────────────
+
+router.get("/companies/:companyId/reports/balance-sheet", async (req, res) => {
+  try {
+    const report = await getBalanceSheet(req.params.companyId);
+    res.json({ data: report } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "REPORT_FAILED", message: String(err) } });
+  }
+});
+
+router.get("/companies/:companyId/reports/profit-loss", async (req, res) => {
+  try {
+    const report = await getProfitAndLoss(req.params.companyId);
+    res.json({ data: report } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "REPORT_FAILED", message: String(err) } });
+  }
+});
+
+router.post("/companies/:companyId/vat-returns", async (req, res) => {
+  try {
+    const { year, month } = req.body;
+    const vatReturn = await generateVatReturn(
+      req.params.companyId,
+      year,
+      month,
+      req.user!.id
+    );
+    res.status(201).json({ data: vatReturn } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "VAT_FAILED", message: String(err) } });
+  }
+});
+
+// ─── Dashboard Summary ──────────────────────────────────────
+
+router.get("/companies/:companyId/dashboard", async (req, res) => {
+  try {
+    const cid = req.params.companyId;
+
+    // Get key account balances in parallel
+    const [cashResult, arResult, apResult, vatOutResult, vatInResult] = await Promise.all([
+      containers.ledger().item(`${cid}-acct-2420`, cid).read<Account>().catch(() => ({ resource: null })),
+      containers.ledger().item(`${cid}-acct-2210`, cid).read<Account>().catch(() => ({ resource: null })),
+      containers.ledger().item(`${cid}-acct-4220`, cid).read<Account>().catch(() => ({ resource: null })),
+      containers.ledger().item(`${cid}-acct-4230`, cid).read<Account>().catch(() => ({ resource: null })),
+      containers.ledger().item(`${cid}-acct-2310`, cid).read<Account>().catch(() => ({ resource: null })),
+    ]);
+
+    const cash = cashResult.resource?.balance ?? 0;
+    const receivables = arResult.resource?.balance ?? 0;
+    const payables = Math.abs(apResult.resource?.balance ?? 0);
+    const vatPayable = Math.abs(vatOutResult.resource?.balance ?? 0);
+    const vatReceivable = vatInResult.resource?.balance ?? 0;
+    const vatDue = Math.round((vatPayable - vatReceivable) * 100) / 100;
+
+    // Recent invoices
+    const { resources: recentInvoices } = await containers.documents().items
+      .query({
+        query: "SELECT TOP 5 c.invoiceNumber, c.type, c.contactName, c.total, c.status, c.date FROM c WHERE c.companyId = @cid AND IS_DEFINED(c.invoiceNumber) ORDER BY c.date DESC",
+        parameters: [{ name: "@cid", value: cid }],
+      })
+      .fetchAll();
+
+    res.json({
+      data: {
+        cash,
+        receivables,
+        payables,
+        vatDue,
+        recentInvoices,
+      },
+    } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "DASHBOARD_FAILED", message: String(err) } });
+  }
 });
 
 // ─── Agent Chat ─────────────────────────────────────────────

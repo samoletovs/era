@@ -230,4 +230,86 @@ export const AGENT_TOOLS: ChatCompletionTool[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "create_item",
+      description: "Create a product or service item in the inventory catalog",
+      parameters: {
+        type: "object",
+        properties: {
+          companyId: { type: "string" },
+          code: { type: "string", description: "Item code/SKU" },
+          name: { type: "string" },
+          description: { type: "string" },
+          type: { type: "string", enum: ["product", "service"] },
+          unitOfMeasure: { type: "string", description: "e.g. 'hour', 'piece', 'kg'" },
+          costPrice: { type: "number" },
+          sellingPrice: { type: "number" },
+          vatRate: { type: "number", enum: [0, 5, 12, 21] },
+          purchaseAccountCode: { type: "string" },
+          salesAccountCode: { type: "string" },
+        },
+        required: ["companyId", "code", "name", "type", "unitOfMeasure", "sellingPrice"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_items",
+      description: "List all items (products and services) in the inventory catalog",
+      parameters: {
+        type: "object",
+        properties: {
+          companyId: { type: "string" },
+        },
+        required: ["companyId"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "generate_vat_return",
+      description: "Generate a monthly VAT return (PVN deklarācija) for a given period",
+      parameters: {
+        type: "object",
+        properties: {
+          companyId: { type: "string" },
+          year: { type: "number", description: "Year, e.g. 2026" },
+          month: { type: "number", description: "Month 1-12" },
+        },
+        required: ["companyId", "year", "month"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_balance_sheet",
+      description: "Generate a Balance Sheet (Bilance) showing assets, liabilities, and equity",
+      parameters: {
+        type: "object",
+        properties: {
+          companyId: { type: "string" },
+        },
+        required: ["companyId"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_profit_and_loss",
+      description: "Generate a Profit & Loss statement (Peļņas vai zaudējumu aprēķins) showing revenue, expenses, and net profit",
+      parameters: {
+        type: "object",
+        properties: {
+          companyId: { type: "string" },
+        },
+        required: ["companyId"],
+      },
+    },
+  },
 ];

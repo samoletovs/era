@@ -6,6 +6,8 @@ import { createContact, listContacts } from "./contact.js";
 import { createInvoice, postInvoice, listInvoices } from "./invoice.js";
 import { createAndPostPayment } from "./payment.js";
 import { postJournalEntry, getTrialBalance, getAccountBalance } from "./ledger.js";
+import { createItem, listItems } from "./inventory.js";
+import { generateVatReturn, getBalanceSheet, getProfitAndLoss } from "./reporting.js";
 
 // ─── OpenAI Client ──────────────────────────────────────────
 
@@ -143,6 +145,39 @@ async function executeTool(name: string, args: Record<string, unknown>, userId: 
       const balance = await getAccountBalance(args.companyId as string, args.accountCode as string);
       return { accountCode: args.accountCode, balance };
     }
+
+    case "create_item":
+      return createItem({
+        companyId: args.companyId as string,
+        code: args.code as string,
+        name: args.name as string,
+        description: args.description as string | undefined,
+        type: args.type as "product" | "service",
+        unitOfMeasure: args.unitOfMeasure as string,
+        costPrice: args.costPrice as number,
+        sellingPrice: args.sellingPrice as number,
+        vatRate: (args.vatRate as number) ?? 21,
+        purchaseAccountCode: (args.purchaseAccountCode as string) || "6350",
+        salesAccountCode: (args.salesAccountCode as string) || "5120",
+        createdBy: userId,
+      });
+
+    case "list_items":
+      return listItems(args.companyId as string);
+
+    case "generate_vat_return":
+      return generateVatReturn(
+        args.companyId as string,
+        args.year as number,
+        args.month as number,
+        userId
+      );
+
+    case "get_balance_sheet":
+      return getBalanceSheet(args.companyId as string);
+
+    case "get_profit_and_loss":
+      return getProfitAndLoss(args.companyId as string);
 
     default:
       return { error: `Unknown tool: ${name}` };
