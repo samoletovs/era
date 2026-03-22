@@ -341,3 +341,139 @@ export async function handleChat(input: ChatInput): Promise<string> {
 
   return "I performed multiple operations. Let me know if you need anything else.";
 }
+
+// ─── AI: Parse Item Description ─────────────────────────────
+
+export interface ParsedItemFields {
+  name: string;
+  description: string;
+  type: "product" | "service";
+  unitOfMeasure: string;
+  costPrice: number;
+  sellingPrice: number;
+  vatRate: number;
+  purchaseAccountCode: string;
+  salesAccountCode: string;
+}
+
+const PARSE_ITEM_PROMPT = `You are an ERP item master assistant for a Latvian SIA company. Given a free-text description of an item or service, extract structured item fields.
+
+Return ONLY valid JSON with these fields:
+- name: short item name (max 80 chars)
+- description: one-line description
+- type: "product" or "service"
+- unitOfMeasure: e.g. "pcs", "hour", "kg", "litre", "m", "unit"
+- costPrice: estimated cost price in EUR (number, 0 if unknown)
+- sellingPrice: selling price in EUR (number, 0 if unknown)
+- vatRate: VAT rate (21 for standard, 12 for reduced food/pharma, 5 for books/periodicals, 0 for exports)
+- purchaseAccountCode: GL account code for purchases ("6110" for goods, "6340" for office supplies, "6350" for services, "6330" for rent, "6310" for salaries, etc.)
+- salesAccountCode: GL account code for sales ("5110" for products, "5120" for services)
+
+Latvian chart of accounts context:
+- 5110: Product sales, 5120: Service revenue
+- 6110: COGS, 6210: Marketing, 6220: Transport, 6310: Salaries, 6320: Social tax
+- 6330: Rent/utilities, 6340: Office supplies, 6350: Professional services
+- 6360: Communication, 6370: Insurance, 6380: Depreciation, 6430: Bank fees
+
+Default to 21% VAT unless the item clearly falls into a reduced category.
+If no price is mentioned, use 0.
+Respond with the JSON object only, no markdown fences.`;
+
+export async function parseItemDescription(description: string): Promise<ParsedItemFields> {
+  const response = await getClient().chat.completions.create({
+    model: DEPLOYMENT,
+    messages: [
+      { role: "system", content: PARSE_ITEM_PROMPT },
+      { role: "user", content: description },
+    ],
+    temperature: 0.1,
+    max_tokens: 500,
+  });
+
+  const content = response.choices[0]?.message?.content || "{}";
+  // Strip markdown fences if present
+  const cleaned = content.replace(/```json?\n?/g, "").replace(/```/g, "").trim();
+  const parsed = JSON.parse(cleaned);
+
+  return {
+    name: String(parsed.name || "").slice(0, 80),
+    description: String(parsed.description || ""),
+    type: parsed.type === "service" ? "service" : "product",
+    unitOfMeasure: String(parsed.unitOfMeasure || "pcs"),
+    costPrice: Number(parsed.costPrice) || 0,
+    sellingPrice: Number(parsed.sellingPrice) || 0,
+    vatRate: [0, 5, 12, 21].includes(Number(parsed.vatRate)) ? Number(parsed.vatRate) : 21,
+    purchaseAccountCode: String(parsed.purchaseAccountCode || "6110"),
+    salesAccountCode: String(parsed.salesAccountCode || "5110"),
+  };
+}
+
+// ─── AI: Parse Invoice Description ──────────────────────────
+
+export interface ParsedInvoiceFields {
+  type: "sales" | "purchase";
+  contactName: string;
+  date: string;
+  dueDate: string;
+  lines: Array<{
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    vatRate: number;
+    accountCode: string;
+  }>;
+}
+
+const PARSE_INVOICE_PROMPT = `You are an ERP invoice assistant for a Latvian SIA company. Given a free-text description of an invoice to create, extract structured invoice fields.
+
+Return ONLY valid JSON with these fields:
+- type: "sales" (we sell to them) or "purchase" (we buy from them)
+- contactName: customer or vendor name
+- date: invoice date in YYYY-MM-DD format (use today if not specified: ${new Date().toISOString().slice(0, 10)})
+- dueDate: due date in YYYY-MM-DD format (default: 30 days from date)
+- lines: array of line items, each with:
+  - description: line item description
+  - quantity: number (default 1)
+  - unitPrice: price per unit in EUR (number)
+  - vatRate: VAT rate (21 for standard, 12 for reduced, 5 for books, 0 for exports)
+  - accountCode: GL account code
+
+Latvian chart of accounts context for account codes:
+- Sales invoices: 5110 (product sales), 5120 (service revenue)
+- Purchase invoices: 6110 (COGS), 6210 (marketing), 6220 (transport), 6310 (salaries), 6330 (rent/utilities), 6340 (office supplies), 6350 (professional services), 6360 (communication), 6370 (insurance)
+
+Default to 21% VAT unless clearly reduced. Default to "sales" if type is ambiguous.
+Respond with the JSON object only, no markdown fences.`;
+
+export async function parseInvoiceDescription(description: string): Promise<ParsedInvoiceFields> {
+  const response = await getClient().chat.completions.create({
+    model: DEPLOYMENT,
+    messages: [
+      { role: "system", content: PARSE_INVOICE_PROMPT },
+      { role: "user", content: description },
+    ],
+    temperature: 0.1,
+    max_tokens: 800,
+  });
+
+  const content = response.choices[0]?.message?.content || "{}";
+  const cleaned = content.replace(/```json?\n?/g, "").replace(/```/g, "").trim();
+  const parsed = JSON.parse(cleaned);
+
+  const today = new Date().toISOString().slice(0, 10);
+  const defaultDue = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+
+  return {
+    type: parsed.type === "purchase" ? "purchase" : "sales",
+    contactName: String(parsed.contactName || "").slice(0, 120),
+    date: String(parsed.date || today),
+    dueDate: String(parsed.dueDate || defaultDue),
+    lines: (parsed.lines || []).map((l: any) => ({
+      description: String(l.description || "Item"),
+      quantity: Number(l.quantity) || 1,
+      unitPrice: Number(l.unitPrice) || 0,
+      vatRate: [0, 5, 12, 21].includes(Number(l.vatRate)) ? Number(l.vatRate) : 21,
+      accountCode: String(l.accountCode || (parsed.type === "purchase" ? "6350" : "5110")),
+    })),
+  };
+}

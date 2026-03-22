@@ -37,7 +37,73 @@ export interface CompanySettings {
   defaultPaymentTermsDays: number;
   invoiceNumberPrefix: string;
   nextInvoiceNumber: number;
+  numberFormat?: NumberFormat;
+  dateFormat?: DateFormat;
+  dateTimeFormat?: DateTimeFormat;
+  sequences?: Record<string, NumberSequence>;
 }
+
+// Configurable number sequences for all document/record types
+export type SequenceType =
+  | "salesInvoice"
+  | "purchaseInvoice"
+  | "creditNote"
+  | "payment"
+  | "journalEntry"
+  | "fixedAsset"
+  | "item"
+  | "contact";
+
+export interface NumberSequence {
+  prefix: string;           // e.g. "INV", "PAY", "FA"
+  nextNumber: number;       // current counter, incremented on use
+  padding: number;          // zero-pad width (e.g. 6 → "000001", 8 → "00000001")
+  suffix?: string;          // optional suffix after number, e.g. "-2026"
+  separator?: string;       // between prefix and number, default "-"
+}
+
+// Default sequences applied when a company is created
+export const DEFAULT_SEQUENCES: Record<SequenceType, NumberSequence> = {
+  salesInvoice:    { prefix: "INV",  nextNumber: 1, padding: 6, separator: "-" },
+  purchaseInvoice: { prefix: "PINV", nextNumber: 1, padding: 6, separator: "-" },
+  creditNote:      { prefix: "CN",   nextNumber: 1, padding: 6, separator: "-" },
+  payment:         { prefix: "PAY",  nextNumber: 1, padding: 6, separator: "-" },
+  journalEntry:    { prefix: "JE",   nextNumber: 1, padding: 6, separator: "-" },
+  fixedAsset:      { prefix: "FA",   nextNumber: 1, padding: 6, separator: "-" },
+  item:            { prefix: "ITEM", nextNumber: 1, padding: 6, separator: "-" },
+  contact:         { prefix: "C",    nextNumber: 1, padding: 6, separator: "-" },
+};
+
+export const SEQUENCE_LABELS: Record<SequenceType, string> = {
+  salesInvoice:    "Sales invoices",
+  purchaseInvoice: "Purchase invoices",
+  creditNote:      "Credit notes",
+  payment:         "Payments",
+  journalEntry:    "Journal entries",
+  fixedAsset:      "Fixed assets",
+  item:            "Items",
+  contact:         "Contacts",
+};
+
+export type NumberFormat = "space_comma" | "dot_comma" | "comma_dot" | "space_dot" | "none_dot" | "none_comma";
+// "space_comma"  → 1 234 567,89  (Latvian/French)
+// "dot_comma"    → 1.234.567,89  (German/Italian)
+// "comma_dot"    → 1,234,567.89  (English/US)
+// "space_dot"    → 1 234 567.89
+// "none_dot"     → 1234567.89
+// "none_comma"   → 1234567,89
+
+export type DateFormat = "dd.MM.yyyy" | "dd/MM/yyyy" | "MM/dd/yyyy" | "yyyy-MM-dd" | "dd-MM-yyyy" | "dd MMM yyyy";
+// "dd.MM.yyyy"   → 22.03.2026  (Latvia, Germany)
+// "dd/MM/yyyy"   → 22/03/2026  (UK, France)
+// "MM/dd/yyyy"   → 03/22/2026  (US)
+// "yyyy-MM-dd"   → 2026-03-22  (ISO)
+// "dd-MM-yyyy"   → 22-03-2026
+// "dd MMM yyyy"  → 22 Mar 2026
+
+export type DateTimeFormat = "24h" | "12h";
+// "24h" → 14:30   (European)
+// "12h" → 2:30 PM (US/UK)
 
 export interface BankAccount {
   name: string;
@@ -102,6 +168,7 @@ export interface JournalLine {
 // ─── Contacts (Customers & Vendors) ─────────────────────────
 
 export interface Contact extends BaseEntity {
+  contactNumber?: string;
   type: "customer" | "vendor" | "both";
   name: string;
   registrationNumber?: string;
@@ -159,6 +226,7 @@ export interface InvoiceLine {
 
 export interface Payment extends BaseEntity {
   docType: "payment";
+  paymentNumber?: string;
   type: "incoming" | "outgoing";
   contactId: string;
   contactName: string;
@@ -348,6 +416,32 @@ export interface FiscalPeriod {
   closedAt?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+// ─── Period Close Runs ──────────────────────────────────────
+
+export interface PeriodCloseStep {
+  name: string;
+  status: "completed" | "skipped" | "failed";
+  detail: string;
+  error?: string;
+  journalEntryIds?: string[];
+}
+
+export interface PeriodCloseRun {
+  id: string;
+  companyId: string;
+  docType: "period-close-run";
+  type: "month-end" | "year-end";
+  period?: string;              // "2026-03" for month-end
+  fiscalYear?: number;          // 2025 for year-end
+  steps: PeriodCloseStep[];
+  closingEntryId?: string;      // year-end closing journal entry
+  netResult?: number;           // year-end P&L transfer amount
+  status: "completed" | "partial" | "failed";
+  startedBy: string;
+  startedAt: string;
+  completedAt: string;
 }
 
 // ─── Shared ─────────────────────────────────────────────────

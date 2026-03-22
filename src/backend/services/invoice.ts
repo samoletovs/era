@@ -3,6 +3,7 @@ import { containers } from "./cosmos.js";
 import { postJournalEntry, GLError } from "./ledger.js";
 import { emitEvent } from "./events.js";
 import { getActiveRule, evaluateInvoiceRule } from "./posting-rules.js";
+import { getNextNumber } from "./sequences.js";
 import type { Invoice, InvoiceLine, JournalLine, Company } from "@shared/types";
 import { VAT_RATES } from "@shared/constants";
 
@@ -23,15 +24,8 @@ function calcLineTotals(line: Omit<InvoiceLine, "vatAmount" | "lineTotal">): Inv
 }
 
 async function nextInvoiceNumber(company: Company, type: "sales" | "purchase"): Promise<string> {
-  const prefix = type === "sales" ? company.settings.invoiceNumberPrefix : "PINV";
-  const num = company.settings.nextInvoiceNumber;
-
-  // Increment counter
-  company.settings.nextInvoiceNumber = num + 1;
-  company.updatedAt = new Date().toISOString();
-  await containers.companies().item(company.id, company.id).replace(company);
-
-  return `${prefix}-${String(num).padStart(5, "0")}`;
+  const seqType = type === "sales" ? "salesInvoice" as const : "purchaseInvoice" as const;
+  return getNextNumber(company.id, seqType);
 }
 
 // ─── Create Invoice ─────────────────────────────────────────
@@ -417,7 +411,7 @@ export async function createCreditNote(input: CreateCreditNoteInput): Promise<In
   const vatAmount = roundCurrency(creditLines.reduce((s, l) => s + l.vatAmount, 0));
   const total = roundCurrency(subtotal + vatAmount);
 
-  const invoiceNumber = await nextInvoiceNumber(company, original.type);
+  const invoiceNumber = await getNextNumber(input.companyId, "creditNote");
   const now = new Date().toISOString();
 
   const creditNote: Invoice = {

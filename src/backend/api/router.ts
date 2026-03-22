@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.js";
-import { createCompany, getCompany, updateCompany } from "../services/company.js";
+import { createCompany, getCompany, updateCompany, deleteCompany, getCompanyStats } from "../services/company.js";
 import { postJournalEntry, reverseJournalEntry, getTrialBalance, GLError } from "../services/ledger.js";
 import { createInvoice, postInvoice, getInvoice, listInvoices, findDuplicateInvoice, cancelInvoice, getInvoicePostings, createCreditNote } from "../services/invoice.js";
 import { createAndPostPayment, listPayments } from "../services/payment.js";
@@ -9,15 +9,15 @@ import { createItem, listItems } from "../services/inventory.js";
 import { generateVatReturn, getBalanceSheet, getProfitAndLoss, generateVatDeclaration, generateAnnualReport, getAgingReport, markOverdueInvoices } from "../services/reporting.js";
 import { searchCompanyByName, searchCompanyByRegNumber } from "../services/company-lookup.js";
 import { recognizeInvoice } from "../services/invoice-recognition.js";
-import { handleChat } from "../services/agent.js";
+import { handleChat, parseItemDescription, parseInvoiceDescription } from "../services/agent.js";
 import { seedRules, getActiveRule } from "../services/posting-rules.js";
 import { closePeriod, reopenPeriod, yearEndClose, getPeriodStatus } from "../services/period-close.js";
 import { generateInvoicePdf } from "../services/invoice-pdf.js";
-import { importBankStatement, postUnmatchedLine, completeReconciliation, listReconciliations } from "../services/bank-reconciliation.js";
+import { importBankStatement, postUnmatchedLine, completeReconciliation, listReconciliations, getReconciliation, getOpenInvoices, suggestLedgerAccount, matchLineToInvoice, addManualTransaction } from "../services/bank-reconciliation.js";
 import { createRecurringTemplate, listRecurringTemplates, executeRecurringTemplate } from "../services/recurring-entries.js";
 import { acquireAsset, runDepreciation, disposeAsset, listFixedAssets } from "../services/fixed-assets.js";
 import { setBudget, getBudgetVsActual } from "../services/budget.js";
-import { runMonthEnd, runYearEnd, checkCompanyHealth } from "../services/autonomous-tasks.js";
+import { runMonthEnd, runYearEnd, checkCompanyHealth, listCloseRuns, getCloseRun } from "../services/autonomous-tasks.js";
 import { containers } from "../services/cosmos.js";
 import type { ApiResponse, Account, Company, Feedback, PostingRule, BusinessEvent } from "@shared/types";
 
@@ -108,17 +108,130 @@ router.patch("/companies/:id", async (req, res) => {
   }
 });
 
+router.get("/companies/:id/stats", async (req, res) => {
+  try {
+    const stats = await getCompanyStats(req.params.id);
+    res.json({ data: stats } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "SYS-001", message: String(err) } });
+  }
+});
+
+router.delete("/companies/:id", async (req, res) => {
+  try {
+    const result = await deleteCompany(req.params.id);
+    res.json({ data: result } as ApiResponse);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    const status = message === "Company not found" ? 404 : 500;
+    res.status(status).json({ error: { code: status === 404 ? "NOT_FOUND" : "DELETE_FAILED", message } });
+  }
+});
+
 // Chart of Accounts
 router.get("/companies/:companyId/accounts", async (req, res) => {
   try {
-    const { resources } = await containers.ledger().items
+    const { resources: accounts } = await containers.ledger().items
       .query<Account>({
         query: "SELECT * FROM c WHERE c.companyId = @companyId AND (c.docType = 'account' OR (IS_DEFINED(c.code) AND IS_DEFINED(c.normalSide))) ORDER BY c.code",
         parameters: [{ name: "@companyId", value: req.params.companyId }],
       })
       .fetchAll();
-    const response: ApiResponse = { data: resources };
+
+    const asOf = req.query.asOf as string | undefined;
+    if (asOf) {
+      // Compute balances from journal entries up to asOf date
+      const { resources: entries } = await containers.ledger().items
+        .query<any>({
+          query: "SELECT * FROM c WHERE c.companyId = @cid AND (c.docType = 'journal-entry' OR IS_DEFINED(c.entryNumber)) AND c.status = 'posted' AND c.date <= @asOf",
+          parameters: [
+            { name: "@cid", value: req.params.companyId },
+            { name: "@asOf", value: asOf },
+          ],
+        })
+        .fetchAll();
+
+      const deltas = new Map<string, number>();
+      for (const entry of entries) {
+        for (const line of (entry.lines || [])) {
+          if (!line.accountCode) continue;
+          deltas.set(line.accountCode, (deltas.get(line.accountCode) || 0) + (line.debit || 0) - (line.credit || 0));
+        }
+      }
+
+      for (const account of accounts) {
+        if (account.isPostable) {
+          const delta = deltas.get(account.code) || 0;
+          account.balance = Math.round((account.normalSide === "credit" ? -delta : delta) * 100) / 100;
+        }
+      }
+    }
+
+    const response: ApiResponse = { data: accounts };
     res.json(response);
+  } catch (err) {
+    res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
+  }
+});
+
+// Account transactions (journal entry lines for a specific account)
+router.get("/companies/:companyId/accounts/:accountCode/transactions", async (req, res) => {
+  try {
+    const { companyId, accountCode } = req.params;
+    const asOf = req.query.asOf as string | undefined;
+
+    let query = "SELECT * FROM c WHERE c.companyId = @cid AND (c.docType = 'journal-entry' OR IS_DEFINED(c.entryNumber)) AND c.status = 'posted'";
+    const parameters: { name: string; value: string }[] = [
+      { name: "@cid", value: companyId },
+    ];
+    if (asOf) {
+      query += " AND c.date <= @asOf";
+      parameters.push({ name: "@asOf", value: asOf });
+    }
+    query += " ORDER BY c.date DESC";
+
+    const { resources: entries } = await containers.ledger().items
+      .query<any>({ query, parameters })
+      .fetchAll();
+
+    // Filter to entries that touch this account and extract relevant lines
+    const transactions: { entryId: string; entryNumber: string; date: string; description: string; debit: number; credit: number; sourceType: string }[] = [];
+    let runningBalance = 0;
+
+    // Process in chronological order for running balance
+    const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date) || a.entryNumber.localeCompare(b.entryNumber));
+
+    // Look up account to determine normal side
+    const accountId = `${companyId}-acct-${accountCode}`;
+    let normalSide: "debit" | "credit" = "debit";
+    try {
+      const { resource } = await containers.ledger().item(accountId, companyId).read<Account>();
+      if (resource) normalSide = resource.normalSide;
+    } catch { /* use default */ }
+
+    for (const entry of sorted) {
+      for (const line of (entry.lines || [])) {
+        if (line.accountCode !== accountCode) continue;
+        const delta = normalSide === "credit"
+          ? (line.credit || 0) - (line.debit || 0)
+          : (line.debit || 0) - (line.credit || 0);
+        runningBalance = Math.round((runningBalance + delta) * 100) / 100;
+        transactions.push({
+          entryId: entry.id,
+          entryNumber: entry.entryNumber,
+          date: entry.date,
+          description: entry.description,
+          debit: line.debit || 0,
+          credit: line.credit || 0,
+          sourceType: entry.sourceType || "manual",
+        });
+      }
+    }
+
+    // Return in reverse chronological order
+    transactions.reverse();
+
+    res.json({ data: { transactions, balance: runningBalance } } as ApiResponse);
   } catch (err) {
     res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
   }
@@ -543,6 +656,34 @@ router.post("/companies/:companyId/items", async (req, res) => {
   }
 });
 
+router.post("/companies/:companyId/items/parse-description", async (req, res) => {
+  try {
+    const description = req.body.description as string;
+    if (!description?.trim()) {
+      res.status(400).json({ error: { code: "VAL-001", message: "Description is required" } });
+      return;
+    }
+    const fields = await parseItemDescription(description.trim());
+    res.json({ data: fields } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "PARSE_FAILED", message: String(err) } });
+  }
+});
+
+router.post("/companies/:companyId/invoices/parse-description", async (req, res) => {
+  try {
+    const description = req.body.description as string;
+    if (!description?.trim()) {
+      res.status(400).json({ error: { code: "VAL-001", message: "Description is required" } });
+      return;
+    }
+    const fields = await parseInvoiceDescription(description.trim());
+    res.json({ data: fields } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "PARSE_FAILED", message: String(err) } });
+  }
+});
+
 // ─── Reporting ──────────────────────────────────────────────
 
 router.get("/companies/:companyId/reports/balance-sheet", async (req, res) => {
@@ -629,12 +770,38 @@ router.get("/companies/:companyId/dashboard", async (req, res) => {
 router.post("/chat", async (req, res) => {
   try {
     const { companyId, message, history } = req.body;
+    const userId = req.user!.id;
+    const now = new Date().toISOString();
+
+    // Save user message
+    if (companyId) {
+      await containers.chat().items.create({
+        id: `chat-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        companyId,
+        role: "user" as const,
+        content: message,
+        timestamp: now,
+      });
+    }
+
     const response = await handleChat({
       companyId,
       message,
       history: history || [],
-      userId: req.user!.id,
+      userId,
     });
+
+    // Save assistant response
+    if (companyId) {
+      await containers.chat().items.create({
+        id: `chat-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        companyId,
+        role: "assistant" as const,
+        content: response,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     res.json({ data: { response } } as ApiResponse);
   } catch (err) {
     res.status(500).json({ error: { code: "AGENT_ERROR", message: String(err) } });
@@ -904,6 +1071,24 @@ router.get("/companies/:companyId/bank-reconciliations", async (req, res) => {
   }
 });
 
+router.get("/companies/:companyId/bank-reconciliations/open-invoices", async (req, res) => {
+  try {
+    const invoices = await getOpenInvoices(req.params.companyId);
+    res.json({ data: invoices } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
+  }
+});
+
+router.get("/companies/:companyId/bank-reconciliations/:reconId", async (req, res) => {
+  try {
+    const recon = await getReconciliation(req.params.companyId, req.params.reconId);
+    res.json({ data: recon } as ApiResponse);
+  } catch (err) {
+    handleGLError(err, res);
+  }
+});
+
 router.post("/companies/:companyId/bank-reconciliations/:reconId/post-line", async (req, res) => {
   try {
     await postUnmatchedLine(
@@ -913,6 +1098,52 @@ router.post("/companies/:companyId/bank-reconciliations/:reconId/post-line", asy
     res.json({ data: { success: true } } as ApiResponse);
   } catch (err) {
     handleGLError(err, res);
+  }
+});
+
+router.post("/companies/:companyId/bank-reconciliations/:reconId/match-invoice", async (req, res) => {
+  try {
+    const result = await matchLineToInvoice({
+      companyId: req.params.companyId,
+      reconciliationId: req.params.reconId,
+      lineId: req.body.lineId,
+      invoiceId: req.body.invoiceId,
+      invoiceNumber: req.body.invoiceNumber,
+      allocatedAmount: req.body.allocatedAmount,
+      differenceAccountCode: req.body.differenceAccountCode,
+      differenceAccountName: req.body.differenceAccountName,
+      createdBy: req.user!.id,
+    });
+    res.json({ data: result } as ApiResponse);
+  } catch (err) {
+    handleGLError(err, res);
+  }
+});
+
+router.post("/companies/:companyId/bank-reconciliations/:reconId/manual-transaction", async (req, res) => {
+  try {
+    const result = await addManualTransaction({
+      companyId: req.params.companyId,
+      reconciliationId: req.params.reconId,
+      date: req.body.date,
+      description: req.body.description,
+      amount: req.body.amount,
+      accountCode: req.body.accountCode,
+      accountName: req.body.accountName,
+      createdBy: req.user!.id,
+    });
+    res.json({ data: result } as ApiResponse);
+  } catch (err) {
+    handleGLError(err, res);
+  }
+});
+
+router.post("/companies/:companyId/bank-reconciliations/:reconId/suggest-account", async (req, res) => {
+  try {
+    const suggestion = suggestLedgerAccount(req.body.description || "");
+    res.json({ data: suggestion } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "SUGGEST_FAILED", message: String(err) } });
   }
 });
 
@@ -998,6 +1229,43 @@ router.post("/companies/:companyId/fixed-assets/:assetId/dispose", async (req, r
   }
 });
 
+router.get("/companies/:companyId/fixed-assets/:assetId/transactions", async (req, res) => {
+  try {
+    const { companyId, assetId } = req.params;
+    // First get the asset to know its account codes
+    const { resource: asset } = await containers.inventory().item(assetId, companyId).read<any>();
+    const accountCodes = asset
+      ? [asset.assetAccountCode, asset.depreciationAccountCode, asset.expenseAccountCode].filter(Boolean)
+      : [];
+
+    // Find entries linked by sourceId OR containing lines with this asset's account codes
+    const { resources: entries } = await containers.ledger().items
+      .query<any>({
+        query: `SELECT * FROM c WHERE c.companyId = @cid AND (c.docType = 'journal-entry' OR IS_DEFINED(c.entryNumber)) AND (c.sourceId = @sid OR ARRAY_CONTAINS(@codes, c.lines[0].accountCode) OR ARRAY_CONTAINS(@codes, c.lines[1].accountCode)) ORDER BY c.date DESC`,
+        parameters: [
+          { name: "@cid", value: companyId },
+          { name: "@sid", value: assetId },
+          { name: "@codes", value: accountCodes },
+        ],
+      })
+      .fetchAll();
+
+    // Filter to only entries that actually reference this asset's accounts in their lines
+    const filtered = entries.filter((e: any) => {
+      if (e.sourceId === assetId) return true;
+      if (!e.lines) return false;
+      return e.lines.some((l: any) =>
+        accountCodes.includes(l.accountCode) &&
+        (l.accountName?.includes(asset?.name) || l.description?.includes(asset?.name))
+      );
+    });
+
+    res.json({ data: filtered } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
+  }
+});
+
 // ─── Budgets ────────────────────────────────────────────────
 
 router.post("/companies/:companyId/budgets", async (req, res) => {
@@ -1050,5 +1318,24 @@ router.get("/companies/:companyId/health", async (req, res) => {
     res.json({ data: health } as ApiResponse);
   } catch (err) {
     res.status(500).json({ error: { code: "HEALTH_CHECK_FAILED", message: String(err) } });
+  }
+});
+
+router.get("/companies/:companyId/close-runs", async (req, res) => {
+  try {
+    const runs = await listCloseRuns(req.params.companyId);
+    res.json({ data: runs } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "SYS-001", message: String(err) } });
+  }
+});
+
+router.get("/companies/:companyId/close-runs/:runId", async (req, res) => {
+  try {
+    const run = await getCloseRun(req.params.companyId, req.params.runId);
+    if (!run) return res.status(404).json({ error: { code: "SYS-002", message: "Close run not found" } });
+    res.json({ data: run } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "SYS-001", message: String(err) } });
   }
 });

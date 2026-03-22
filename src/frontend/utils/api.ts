@@ -20,7 +20,12 @@ export const api = {
   dashboard: (companyId: string) => apiFetch(`/companies/${companyId}/dashboard`),
 
   // Accounts
-  accounts: (companyId: string) => apiFetch(`/companies/${companyId}/accounts`),
+  accounts: (companyId: string, asOf?: string) =>
+    apiFetch(`/companies/${companyId}/accounts${asOf ? `?asOf=${asOf}` : ""}`),
+  accountTransactions: (companyId: string, accountCode: string, asOf?: string) =>
+    apiFetch<{ transactions: { entryId: string; entryNumber: string; date: string; description: string; debit: number; credit: number; sourceType: string }[]; balance: number }>(
+      `/companies/${companyId}/accounts/${accountCode}/transactions${asOf ? `?asOf=${asOf}` : ""}`
+    ),
 
   // Journal entries
   journalEntries: (companyId: string) => apiFetch(`/companies/${companyId}/journal-entries`),
@@ -45,9 +50,23 @@ export const api = {
 
   // Items
   items: (companyId: string) => apiFetch(`/companies/${companyId}/items`),
+  createItem: (companyId: string, body: Record<string, unknown>) =>
+    apiFetch(`/companies/${companyId}/items`, { method: "POST", body: JSON.stringify(body) }),
+  parseItemDescription: (companyId: string, description: string) =>
+    apiFetch(`/companies/${companyId}/items/parse-description`, { method: "POST", body: JSON.stringify({ description }) }),
+
+  // Invoice AI
+  parseInvoiceDescription: (companyId: string, description: string) =>
+    apiFetch(`/companies/${companyId}/invoices/parse-description`, { method: "POST", body: JSON.stringify({ description }) }),
+
+  // Create invoice (direct)
+  createInvoice: (companyId: string, body: Record<string, unknown>) =>
+    apiFetch(`/companies/${companyId}/invoices`, { method: "POST", body: JSON.stringify(body) }),
 
   // Payments
   payments: (companyId: string) => apiFetch(`/companies/${companyId}/payments`),
+  createPayment: (companyId: string, body: Record<string, unknown>) =>
+    apiFetch(`/companies/${companyId}/payments`, { method: "POST", body: JSON.stringify(body) }),
 
   // Reports
   balanceSheet: (companyId: string, asOf?: string) =>
@@ -72,6 +91,10 @@ export const api = {
   updateCompany: (id: string, body: Record<string, unknown>) =>
     apiFetch(`/companies/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   companies: () => apiFetch("/companies"),
+  deleteCompany: (id: string) =>
+    apiFetch(`/companies/${id}`, { method: "DELETE" }),
+  companyStats: (id: string) =>
+    apiFetch<{ transactionCount: number }>(`/companies/${id}/stats`),
 
   // Feedback
   submitFeedback: (body: { page: string; message: string; companyId?: string }) =>
@@ -114,11 +137,25 @@ export const api = {
     apiFetch(`/companies/${companyId}/fixed-assets/depreciate`, { method: "POST", body: JSON.stringify({ period }) }),
   disposeAsset: (companyId: string, assetId: string, amount: number) =>
     apiFetch(`/companies/${companyId}/fixed-assets/${assetId}/dispose`, { method: "POST", body: JSON.stringify({ disposalAmount: amount }) }),
+  assetTransactions: (companyId: string, assetId: string) =>
+    apiFetch(`/companies/${companyId}/fixed-assets/${assetId}/transactions`),
 
   // Bank reconciliation
   bankReconciliations: (companyId: string) => apiFetch(`/companies/${companyId}/bank-reconciliations`),
+  bankReconciliation: (companyId: string, reconId: string) => apiFetch(`/companies/${companyId}/bank-reconciliations/${reconId}`),
   importBankStatement: (companyId: string, body: Record<string, unknown>) =>
     apiFetch(`/companies/${companyId}/bank-reconciliations`, { method: "POST", body: JSON.stringify(body) }),
+  openInvoices: (companyId: string) => apiFetch(`/companies/${companyId}/bank-reconciliations/open-invoices`),
+  postBankLine: (companyId: string, reconId: string, body: Record<string, unknown>) =>
+    apiFetch(`/companies/${companyId}/bank-reconciliations/${reconId}/post-line`, { method: "POST", body: JSON.stringify(body) }),
+  matchInvoice: (companyId: string, reconId: string, body: Record<string, unknown>) =>
+    apiFetch(`/companies/${companyId}/bank-reconciliations/${reconId}/match-invoice`, { method: "POST", body: JSON.stringify(body) }),
+  addManualTransaction: (companyId: string, reconId: string, body: Record<string, unknown>) =>
+    apiFetch(`/companies/${companyId}/bank-reconciliations/${reconId}/manual-transaction`, { method: "POST", body: JSON.stringify(body) }),
+  suggestAccount: (companyId: string, reconId: string, description: string) =>
+    apiFetch(`/companies/${companyId}/bank-reconciliations/${reconId}/suggest-account`, { method: "POST", body: JSON.stringify({ description }) }),
+  completeBankRecon: (companyId: string, reconId: string) =>
+    apiFetch(`/companies/${companyId}/bank-reconciliations/${reconId}/complete`, { method: "POST" }),
 
   // Recurring entries
   recurringTemplates: (companyId: string) => apiFetch(`/companies/${companyId}/recurring-templates`),
@@ -139,6 +176,15 @@ export const api = {
     apiFetch(`/companies/${companyId}/run-month-end`, { method: "POST", body: JSON.stringify({ period }) }),
   runYearEnd: (companyId: string, fiscalYear: number) =>
     apiFetch(`/companies/${companyId}/run-year-end`, { method: "POST", body: JSON.stringify({ fiscalYear }) }),
+
+  // Close run history
+  closeRuns: (companyId: string) =>
+    apiFetch<import("@shared/types").PeriodCloseRun[]>(`/companies/${companyId}/close-runs`),
+  closeRun: (companyId: string, runId: string) =>
+    apiFetch<import("@shared/types").PeriodCloseRun>(`/companies/${companyId}/close-runs/${runId}`),
+
+  // Chat history
+  chatHistory: (companyId: string) => apiFetch<any[]>(`/companies/${companyId}/chat`),
 
   // Event log
   events: (companyId: string, limit?: number) =>

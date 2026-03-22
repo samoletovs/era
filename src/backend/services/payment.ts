@@ -3,6 +3,7 @@ import { containers } from "./cosmos.js";
 import { postJournalEntry, GLError } from "./ledger.js";
 import { emitEvent } from "./events.js";
 import { getActiveRule, evaluatePaymentRule } from "./posting-rules.js";
+import { getNextNumber } from "./sequences.js";
 import type { Payment, PaymentAllocation, Invoice, JournalLine } from "@shared/types";
 
 function roundCurrency(n: number): number {
@@ -44,11 +45,13 @@ export async function createAndPostPayment(input: CreatePaymentInput): Promise<P
     );
   }
 
+  const paymentNumber = await getNextNumber(input.companyId, "payment");
   const now = new Date().toISOString();
   const payment: Payment = {
     id: uuidv4(),
     docType: "payment" as const,
     companyId: input.companyId,
+    paymentNumber,
     type: input.type,
     contactId: input.contactId,
     contactName: input.contactName,

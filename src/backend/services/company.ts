@@ -104,3 +104,78 @@ export async function updateCompany(
   const { resource } = await containers.companies().item(id, id).replace(company);
   return resource ?? null;
 }
+
+export async function getCompanyStats(id: string): Promise<{ transactionCount: number }> {
+  const { resources: txns } = await containers.ledger().items
+    .query<number>({
+      query: "SELECT VALUE COUNT(1) FROM c WHERE c.companyId = @companyId AND c.docType != 'account'",
+      parameters: [{ name: "@companyId", value: id }],
+    })
+    .fetchAll();
+  return { transactionCount: txns[0] ?? 0 };
+}
+
+export async function deleteCompany(id: string): Promise<{ deleted: boolean }> {
+  const company = await getCompany(id);
+  if (!company) throw new Error("Company not found");
+
+  // Delete all ledger items (accounts, journal entries, etc.)
+  const { resources: ledgerItems } = await containers.ledger().items
+    .query<{ id: string }>({
+      query: "SELECT c.id FROM c WHERE c.companyId = @companyId",
+      parameters: [{ name: "@companyId", value: id }],
+    })
+    .fetchAll();
+  for (const item of ledgerItems) {
+    await containers.ledger().item(item.id, id).delete();
+  }
+
+  // Delete documents (invoices)
+  const { resources: docs } = await containers.documents().items
+    .query<{ id: string }>({
+      query: "SELECT c.id FROM c WHERE c.companyId = @companyId",
+      parameters: [{ name: "@companyId", value: id }],
+    })
+    .fetchAll();
+  for (const doc of docs) {
+    await containers.documents().item(doc.id, id).delete();
+  }
+
+  // Delete contacts
+  const { resources: contacts } = await containers.contacts().items
+    .query<{ id: string }>({
+      query: "SELECT c.id FROM c WHERE c.companyId = @companyId",
+      parameters: [{ name: "@companyId", value: id }],
+    })
+    .fetchAll();
+  for (const contact of contacts) {
+    await containers.contacts().item(contact.id, id).delete();
+  }
+
+  // Delete inventory
+  const { resources: items } = await containers.inventory().items
+    .query<{ id: string }>({
+      query: "SELECT c.id FROM c WHERE c.companyId = @companyId",
+      parameters: [{ name: "@companyId", value: id }],
+    })
+    .fetchAll();
+  for (const item of items) {
+    await containers.inventory().item(item.id, id).delete();
+  }
+
+  // Delete events
+  const { resources: events } = await containers.events().items
+    .query<{ id: string }>({
+      query: "SELECT c.id FROM c WHERE c.companyId = @companyId",
+      parameters: [{ name: "@companyId", value: id }],
+    })
+    .fetchAll();
+  for (const event of events) {
+    await containers.events().item(event.id, id).delete();
+  }
+
+  // Delete the company itself
+  await containers.companies().item(id, id).delete();
+
+  return { deleted: true };
+}

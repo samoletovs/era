@@ -189,7 +189,7 @@ export function UploadInvoice() {
             <span>{result.message}</span>
           </div>
 
-          <div style={{ display: "flex", gap: 20, marginTop: 20 }}>
+          <div className="upload-layout" style={{ marginTop: 20 }}>
             {preview && (
               <div className="invoice-preview">
                 <img src={preview} alt="Invoice" />

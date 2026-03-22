@@ -2,7 +2,7 @@
 
 ## Project
 
-ERA (Enterprise Resource Application) — cloud ERP.
+ERA (Enterprise Resource Agents) — cloud ERP.
 
 - **Frontend**: React 18 + TypeScript + Vite
 - **Backend**: Node.js + Express + TypeScript

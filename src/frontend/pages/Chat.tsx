@@ -1,5 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { useLocation } from "react-router-dom";
 import { useApp } from "../utils/context";
+import { api } from "../utils/api";
 
 interface Message {
   id: string;
@@ -21,16 +23,64 @@ function FormattedMessage({ content }: { content: string }) {
 }
 
 export function Chat() {
-  const { companyId, setCompanyId } = useApp();
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "1",
-      role: "system",
-      content: "ERA agent is ready. Ask me to create a company, invoices, record payments, or check your finances.",
-    },
-  ]);
+  const { companyId, setCompanyId, companies } = useApp();
+  const activeCompany = companies.find((c) => c.id === companyId);
+  const location = useLocation();
+  const prefillHandled = useRef(false);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
+
+  // Load chat history from server when company changes
+  useEffect(() => {
+    setHistoryLoaded(false);
+    if (!companyId) {
+      setMessages([{
+        id: "1",
+        role: "system",
+        content: "ERA agent is ready. Ask me to create a company, invoices, record payments, or check your finances.",
+      }]);
+      setHistoryLoaded(true);
+      return;
+    }
+    api.chatHistory(companyId).then((history: any[]) => {
+      const systemMsg: Message = {
+        id: "1",
+        role: "system",
+        content: "ERA agent is ready. Ask me to create a company, invoices, record payments, or check your finances.",
+      };
+      if (history && history.length > 0) {
+        const loaded: Message[] = [systemMsg, ...history.map((m: any) => ({
+          id: m.id,
+          role: m.role as "user" | "assistant",
+          content: m.content,
+        }))];
+        setMessages(loaded);
+      } else {
+        setMessages([systemMsg]);
+      }
+      setHistoryLoaded(true);
+    }).catch(() => {
+      setMessages([{
+        id: "1",
+        role: "system",
+        content: "ERA agent is ready. Ask me to create a company, invoices, record payments, or check your finances.",
+      }]);
+      setHistoryLoaded(true);
+    });
+  }, [companyId]);
+
+  // Handle prefilled message from navigation state (e.g., dashboard checklist)
+  useEffect(() => {
+    const state = location.state as { prefill?: string } | null;
+    if (state?.prefill && !prefillHandled.current) {
+      prefillHandled.current = true;
+      setInput(state.prefill);
+      // Clear the state so it doesn't re-trigger on re-render
+      window.history.replaceState({}, "");
+    }
+  }, [location.state]);
 
   async function handleSend() {
     if (!input.trim() || loading) return;
@@ -96,9 +146,9 @@ export function Chat() {
   return (
     <div>
       <h2 className="page-title">Agent chat</h2>
-      {companyId && (
-        <div style={{ fontSize: "12px", color: "#A0A0A0", marginBottom: 8, fontFamily: "monospace" }}>
-          Company: {companyId}
+      {activeCompany && (
+        <div style={{ fontSize: "12px", color: "#A0A0A0", marginBottom: 8 }}>
+          {activeCompany.name}
         </div>
       )}
       <div className="chat-container">

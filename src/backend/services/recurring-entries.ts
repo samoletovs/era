@@ -38,6 +38,7 @@ export async function createRecurringTemplate(input: {
   const template: RecurringTemplate = {
     id: uuidv4(),
     companyId: input.companyId,
+    docType: "recurring-template" as any,
     name: input.name,
     description: input.description,
     lines: input.lines,

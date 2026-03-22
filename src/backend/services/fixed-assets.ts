@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from "uuid";
 import { containers } from "./cosmos.js";
 import { postJournalEntry, GLError } from "./ledger.js";
 import { emitEvent } from "./events.js";
+import { getNextNumber } from "./sequences.js";
 import type { JournalLine } from "@shared/types";
 
 function roundCurrency(n: number): number {
@@ -57,12 +58,13 @@ interface AcquireAssetInput {
 }
 
 export async function acquireAsset(input: AcquireAssetInput): Promise<FixedAsset> {
+  const code = input.code || await getNextNumber(input.companyId, "fixedAsset");
   const now = new Date().toISOString();
   const asset: FixedAsset = {
     id: uuidv4(),
     companyId: input.companyId,
     docType: "fixed-asset" as const,
-    code: input.code,
+    code,
     name: input.name,
     description: input.description,
     assetAccountCode: input.assetAccountCode,
@@ -88,7 +90,7 @@ export async function acquireAsset(input: AcquireAssetInput): Promise<FixedAsset
     date: input.acquisitionDate,
     description: `Acquire fixed asset: ${input.name}`,
     lines: [
-      { accountCode: input.assetAccountCode, accountName: input.name, debit: input.acquisitionCost, credit: 0, description: `Acquisition — ${input.name}` },
+      { accountCode: input.assetAccountCode, accountName: input.name, debit: input.acquisitionCost, credit: 0, description: `Acquisition - ${input.name}` },
       { accountCode: "2420", accountName: "Bank accounts", debit: 0, credit: input.acquisitionCost, description: `Payment for ${input.name}` },
     ],
     sourceType: "manual",
@@ -116,7 +118,7 @@ export async function runDepreciation(
   companyId: string,
   period: string,
   createdBy: string
-): Promise<{ assetsDepreciated: number; totalAmount: number; journalEntryId?: string }> {
+): Promise<{ assetsDepreciated: number; totalAmount: number; journalEntryId?: string; skipped?: boolean }> {
   const { resources: assets } = await containers.inventory().items
     .query<FixedAsset>({
       query: "SELECT * FROM c WHERE c.companyId = @cid AND c.docType = 'fixed-asset' AND c.status = 'active'",
@@ -125,6 +127,18 @@ export async function runDepreciation(
     .fetchAll();
 
   if (assets.length === 0) return { assetsDepreciated: 0, totalAmount: 0 };
+
+  // Check if depreciation for this period already exists
+  const depDescription = `Monthly depreciation - ${period}`;
+  const { resources: existingEntries } = await containers.ledger().items
+    .query<any>({
+      query: "SELECT * FROM c WHERE c.companyId = @cid AND c.description = @desc AND c.status != 'reversed' AND (c.docType = 'journal-entry' OR IS_DEFINED(c.entryNumber))",
+      parameters: [
+        { name: "@cid", value: companyId },
+        { name: "@desc", value: depDescription },
+      ],
+    })
+    .fetchAll();
 
   const lines: JournalLine[] = [];
   let totalAmount = 0;
@@ -139,27 +153,64 @@ export async function runDepreciation(
     const amount = Math.min(monthlyDepreciation, remaining);
 
     lines.push(
-      { accountCode: asset.expenseAccountCode, accountName: `Depreciation — ${asset.name}`, debit: amount, credit: 0, description: `Monthly depreciation ${period}` },
-      { accountCode: asset.depreciationAccountCode, accountName: `Accum. depreciation — ${asset.name}`, debit: 0, credit: amount, description: `Monthly depreciation ${period}` },
+      { accountCode: asset.expenseAccountCode, accountName: `Depreciation - ${asset.name}`, debit: amount, credit: 0, description: `Monthly depreciation ${period}` },
+      { accountCode: asset.depreciationAccountCode, accountName: `Accum. depreciation - ${asset.name}`, debit: 0, credit: amount, description: `Monthly depreciation ${period}` },
     );
-
-    asset.accumulatedDepreciation = roundCurrency(asset.accumulatedDepreciation + amount);
-    asset.netBookValue = roundCurrency(asset.acquisitionCost - asset.accumulatedDepreciation);
-    if (asset.accumulatedDepreciation >= depreciableAmount) asset.status = "fully-depreciated";
-    asset.updatedAt = new Date().toISOString();
-    await containers.inventory().item(asset.id, companyId).replace(asset);
 
     totalAmount += amount;
   }
 
   if (lines.length === 0) return { assetsDepreciated: 0, totalAmount: 0 };
 
+  // If existing entry has the same total, skip (idempotent)
+  if (existingEntries.length > 0) {
+    const existingTotal = roundCurrency(
+      existingEntries[0].lines?.reduce((s: number, l: any) => s + (l.debit || 0), 0) || 0
+    );
+    if (existingTotal === roundCurrency(totalAmount)) {
+      return { assetsDepreciated: assets.length, totalAmount: roundCurrency(totalAmount), journalEntryId: existingEntries[0].id, skipped: true };
+    }
+
+    // Amounts differ - reverse the old entry and post a new one
+    // First, reverse the asset accum depreciation from the old entry
+    for (const asset of assets) {
+      const oldLines = existingEntries[0].lines?.filter((l: any) =>
+        l.accountName?.includes(asset.name) && l.credit > 0
+      ) || [];
+      const oldAmount = oldLines.reduce((s: number, l: any) => s + l.credit, 0);
+      if (oldAmount > 0) {
+        asset.accumulatedDepreciation = roundCurrency(asset.accumulatedDepreciation - oldAmount);
+        asset.netBookValue = roundCurrency(asset.acquisitionCost - asset.accumulatedDepreciation);
+        if (asset.status === "fully-depreciated") asset.status = "active";
+      }
+    }
+
+    // Reverse the old journal entry
+    const { reverseJournalEntry } = await import("./ledger.js");
+    await reverseJournalEntry(companyId, existingEntries[0].id, createdBy);
+  }
+
+  // Update asset balances
+  for (const asset of assets) {
+    const depreciableAmount = asset.acquisitionCost - asset.residualValue;
+    const monthlyDepreciation = roundCurrency(depreciableAmount / asset.usefulLifeMonths);
+    const remaining = roundCurrency(depreciableAmount - asset.accumulatedDepreciation);
+    if (remaining <= 0) continue;
+
+    const amount = Math.min(monthlyDepreciation, remaining);
+    asset.accumulatedDepreciation = roundCurrency(asset.accumulatedDepreciation + amount);
+    asset.netBookValue = roundCurrency(asset.acquisitionCost - asset.accumulatedDepreciation);
+    if (asset.accumulatedDepreciation >= depreciableAmount) asset.status = "fully-depreciated";
+    asset.updatedAt = new Date().toISOString();
+    await containers.inventory().item(asset.id, companyId).replace(asset);
+  }
+
   const [y, m] = period.split("-").map(Number);
   const lastDay = new Date(y, m, 0).getDate();
   const entry = await postJournalEntry({
     companyId,
     date: `${period}-${lastDay}`,
-    description: `Monthly depreciation — ${period}`,
+    description: depDescription,
     lines,
     sourceType: "adjustment",
     createdBy,
@@ -191,7 +242,7 @@ export async function disposeAsset(
   ];
 
   if (disposalAmount > 0) {
-    lines.push({ accountCode: "2420", accountName: "Bank accounts", debit: disposalAmount, credit: 0, description: `Disposal proceeds — ${asset.name}` });
+    lines.push({ accountCode: "2420", accountName: "Bank accounts", debit: disposalAmount, credit: 0, description: `Disposal proceeds - ${asset.name}` });
   }
 
   if (gainOrLoss > 0) {

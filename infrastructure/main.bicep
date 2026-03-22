@@ -12,6 +12,22 @@ param location string = resourceGroup().location
 @description('Application name prefix')
 param appName string = 'era'
 
+@description('Azure OpenAI endpoint URL')
+param azureOpenAiEndpoint string
+
+@description('Azure OpenAI API key')
+@secure()
+param azureOpenAiApiKey string
+
+@description('Azure OpenAI deployment name')
+param azureOpenAiDeployment string = 'gpt-4o'
+
+@description('ACR login server')
+param acrLoginServer string = 'caae790480deacr.azurecr.io'
+
+@description('Container image tag')
+param imageTag string = 'v4'
+
 var prefix = '${appName}-${environment}'
 var tags = {
   project: 'era'
@@ -109,6 +125,9 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
   properties: {
     managedEnvironmentId: containerAppEnv.id
     configuration: {
+      secrets: [
+        { name: 'azure-openai-key', value: azureOpenAiApiKey }
+      ]
       ingress: {
         external: true
         targetPort: 3000
@@ -119,7 +138,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
       containers: [
         {
           name: 'era-api'
-          image: 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
+          image: '${acrLoginServer}/${prefix}-api:${imageTag}'
           resources: {
             cpu: json('0.25')
             memory: '0.5Gi'
@@ -128,8 +147,11 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'COSMOS_ENDPOINT', value: cosmosAccount.properties.documentEndpoint }
             { name: 'COSMOS_DATABASE', value: cosmosDb.name }
             { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsights.properties.ConnectionString }
-            { name: 'NODE_ENV', value: environment == 'prod' ? 'production' : 'development' }
+            { name: 'NODE_ENV', value: 'production' }
             { name: 'PORT', value: '3000' }
+            { name: 'AZURE_OPENAI_ENDPOINT', value: azureOpenAiEndpoint }
+            { name: 'AZURE_OPENAI_API_KEY', secretRef: 'azure-openai-key' }
+            { name: 'AZURE_OPENAI_DEPLOYMENT', value: azureOpenAiDeployment }
           ]
         }
       ]

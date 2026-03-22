@@ -1,6 +1,17 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { api } from "../utils/api";
 import { useApp } from "../utils/context";
+import { formatMoney, formatMoneyOr } from "../utils/format";
+
+interface Transaction {
+  entryId: string;
+  entryNumber: string;
+  date: string;
+  description: string;
+  debit: number;
+  credit: number;
+  sourceType: string;
+}
 
 function computeSubtotals(accounts: any[]): Map<string, number> {
   const totals = new Map<string, number>();
@@ -29,22 +40,46 @@ function computeSubtotals(accounts: any[]): Map<string, number> {
 }
 
 export function Accounts() {
-  const { companyId } = useApp();
+  const { companyId, numberFormat: fmt } = useApp();
   const [accounts, setAccounts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [asOfDate, setAsOfDate] = useState(() => new Date().toISOString().slice(0, 10));
+
+  // Transaction drawer state
+  const [selectedAccount, setSelectedAccount] = useState<{ code: string; name: string } | null>(null);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [txLoading, setTxLoading] = useState(false);
+
+  const fetchAccounts = useCallback((date: string) => {
+    if (!companyId) { setLoading(false); return; }
+    setLoading(true);
+    api.accounts(companyId, date).then((data: any) => { setAccounts(data); setLoading(false); }).catch(() => setLoading(false));
+  }, [companyId]);
 
   useEffect(() => {
-    if (!companyId) { setLoading(false); return; }
-    api.accounts(companyId).then((data: any) => { setAccounts(data); setLoading(false); }).catch(() => setLoading(false));
-  }, [companyId]);
+    fetchAccounts(asOfDate);
+  }, [fetchAccounts, asOfDate]);
+
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setAsOfDate(e.target.value);
+    setSelectedAccount(null);
+  };
+
+  const openTransactions = (code: string, name: string) => {
+    if (!companyId) return;
+    setSelectedAccount({ code, name });
+    setTxLoading(true);
+    api.accountTransactions(companyId, code, asOfDate)
+      .then((data: any) => { setTransactions(data.transactions || []); setTxLoading(false); })
+      .catch(() => { setTransactions([]); setTxLoading(false); });
+  };
 
   const totals = useMemo(() => computeSubtotals(accounts), [accounts]);
 
   const visibleAccounts = useMemo(() => {
     return accounts.filter((a: any) => {
       if (a.level === 1) return true;
-      // Check if any ancestor is collapsed
       let parent = a.parentCode;
       while (parent) {
         if (collapsed.has(parent)) return false;
@@ -87,13 +122,34 @@ export function Accounts() {
     <div>
       <div className="coa-header">
         <h2 className="page-title">Chart of accounts</h2>
-        {!loading && accounts.length > 0 && (
-          <div className="coa-level-controls">
-            <button className={`coa-level-btn ${activeLevel === 1 ? "active" : ""}`} onClick={() => expandToLevel(1)}>Classes</button>
-            <button className={`coa-level-btn ${activeLevel === 2 ? "active" : ""}`} onClick={() => expandToLevel(2)}>Groups</button>
-            <button className={`coa-level-btn ${activeLevel === 3 ? "active" : ""}`} onClick={() => expandToLevel(3)}>All</button>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <div className="coa-date-filter">
+            <label className="detail-label" htmlFor="coa-date">Balance as of</label>
+            <input
+              id="coa-date"
+              type="date"
+              value={asOfDate}
+              onChange={handleDateChange}
+              style={{
+                height: 34,
+                padding: "0 10px",
+                border: "1px solid var(--border)",
+                borderRadius: "var(--radius-sm)",
+                fontFamily: "var(--font-sans)",
+                fontSize: "var(--text-sm)",
+                color: "var(--text-body)",
+                background: "var(--bg-card)",
+              }}
+            />
           </div>
-        )}
+          {!loading && accounts.length > 0 && (
+            <div className="coa-level-controls">
+              <button className={`coa-level-btn ${activeLevel === 1 ? "active" : ""}`} onClick={() => expandToLevel(1)}>Classes</button>
+              <button className={`coa-level-btn ${activeLevel === 2 ? "active" : ""}`} onClick={() => expandToLevel(2)}>Groups</button>
+              <button className={`coa-level-btn ${activeLevel === 3 ? "active" : ""}`} onClick={() => expandToLevel(3)}>All</button>
+            </div>
+          )}
+        </div>
       </div>
       {loading ? <p style={{ color: "#A0A0A0" }}>Loading...</p> : (
         <table className="data-table coa-table">
@@ -105,6 +161,7 @@ export function Accounts() {
               const balance = totals.get(a.code) ?? 0;
               const hasChildren = !a.isPostable && accounts.some((c: any) => c.parentCode === a.code);
               const isCollapsed = collapsed.has(a.code);
+              const isSelected = selectedAccount?.code === a.code;
 
               if (a.level === 1) {
                 return (
@@ -115,7 +172,7 @@ export function Accounts() {
                       {a.name}
                     </td>
                     <td><span className="badge">{a.type}</span></td>
-                    <td className="num">€{balance.toFixed(2)}</td>
+                    <td className="num">{formatMoney(balance, fmt)}</td>
                   </tr>
                 );
               }
@@ -129,22 +186,72 @@ export function Accounts() {
                       {a.name}
                     </td>
                     <td></td>
-                    <td className="num">€{balance.toFixed(2)}</td>
+                    <td className="num">{formatMoney(balance, fmt)}</td>
                   </tr>
                 );
               }
 
               return (
-                <tr key={a.id} className="coa-account">
+                <tr
+                  key={a.id}
+                  className={`coa-account coa-account-clickable${isSelected ? " coa-account-selected" : ""}`}
+                  onClick={() => openTransactions(a.code, a.name)}
+                  aria-label={`View transactions for ${a.code} ${a.name}`}
+                >
                   <td className="mono">{a.code}</td>
                   <td>{a.name}</td>
                   <td></td>
-                  <td className="num">€{balance.toFixed(2)}</td>
+                  <td className="num">{formatMoney(balance, fmt)}</td>
                 </tr>
               );
             })}
           </tbody>
         </table>
+      )}
+
+      {/* Transaction drawer */}
+      {selectedAccount && (
+        <div className="coa-drawer-overlay" onClick={() => setSelectedAccount(null)}>
+          <div className="coa-drawer" onClick={(e) => e.stopPropagation()}>
+            <div className="coa-drawer-header">
+              <div>
+                <div className="coa-drawer-title">{selectedAccount.code} — {selectedAccount.name}</div>
+                <div className="coa-drawer-subtitle">Transactions as of {asOfDate}</div>
+              </div>
+              <button className="coa-drawer-close" onClick={() => setSelectedAccount(null)} aria-label="Close">&times;</button>
+            </div>
+            <div className="coa-drawer-body">
+              {txLoading ? (
+                <p style={{ color: "var(--text-tertiary)", padding: 16 }}>Loading transactions...</p>
+              ) : transactions.length === 0 ? (
+                <p style={{ color: "var(--text-tertiary)", padding: 16 }}>No transactions found</p>
+              ) : (
+                <table className="data-table coa-tx-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Entry</th>
+                      <th>Description</th>
+                      <th>Debit</th>
+                      <th>Credit</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {transactions.map((tx, i) => (
+                      <tr key={`${tx.entryId}-${i}`}>
+                        <td className="mono">{tx.date}</td>
+                        <td className="mono" style={{ fontSize: "var(--text-xs)" }}>{tx.entryNumber}</td>
+                        <td>{tx.description}</td>
+                        <td className="num">{tx.debit > 0 ? formatMoney(tx.debit, fmt) : ""}</td>
+                        <td className="num">{tx.credit > 0 ? formatMoney(tx.credit, fmt) : ""}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

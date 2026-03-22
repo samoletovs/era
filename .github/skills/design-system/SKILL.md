@@ -334,6 +334,13 @@ modern SaaS apps:
 **Headings and titles:**
 - No period at the end of headings or titles (all companies agree)
 - Keep headings short — aim for 3-8 words
+
+**Dashes — avoid em dashes (—):**
+- Never use em dashes (—) in UI text. They look AI-generated and unnatural.
+- Use a regular hyphen (-) or rephrase the sentence instead.
+- For separating clauses, prefer a comma, semicolon, or two shorter sentences.
+- Good: "Period 2026-02 is open - close it now" or "Period 2026-02 is still open. Close it to continue."
+- Bad: "Period 2026-02 is still open — should be closed"
 - Use action verbs for task headings: "Create a project" not "Project creation"
 - Don't use articles in short headings: "Settings" not "The Settings"
 - If a heading has a colon, capitalize the first word after it: "Step 1: Configure the server"
@@ -1198,6 +1205,102 @@ After applying changes, verify EVERY point. If ANY fails, go back and fix it.
 18. **Mobile check**: Does the layout work at 375px width? Is the sidebar a hamburger drawer? Do tables scroll horizontally? Do toolbars/controls stack vertically? Are touch targets 44px+? → Fix per mobile responsiveness rules.
 
 If any check fails, go back and fix it before presenting the result.
+
+## Mobile Responsiveness Rules
+
+Modern UIs must work on mobile. These rules prevent the most common mobile breakage
+patterns, learned from auditing real production apps.
+
+### Breakpoints
+
+Use these standard breakpoints consistently:
+
+```css
+/* Tablet / mobile */
+@media (max-width: 768px) { ... }
+
+/* Small phones */
+@media (max-width: 400px) { ... }
+```
+
+### Critical Rules (STRICTLY FOLLOW)
+
+1. **NEVER use inline fixed widths for layout containers.** Inline styles like
+   `style={{ width: 340, flexShrink: 0 }}` or `style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr" }}`
+   cannot be overridden by media queries. Always use CSS classes with responsive rules.
+
+2. **Every side-by-side desktop layout MUST stack on mobile.** If two panels sit
+   next to each other on desktop (detail view, form + preview, etc.), they must
+   stack vertically at ≤768px.
+
+3. **Use `dvh` instead of `vh` for full-height containers.** On mobile browsers,
+   `100vh` doesn't account for the URL bar or keyboard. Use `100dvh` (dynamic viewport
+   height) for chat containers and other full-height layouts.
+
+4. **Form grids must collapse.** A 3-column or 2-column form grid on desktop must
+   become a single column on mobile. Use CSS grid classes with media query overrides.
+
+5. **Button rows must wrap.** Multiple action buttons in a row should use `flex-wrap: wrap`
+   so they don't overflow on narrow screens.
+
+6. **Tables scroll horizontally.** Data tables should use `display: block; overflow-x: auto;
+   -webkit-overflow-scrolling: touch;` on mobile. Don't try to stack table cells.
+
+7. **Toolbars and filter bars must wrap or stack.** A row of search input + filter select +
+   sort controls must either wrap or stack vertically on mobile.
+
+8. **Touch targets: minimum 44px.** All tappable elements (buttons, links, form controls)
+   must be at least 44px tall on mobile.
+
+### Responsive CSS Utility Classes
+
+Use these pre-built classes instead of inline layout styles:
+
+```css
+/* Two-panel layout: side-by-side desktop, stacked mobile */
+.detail-layout     /* display: flex; gap: 20px → flex-direction: column on mobile */
+.detail-sidebar    /* width: 340px → width: 100% on mobile */
+
+/* Responsive grids */
+.accounting-grid   /* 2-col grid → 1-col on mobile */
+.form-grid-2       /* 2-col form grid → 1-col on mobile */
+.form-grid-3       /* 3-col form grid → 1-col on mobile */
+
+/* Header and toolbar patterns */
+.page-header-bar   /* flex space-between → stacked on mobile */
+.filter-bar        /* flex row → flex-wrap on mobile */
+.form-inline-row   /* flex row → stacked on mobile */
+
+/* Upload and button patterns */
+.upload-layout     /* flex row → stacked on mobile */
+.btn-row           /* flex row with wrap */
+```
+
+### Form Input Class
+
+Use `.form-input` for standalone form inputs (not inside `.settings-field`):
+
+```css
+.form-input {
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+}
+```
+
+### Common Mistakes to Avoid
+
+| Mistake | Fix |
+|---|---|
+| `style={{ width: 340 }}` on a detail sidebar | Use `.detail-sidebar` class |
+| `style={{ gridTemplateColumns: "1fr 1fr 1fr" }}` inline | Use `.form-grid-3` class |
+| `style={{ display: "flex", gap: 20 }}` for detail layout | Use `.detail-layout` class |
+| `width: 380px` on login card | Use `max-width: 380px; width: calc(100% - 32px)` |
+| `height: calc(100vh - 120px)` for chat | Use `100dvh` on mobile |
+| Fixed pixel widths on form inputs (`width: 80`) | Use `max-width` with percentage or class override |
 
 ## Post-Deploy Verification
 

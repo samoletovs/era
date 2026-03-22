@@ -1,9 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
+import type { NumberFormat, DateFormat, DateTimeFormat } from "@shared/types";
 
 interface CompanyInfo {
   id: string;
   code: string;
   name: string;
+  numberFormat?: NumberFormat;
+  dateFormat?: DateFormat;
+  dateTimeFormat?: DateTimeFormat;
 }
 
 interface AppState {
@@ -12,6 +16,9 @@ interface AppState {
   companies: CompanyInfo[];
   setCompanies: (list: CompanyInfo[]) => void;
   refreshCompanies: () => Promise<void>;
+  numberFormat: NumberFormat;
+  dateFormat: DateFormat;
+  dateTimeFormat: DateTimeFormat;
 }
 
 const AppContext = createContext<AppState>({
@@ -20,6 +27,9 @@ const AppContext = createContext<AppState>({
   companies: [],
   setCompanies: () => {},
   refreshCompanies: async () => {},
+  numberFormat: "space_comma",
+  dateFormat: "dd.MM.yyyy",
+  dateTimeFormat: "24h",
 });
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
@@ -40,7 +50,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       });
       const json = await res.json();
       if (json.data) {
-        setCompanies(json.data.map((c: any) => ({ id: c.id, code: c.code || "—", name: c.name })));
+        setCompanies(json.data.map((c: any) => ({ id: c.id, code: c.code || "-", name: c.name, numberFormat: c.settings?.numberFormat, dateFormat: c.settings?.dateFormat, dateTimeFormat: c.settings?.dateTimeFormat })));
         // If no company selected but list has items, select first
         if (!companyId && json.data.length > 0) {
           setCompanyId(json.data[0].id);
@@ -55,8 +65,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     refreshCompanies();
   }, []);
 
+  const activeCompany = companies.find((c) => c.id === companyId);
+  const numberFormat: NumberFormat = activeCompany?.numberFormat || "space_comma";
+  const dateFormat: DateFormat = activeCompany?.dateFormat || "dd.MM.yyyy";
+  const dateTimeFormat: DateTimeFormat = activeCompany?.dateTimeFormat || "24h";
+
   return (
-    <AppContext.Provider value={{ companyId, setCompanyId, companies, setCompanies, refreshCompanies }}>
+    <AppContext.Provider value={{ companyId, setCompanyId, companies, setCompanies, refreshCompanies, numberFormat, dateFormat, dateTimeFormat }}>
       {children}
     </AppContext.Provider>
   );

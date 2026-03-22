@@ -11,7 +11,6 @@ import { Items } from "./pages/Items";
 import { Reports } from "./pages/Reports";
 import { Onboarding } from "./pages/Onboarding";
 import { Settings } from "./pages/Settings";
-import { UploadInvoice } from "./pages/UploadInvoice";
 import { FixedAssets } from "./pages/FixedAssets";
 import { BankRecon } from "./pages/BankRecon";
 import { RecurringEntries } from "./pages/RecurringEntries";
@@ -64,16 +63,21 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
       <nav>
         <NavLink to="/" end>Dashboard</NavLink>
         <NavLink to="/chat">Agent chat</NavLink>
-        <NavLink to="/accounts">Chart of accounts</NavLink>
+
+        <div className="nav-section-label">Finance</div>
         <NavLink to="/invoices">Invoices</NavLink>
-        <NavLink to="/upload">Upload invoice</NavLink>
+        <NavLink to="/bank">Bank</NavLink>
+        <NavLink to="/recurring">Recurring</NavLink>
+        <NavLink to="/accounting">Accounting</NavLink>
+
+        <div className="nav-section-label">Master data</div>
+        <NavLink to="/accounts">Chart of accounts</NavLink>
         <NavLink to="/contacts">Contacts</NavLink>
         <NavLink to="/items">Items</NavLink>
         <NavLink to="/fixed-assets">Fixed assets</NavLink>
-        <NavLink to="/bank">Bank recon</NavLink>
-        <NavLink to="/recurring">Recurring</NavLink>
+
+        <div className="nav-section-label">Insights</div>
         <NavLink to="/reports">Reports</NavLink>
-        <NavLink to="/accounting">Accounting</NavLink>
         <NavLink to="/events">Event log</NavLink>
         <NavLink to="/settings">Settings</NavLink>
       </nav>
@@ -162,7 +166,6 @@ export function App() {
               <Route path="/chat" element={<Chat />} />
               <Route path="/accounts" element={<Accounts />} />
               <Route path="/invoices" element={<Invoices />} />
-              <Route path="/upload" element={<UploadInvoice />} />
               <Route path="/contacts" element={<Contacts />} />
               <Route path="/items" element={<Items />} />
               <Route path="/reports" element={<Reports />} />

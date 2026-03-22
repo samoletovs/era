@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { containers } from "./cosmos.js";
 import { emitEvent } from "./events.js";
+import { getNextNumber } from "./sequences.js";
 import type { Contact } from "@shared/types";
 
 interface CreateContactInput {
@@ -17,10 +18,12 @@ interface CreateContactInput {
 }
 
 export async function createContact(input: CreateContactInput): Promise<Contact> {
+  const contactNumber = await getNextNumber(input.companyId, "contact");
   const now = new Date().toISOString();
   const contact: Contact = {
     id: uuidv4(),
     companyId: input.companyId,
+    contactNumber,
     type: input.type,
     name: input.name,
     registrationNumber: input.registrationNumber,
@@ -61,11 +64,11 @@ export async function getContact(companyId: string, contactId: string): Promise<
 }
 
 export async function listContacts(companyId: string, type?: Contact["type"]): Promise<Contact[]> {
-  const typeFilter = type ? "AND c.type = @type" : "";
+  const typeFilter = type && type !== "both" ? "AND (c.type = @type OR c.type = 'both')" : "";
   const params: { name: string; value: string }[] = [
     { name: "@cid", value: companyId },
   ];
-  if (type) params.push({ name: "@type", value: type });
+  if (type && type !== "both") params.push({ name: "@type", value: type });
 
   const { resources } = await containers.contacts().items
     .query<Contact>({

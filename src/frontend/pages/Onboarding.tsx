@@ -162,7 +162,7 @@ export function Onboarding() {
             <div className="detail-row"><span className="detail-label">Registered</span><span>{selected.registeredDate?.split("T")[0]}</span></div>
           </div>
           {error && <p style={{ color: "#FF3B30", fontSize: 13, marginTop: 12 }}>{error}</p>}
-          <div style={{ display: "flex", gap: 12, marginTop: 24 }}>
+          <div className="btn-row" style={{ marginTop: 24 }}>
             <button className="btn-secondary" onClick={() => { setStep("search"); setSelected(null); }}>Back</button>
             <button className="btn-primary" style={{ flex: 1 }} onClick={handleCreate} disabled={creating}>
               {creating ? "Creating..." : "Create this company"}

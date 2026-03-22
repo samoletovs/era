@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { containers } from "./cosmos.js";
 import { emitEvent } from "./events.js";
+import { getNextNumber } from "./sequences.js";
 import type { Item, StockMovement } from "@shared/types";
 
 function roundCurrency(n: number): number {
@@ -25,12 +26,13 @@ interface CreateItemInput {
 }
 
 export async function createItem(input: CreateItemInput): Promise<Item> {
+  const code = input.code || await getNextNumber(input.companyId, "item");
   const now = new Date().toISOString();
   const item: Item = {
     id: uuidv4(),
     docType: "item" as const,
     companyId: input.companyId,
-    code: input.code,
+    code,
     name: input.name,
     description: input.description,
     type: input.type,
