@@ -8,9 +8,17 @@ interface Message {
 }
 
 const API_BASE = "/api";
-
-// TODO: Replace with real auth token from login flow
 const AUTH_TOKEN = "dev-bypass";
+
+// Simple markdown → HTML renderer (bold, newlines, numbered lists)
+function FormattedMessage({ content }: { content: string }) {
+  const html = content
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n(\d+)\.\s/g, '\n<br/><span class="list-num">$1.</span> ')
+    .replace(/\n-\s/g, '\n<br/>• ')
+    .replace(/\n/g, '<br/>');
+  return <div dangerouslySetInnerHTML={{ __html: html }} />;
+}
 
 export function Chat() {
   const { companyId, setCompanyId } = useApp();
@@ -98,7 +106,7 @@ export function Chat() {
         <div className="chat-messages">
           {messages.map((msg) => (
             <div key={msg.id} className={`chat-message ${msg.role}`}>
-              {msg.content}
+              <FormattedMessage content={msg.content} />
             </div>
           ))}
           {loading && (
