@@ -2,7 +2,7 @@ import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.js";
 import { createCompany, getCompany, updateCompany } from "../services/company.js";
 import { postJournalEntry, reverseJournalEntry, getTrialBalance, GLError } from "../services/ledger.js";
-import { createInvoice, postInvoice, getInvoice, listInvoices } from "../services/invoice.js";
+import { createInvoice, postInvoice, getInvoice, listInvoices, findDuplicateInvoice, cancelInvoice, getInvoicePostings } from "../services/invoice.js";
 import { createAndPostPayment, listPayments } from "../services/payment.js";
 import { createContact, getContact, listContacts } from "../services/contact.js";
 import { createItem, listItems } from "../services/inventory.js";
@@ -298,6 +298,19 @@ router.post("/companies/:companyId/invoices/upload", async (req, res) => {
       }
     }
 
+    // Step 2b: Check for duplicate invoice (same vendor + same invoice number)
+    if (contactId && recognized.invoiceNumber) {
+      const duplicate = await findDuplicateInvoice(req.params.companyId, contactId, recognized.invoiceNumber);
+      if (duplicate) {
+        // Auto-cancel the old duplicate and continue with new one
+        try {
+          await cancelInvoice(req.params.companyId, duplicate.id, "Replaced by re-upload", req.user!.id);
+        } catch {
+          // If cancel fails (e.g. has payments), warn but continue
+        }
+      }
+    }
+
     // Step 3: Create purchase invoice — filter out zero-amount lines
     const invoiceLines = recognized.lines
       .filter((l) => l.quantity > 0 && l.unitPrice > 0)
@@ -333,6 +346,8 @@ router.post("/companies/:companyId/invoices/upload", async (req, res) => {
       contactName,
       date: recognized.invoiceDate,
       dueDate: recognized.dueDate || new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
+      vendorInvoiceNumber: recognized.invoiceNumber,
+      recognitionConfidence: recognized.confidence,
       lines: invoiceLines,
       createdBy: req.user!.id,
     });
@@ -387,6 +402,29 @@ router.post("/companies/:companyId/invoices/:invoiceId/post", async (req, res) =
     res.json({ data: invoice } as ApiResponse);
   } catch (err) {
     handleGLError(err, res);
+  }
+});
+
+router.post("/companies/:companyId/invoices/:invoiceId/cancel", async (req, res) => {
+  try {
+    const invoice = await cancelInvoice(
+      req.params.companyId,
+      req.params.invoiceId,
+      req.body.reason || "Cancelled by user",
+      req.user!.id
+    );
+    res.json({ data: invoice } as ApiResponse);
+  } catch (err) {
+    handleGLError(err, res);
+  }
+});
+
+router.get("/companies/:companyId/invoices/:invoiceId/postings", async (req, res) => {
+  try {
+    const postings = await getInvoicePostings(req.params.companyId, req.params.invoiceId);
+    res.json({ data: postings } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
   }
 });
 

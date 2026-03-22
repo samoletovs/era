@@ -31,6 +31,14 @@ export const api = {
   // Invoices
   invoices: (companyId: string, type?: string) =>
     apiFetch(`/companies/${companyId}/invoices${type ? `?type=${type}` : ""}`),
+  invoice: (companyId: string, id: string) =>
+    apiFetch(`/companies/${companyId}/invoices/${id}`),
+  postInvoice: (companyId: string, id: string) =>
+    apiFetch(`/companies/${companyId}/invoices/${id}/post`, { method: "POST" }),
+  cancelInvoice: (companyId: string, id: string, reason?: string) =>
+    apiFetch(`/companies/${companyId}/invoices/${id}/cancel`, { method: "POST", body: JSON.stringify({ reason }) }),
+  invoicePostings: (companyId: string, id: string) =>
+    apiFetch(`/companies/${companyId}/invoices/${id}/postings`),
 
   // Contacts
   contacts: (companyId: string) => apiFetch(`/companies/${companyId}/contacts`),

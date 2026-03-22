@@ -114,7 +114,8 @@ export interface Contact extends BaseEntity {
 // ─── Invoices ───────────────────────────────────────────────
 
 export interface Invoice extends BaseEntity {
-  invoiceNumber: string;
+  invoiceNumber: string;        // ERA internal number (INV-00001, PINV-00002)
+  vendorInvoiceNumber?: string; // Original invoice number from vendor/supplier
   type: "sales" | "purchase";
   contactId: string;
   contactName: string;
@@ -132,7 +133,11 @@ export interface Invoice extends BaseEntity {
   documentDate: string;
   // GL posting references
   journalEntryId?: string;
+  reversalJournalEntryId?: string;
   paymentJournalEntryIds: string[];
+  // Recognition metadata
+  recognitionConfidence?: "high" | "medium" | "low";
+  sourceFile?: string;          // original filename
 }
 
 export interface InvoiceLine {

@@ -43,6 +43,8 @@ interface CreateInvoiceInput {
   contactName: string;
   date: string;
   dueDate: string;
+  vendorInvoiceNumber?: string;
+  recognitionConfidence?: "high" | "medium" | "low";
   lines: Array<{
     description: string;
     quantity: number;
@@ -96,6 +98,8 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<Invoice>
     currency: "EUR",
     documentNumber: invoiceNumber,
     documentDate: input.date,
+    vendorInvoiceNumber: input.vendorInvoiceNumber,
+    recognitionConfidence: input.recognitionConfidence,
     paymentJournalEntryIds: [],
     isActive: true,
     createdAt: now,
@@ -295,5 +299,73 @@ export async function listInvoices(
     })
     .fetchAll();
 
+  return resources;
+}
+
+// ─── Duplicate Detection ────────────────────────────────────
+
+export async function findDuplicateInvoice(
+  companyId: string,
+  contactId: string,
+  vendorInvoiceNumber: string
+): Promise<Invoice | null> {
+  if (!vendorInvoiceNumber) return null;
+
+  const { resources } = await containers.documents().items
+    .query<Invoice>({
+      query: "SELECT * FROM c WHERE c.companyId = @cid AND c.contactId = @contactId AND c.vendorInvoiceNumber = @vnum AND c.status != 'cancelled'",
+      parameters: [
+        { name: "@cid", value: companyId },
+        { name: "@contactId", value: contactId },
+        { name: "@vnum", value: vendorInvoiceNumber },
+      ],
+    })
+    .fetchAll();
+
+  return resources.length > 0 ? resources[0] : null;
+}
+
+// ─── Cancel Invoice ─────────────────────────────────────────
+
+export async function cancelInvoice(
+  companyId: string,
+  invoiceId: string,
+  reason: string,
+  createdBy: string
+): Promise<Invoice> {
+  const { resource: invoice } = await containers.documents()
+    .item(invoiceId, companyId)
+    .read<Invoice>();
+
+  if (!invoice) throw new GLError("NOT_FOUND", "Invoice not found");
+  if (invoice.status === "cancelled") throw new GLError("ALREADY_CANCELLED", "Invoice is already cancelled");
+  if (invoice.amountPaid > 0) throw new GLError("HAS_PAYMENTS", "Cannot cancel invoice with payments. Reverse payments first.");
+
+  // If posted, create reversing journal entry
+  if (invoice.journalEntryId && invoice.status !== "draft") {
+    const { reverseJournalEntry } = await import("./ledger.js");
+    const reversalEntry = await reverseJournalEntry(companyId, invoice.journalEntryId, createdBy);
+    invoice.reversalJournalEntryId = reversalEntry.id;
+  }
+
+  invoice.status = "cancelled";
+  invoice.updatedAt = new Date().toISOString();
+  await containers.documents().item(invoiceId, companyId).replace(invoice);
+
+  return invoice;
+}
+
+// ─── Get GL entries for invoice ─────────────────────────────
+
+export async function getInvoicePostings(companyId: string, invoiceId: string) {
+  const { resources } = await containers.ledger().items
+    .query({
+      query: "SELECT * FROM c WHERE c.companyId = @cid AND c.sourceId = @sid AND IS_DEFINED(c.entryNumber)",
+      parameters: [
+        { name: "@cid", value: companyId },
+        { name: "@sid", value: invoiceId },
+      ],
+    })
+    .fetchAll();
   return resources;
 }
