@@ -81,6 +81,16 @@ async function verifyMicrosoftToken(token: string): Promise<AuthUser> {
 }
 
 export async function authMiddleware(req: Request, res: Response, next: NextFunction) {
+  // Dev bypass for local development
+  if (process.env.NODE_ENV === "development") {
+    const authHeader = req.headers.authorization;
+    if (authHeader === "Bearer dev-bypass") {
+      req.user = { id: "dev-user", email: "dev@era.local", name: "Developer", provider: "google" };
+      next();
+      return;
+    }
+  }
+
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith("Bearer ")) {
     res.status(401).json({ error: { code: "UNAUTHORIZED", message: "Missing bearer token" } });

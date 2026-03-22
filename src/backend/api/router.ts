@@ -5,6 +5,7 @@ import { postJournalEntry, reverseJournalEntry, getTrialBalance, GLError } from 
 import { createInvoice, postInvoice, getInvoice, listInvoices } from "../services/invoice.js";
 import { createAndPostPayment, listPayments } from "../services/payment.js";
 import { createContact, getContact, listContacts } from "../services/contact.js";
+import { handleChat } from "../services/agent.js";
 import { containers } from "../services/cosmos.js";
 import type { ApiResponse, Account } from "@shared/types";
 
@@ -279,4 +280,21 @@ router.get("/companies/:companyId/contacts/:contactId", async (req, res) => {
     return;
   }
   res.json({ data: contact } as ApiResponse);
+});
+
+// ─── Agent Chat ─────────────────────────────────────────────
+
+router.post("/chat", async (req, res) => {
+  try {
+    const { companyId, message, history } = req.body;
+    const response = await handleChat({
+      companyId,
+      message,
+      history: history || [],
+      userId: req.user!.id,
+    });
+    res.json({ data: { response } } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "AGENT_ERROR", message: String(err) } });
+  }
 });
