@@ -159,7 +159,7 @@ export function Onboarding() {
             <div className="detail-row"><span className="detail-label">Registration number</span><span className="mono">{selected.registrationNumber}</span></div>
             <div className="detail-row"><span className="detail-label">Legal form</span><span>{selected.legalForm}</span></div>
             <div className="detail-row"><span className="detail-label">Address</span><span>{selected.address}</span></div>
-            <div className="detail-row"><span className="detail-label">Registered</span><span>{selected.registeredDate}</span></div>
+            <div className="detail-row"><span className="detail-label">Registered</span><span>{selected.registeredDate?.split("T")[0]}</span></div>
           </div>
           {error && <p style={{ color: "#FF3B30", fontSize: 13, marginTop: 12 }}>{error}</p>}
           <div style={{ display: "flex", gap: 12, marginTop: 24 }}>
