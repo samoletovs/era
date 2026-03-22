@@ -18,15 +18,24 @@ import { RecurringEntries } from "./pages/RecurringEntries";
 import { EventLog } from "./pages/EventLog";
 import { Accounting } from "./pages/Accounting";
 
-function Sidebar() {
+function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { companies, companyId, setCompanyId } = useApp();
   const navigate = useNavigate();
+  const location = useLocation();
   const [switcherOpen, setSwitcherOpen] = React.useState(false);
   const activeCompany = companies.find((c) => c.id === companyId);
 
+  // Close sidebar on navigation (mobile)
+  React.useEffect(() => { onClose(); }, [location.pathname]);
+
   return (
-    <aside className="app-sidebar">
-      <div className="logo">ERA <span>v0.1</span></div>
+    <>
+      {open && <div className="sidebar-overlay" onClick={onClose} />}
+      <aside className={`app-sidebar ${open ? "open" : ""}`}>
+        <div className="sidebar-top-row">
+          <div className="logo">ERA <span>v0.1</span></div>
+          <button className="sidebar-close" onClick={onClose} aria-label="Close menu">✕</button>
+        </div>
 
       {companies.length > 0 && (
         <div className="company-switcher">
@@ -75,6 +84,7 @@ function Sidebar() {
         </button>
       </div>
     </aside>
+    </>
   );
 }
 
@@ -133,11 +143,19 @@ function FeedbackButton() {
 }
 
 export function App() {
+  const [sidebarOpen, setSidebarOpen] = React.useState(false);
+
   return (
     <AppProvider>
       <BrowserRouter>
         <div className="app">
-          <Sidebar />
+          <div className="mobile-header">
+            <button className="hamburger-btn" onClick={() => setSidebarOpen(true)} aria-label="Open menu">
+              <span /><span /><span />
+            </button>
+            <div className="mobile-logo">ERA</div>
+          </div>
+          <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
           <main className="app-main">
             <Routes>
               <Route path="/" element={<Dashboard />} />

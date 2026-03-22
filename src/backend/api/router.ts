@@ -32,11 +32,7 @@ router.get("/", (_req, res) => {
   });
 });
 
-// ─── Protected routes ───────────────────────────────────────
-
-router.use(authMiddleware);
-
-// ─── Register Search (Latvian Enterprise Register) ──────────
+// ─── Public: Register Search (Latvian Enterprise Register) ──
 
 router.get("/register/search", async (req, res) => {
   try {
@@ -54,6 +50,10 @@ router.get("/register/search", async (req, res) => {
     res.status(500).json({ error: { code: "SEARCH_FAILED", message: String(err) } });
   }
 });
+
+// ─── Protected routes ───────────────────────────────────────
+
+router.use(authMiddleware);
 
 // ─── Companies ──────────────────────────────────────────────
 

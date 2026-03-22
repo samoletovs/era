@@ -1,0 +1,87 @@
+2026/03/22 16:59:30 Downloading source code...
+
+2026/03/22 16:59:31 Finished downloading source code
+
+2026/03/22 16:59:31 Using acb_vol_a36c8017-52be-4318-ab7f-13a76c61fbec as the home volume
+2026/03/22 16:59:31 Setting up Docker configuration...
+2026/03/22 16:59:32 Successfully set up Docker configuration
+2026/03/22 16:59:32 Logging in to registry: caae790480deacr.azurecr.io
+2026/03/22 16:59:32 Successfully logged into caae790480deacr.azurecr.io
+2026/03/22 16:59:32 Executing step ID: build. Timeout(sec): 28800, Working directory: '', Network: ''
+2026/03/22 16:59:32 Scanning for dependencies...
+2026/03/22 16:59:33 Successfully scanned dependencies
+2026/03/22 16:59:33 Launching container with name: build
+Sending build context to Docker daemon    770kB
+
+
+
+Step 1/15 : FROM node:20-alpine AS build
+20-alpine: Pulling from library/node
+589002ba0eae: Pulling fs layer
+ed2fdcee5269: Pulling fs layer
+7ad115895a6a: Pulling fs layer
+9d10d4687fae: Pulling fs layer
+9d10d4687fae: Waiting
+7ad115895a6a: Verifying Checksum
+7ad115895a6a: Download complete
+589002ba0eae: Verifying Checksum
+589002ba0eae: Download complete
+9d10d4687fae: Verifying Checksum
+9d10d4687fae: Download complete
+589002ba0eae: Pull complete
+ed2fdcee5269: Verifying Checksum
+ed2fdcee5269: Download complete
+ed2fdcee5269: Pull complete
+
+7ad115895a6a: Pull complete
+9d10d4687fae: Pull complete
+Digest: sha256:b88333c42c23fbd91596ebd7fd10de239cedab9617de04142dde7315e3bc0afa
+Status: Downloaded newer image for node:20-alpine
+ ---> 6757e50d3b6b
+Step 2/15 : WORKDIR /app
+ ---> Running in 3a96760a0b17
+Removing intermediate container 3a96760a0b17
+ ---> d8241ee0b43d
+Step 3/15 : COPY package*.json ./
+ ---> 9b8080f5455c
+Step 4/15 : RUN npm ci
+ ---> Running in 6eed9edb6213
+npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+
+
+added 434 packages, and audited 435 packages in 11s
+
+100 packages are looking for funding
+  run `npm fund` for details
+
+
+5 moderate severity vulnerabilities
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+npm notice
+npm notice New major version of npm available! 10.8.2 -> 11.12.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.12.0
+npm notice To update run: npm install -g npm@11.12.0
+npm notice
+ERROR: The command failed with an unexpected error. Here is the traceback:
+ERROR: 'charmap' codec can't encode character '\u2713' in position 356: character maps to <undefined>
+Traceback (most recent call last):
+  File "D:\a\_work\1\s\build_scripts\windows\artifacts\cli\Lib\site-packages\knack/cli.py", line 233, in invoke
+  File "D:\a\_work\1\s\build_scripts\windows\artifacts\cli\Lib\site-packages\azure/cli/core/commands/__init__.py", line 669, in execute
+  File "D:\a\_work\1\s\build_scripts\windows\artifacts\cli\Lib\site-packages\azure/cli/core/commands/__init__.py", line 737, in _run_jobs_serially
+  File "D:\a\_work\1\s\build_scripts\windows\artifacts\cli\Lib\site-packages\azure/cli/core/commands/__init__.py", line 706, in _run_job
+  File "D:\a\_work\1\s\build_scripts\windows\artifacts\cli\Lib\site-packages\azure/cli/core/commands/__init__.py", line 336, in __call__
+  File "D:\a\_work\1\s\build_scripts\windows\artifacts\cli\Lib\site-packages\azure/cli/core/commands/command_operation.py", line 120, in handler
+  File "D:\a\_work\1\s\build_scripts\windows\artifacts\cli\Lib\site-packages\azure/cli/command_modules/acr/task.py", line 1126, in acr_task_logs
+  File "D:\a\_work\1\s\build_scripts\windows\artifacts\cli\Lib\site-packages\azure/cli/command_modules/acr/_stream_utils.py", line 56, in stream_logs
+  File "D:\a\_work\1\s\build_scripts\windows\artifacts\cli\Lib\site-packages\azure/cli/command_modules/acr/_stream_utils.py", line 126, in _stream_logs
+  File "D:\a\_work\1\s\build_scripts\windows\artifacts\cli\Lib\site-packages\colorama/ansitowin32.py", line 47, in write
+  File "D:\a\_work\1\s\build_scripts\windows\artifacts\cli\Lib\site-packages\colorama/ansitowin32.py", line 177, in write
+  File "D:\a\_work\1\s\build_scripts\windows\artifacts\cli\Lib\site-packages\colorama/ansitowin32.py", line 205, in write_and_convert
+  File "D:\a\_work\1\s\build_scripts\windows\artifacts\cli\Lib\site-packages\colorama/ansitowin32.py", line 210, in write_plain_text
+  File "encodings\cp1252.py", line 19, in encode
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 356: character maps to <undefined>
+To check existing issues, please visit: https://github.com/Azure/azure-cli/issues

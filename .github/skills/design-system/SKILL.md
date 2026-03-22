@@ -1077,6 +1077,103 @@ Read the relevant reference file only when needed:
 - `references/notifications.md` — Toasts, push, email, banners
 - `references/components.md` — Detailed component specs
 
+### Step 15: Mobile Responsiveness
+
+Every app must work well on mobile. Use a **768px breakpoint** as the primary mobile cutoff.
+
+**Layout patterns for mobile:**
+
+```css
+/* Primary breakpoint — tablet and phone */
+@media (max-width: 768px) {
+  /* Sidebar → off-canvas drawer with overlay */
+  .app { flex-direction: column; }
+  .app-sidebar {
+    position: fixed; top: 0; left: 0; bottom: 0;
+    width: 280px; z-index: 300;
+    transform: translateX(-100%);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .app-sidebar.open { transform: translateX(0); box-shadow: 4px 0 24px rgba(0,0,0,0.12); }
+  .sidebar-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 250;
+  }
+
+  /* Add a sticky mobile header with hamburger */
+  .mobile-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px; background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 50;
+  }
+
+  /* Main content: reduce padding */
+  .app-main { padding: 16px; max-width: 100%; }
+
+  /* Grids: stack or reduce columns */
+  .dashboard-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* Data tables: horizontal scroll */
+  .data-table { display: block; overflow-x: auto; white-space: nowrap; }
+
+  /* Toolbars / period bars: stack vertically */
+  .report-period-bar { flex-direction: column; align-items: stretch; }
+
+  /* Forms: single column */
+  .settings-row { flex-direction: column; }
+
+  /* Chat: full-bleed */
+  .chat-container { margin: -16px; border-radius: 0; height: calc(100vh - 120px); }
+
+  /* Feedback popover: full width */
+  .feedback-popover { left: 12px; right: 12px; width: auto; }
+}
+
+/* Small phones */
+@media (max-width: 400px) {
+  .dashboard-grid { grid-template-columns: 1fr; }
+  .app-main { padding: 12px; }
+}
+```
+
+**Mobile-specific rules:**
+
+1. **Sidebar → hamburger drawer.** Never show a 240px sidebar on mobile. Use a slide-out 
+   drawer with an overlay backdrop. Close it on navigation.
+2. **Touch targets: 44px minimum.** All tappable elements (buttons, links, nav items) must 
+   be at least 44×44px. (Apple HIG requirement.)
+3. **Reduce padding.** Page padding: `16px` on mobile vs `24-32px` on desktop.
+4. **Stack layouts.** Horizontal flex/grid layouts that use 2+ columns → stack to single 
+   column or 2-column grid max on mobile.
+5. **Horizontal scroll for tables.** Add `overflow-x: auto` on table wrappers. Don't 
+   try to shrink table columns — they become unreadable.
+6. **Full-bleed chat.** Chat interfaces should use negative margins to extend edge-to-edge 
+   on mobile. Remove border-radius.
+7. **Date inputs.** Use native `input[type="date"]` — they get native pickers on mobile.
+8. **Text size.** Don't reduce body text below 14px on mobile. Headings can go slightly 
+   smaller (18px vs 22px on desktop).
+9. **Metric cards.** Reduce padding and shrink the number size, but keep cards in a 2-col 
+   grid (not 4-col). Two numbers per row is comfortable to scan.
+10. **Popovers and dropdowns.** Any fixed-width popover (e.g., feedback, dropdown) must use 
+    `left: 12px; right: 12px; width: auto;` on mobile to avoid overflowing viewport.
+
+**The hamburger button pattern:**
+```tsx
+<button className="hamburger-btn" onClick={() => setSidebarOpen(true)} aria-label="Open menu">
+  <span /><span /><span />
+</button>
+```
+```css
+.hamburger-btn { display: flex; flex-direction: column; gap: 4px; padding: 8px; background: transparent; border: none; }
+.hamburger-btn span { display: block; width: 20px; height: 2px; background: var(--text-primary); border-radius: 1px; }
+```
+
+**Always hide the mobile header on desktop:**
+```css
+.mobile-header { display: none; }
+@media (max-width: 768px) { .mobile-header { display: flex; } }
+```
+
 ## Final Checklist (Before Saying "Done")
 
 After applying changes, verify EVERY point. If ANY fails, go back and fix it.
@@ -1098,6 +1195,7 @@ After applying changes, verify EVERY point. If ANY fails, go back and fix it.
 15. **Loading state check**: Does the app show skeleton loaders or inline spinners during data fetches? Or does it show a blank screen / full-page spinner? → Replace with skeletons. Buttons should show inline spinners during actions.
 16. **Empty state check**: When there's no data (empty list, no results, first use), is there a helpful message with a CTA? Or just a blank area? → Add empty state with heading, description, and action button.
 17. **Accessibility check**: Do all interactive elements have visible `:focus-visible` styles? Are touch targets at least 44px? Do text colors meet WCAG 4.5:1 contrast? → Fix per accessibility rules.
+18. **Mobile check**: Does the layout work at 375px width? Is the sidebar a hamburger drawer? Do tables scroll horizontally? Do toolbars/controls stack vertically? Are touch targets 44px+? → Fix per mobile responsiveness rules.
 
 If any check fails, go back and fix it before presenting the result.
 

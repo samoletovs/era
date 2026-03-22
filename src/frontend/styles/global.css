@@ -1220,3 +1220,320 @@ select.settings-input {
 .feedback-sent span {
   margin-right: 4px;
 }
+
+/* ─── Mobile Header (hidden on desktop) ──────────────────── */
+
+.mobile-header {
+  display: none;
+}
+
+.hamburger-btn {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.hamburger-btn span {
+  display: block;
+  width: 20px;
+  height: 2px;
+  background: var(--text-primary);
+  border-radius: 1px;
+}
+
+.mobile-logo {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.sidebar-overlay {
+  display: none;
+}
+
+.sidebar-close {
+  display: none;
+}
+
+.sidebar-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px 20px;
+}
+
+.sidebar-top-row .logo {
+  padding: 0;
+}
+
+/* ─── Mobile Responsive ──────────────────────────────────── */
+
+@media (max-width: 768px) {
+  /* Mobile header */
+  .mobile-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+
+  /* Sidebar → slide-out drawer */
+  .app {
+    flex-direction: column;
+  }
+
+  .app-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 280px;
+    z-index: 300;
+    transform: translateX(-100%);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: none;
+  }
+
+  .app-sidebar.open {
+    transform: translateX(0);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.12);
+  }
+
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 250;
+    animation: fadeIn 0.2s ease;
+  }
+
+  .sidebar-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: transparent;
+    border: none;
+    font-size: 18px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+  }
+
+  .sidebar-close:hover {
+    background: var(--bg-hover);
+  }
+
+  /* Main content */
+  .app-main {
+    padding: 16px;
+    max-width: 100%;
+    min-height: calc(100vh - 52px);
+  }
+
+  /* Page titles */
+  .page-title {
+    font-size: var(--text-lg);
+    margin-bottom: 16px;
+  }
+
+  /* Dashboard grid → single column */
+  .dashboard-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .metric-card {
+    padding: 14px;
+  }
+
+  .metric-card .value {
+    font-size: var(--text-xl);
+  }
+
+  .metric-card .label {
+    font-size: 10px;
+  }
+
+  /* Data tables → horizontal scroll */
+  .data-table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 8px 10px;
+    font-size: var(--text-sm);
+  }
+
+  /* COA header */
+  .coa-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .coa-level-controls {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Report period bar → stack */
+  .report-period-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .period-dates {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .period-dates input[type="date"] {
+    flex: 1;
+    min-width: 120px;
+  }
+
+  .period-presets {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  /* Report tabs → scrollable */
+  .report-tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+    gap: 2px;
+    padding-bottom: 4px;
+  }
+
+  .report-tabs button {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* Chat */
+  .chat-container {
+    height: calc(100vh - 120px);
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    margin: -16px;
+  }
+
+  .chat-message {
+    max-width: 92%;
+  }
+
+  .chat-input-area {
+    padding: 10px 12px;
+  }
+
+  /* Forms */
+  .settings-card {
+    padding: 16px;
+  }
+
+  .settings-row {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  /* Onboarding */
+  .onboarding-card {
+    padding: 24px 16px;
+    margin: 0;
+  }
+
+  /* Login */
+  .login-card {
+    width: 100%;
+    margin: 16px;
+    padding: 24px 20px;
+  }
+
+  /* Feedback */
+  .feedback-fab {
+    bottom: 16px;
+    right: 16px;
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+  }
+
+  .feedback-popover {
+    bottom: 64px;
+    right: 12px;
+    left: 12px;
+    width: auto;
+  }
+
+  /* Search bar */
+  .search-bar {
+    flex-direction: column;
+  }
+
+  /* Empty state */
+  .empty-state {
+    padding: 32px 16px;
+  }
+
+  /* Upload */
+  .drop-zone {
+    padding: 32px 16px;
+  }
+
+  .upload-layout {
+    flex-direction: column;
+  }
+
+  .invoice-preview {
+    width: 100%;
+  }
+
+  /* Buttons: allow wrapping when in row */
+  .btn-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+
+/* Small phones (< 400px) */
+@media (max-width: 400px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .metric-card .value {
+    font-size: var(--text-lg);
+  }
+
+  .app-main {
+    padding: 12px;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
