@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { api } from "../utils/api";
 import { useApp } from "../utils/context";
 
 export function Dashboard() {
-  const { companyId } = useApp();
+  const { companyId, companies } = useApp();
+  const navigate = useNavigate();
   const [data, setData] = useState<any>(null);
 
   useEffect(() => {
@@ -13,9 +15,10 @@ export function Dashboard() {
 
   if (!companyId) return (
     <div className="empty-state" style={{ marginTop: 80 }}>
-      <div className="icon">🚀</div>
+      <div className="icon">🏢</div>
       <h3>Welcome to ERA</h3>
-      <p>Go to Agent chat and say: "Create a company called SIA MyCompany with registration 40003123456 in Riga"</p>
+      <p style={{ maxWidth: 360, marginBottom: 20 }}>Search the Latvian Enterprise Register and set up your company in seconds.</p>
+      <button className="btn-primary" onClick={() => navigate("/onboarding")}>Add your first company</button>
     </div>
   );
 

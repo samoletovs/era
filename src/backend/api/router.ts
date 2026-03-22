@@ -7,9 +7,10 @@ import { createAndPostPayment, listPayments } from "../services/payment.js";
 import { createContact, getContact, listContacts } from "../services/contact.js";
 import { createItem, listItems } from "../services/inventory.js";
 import { generateVatReturn, getBalanceSheet, getProfitAndLoss } from "../services/reporting.js";
+import { searchCompanyByName, searchCompanyByRegNumber } from "../services/company-lookup.js";
 import { handleChat } from "../services/agent.js";
 import { containers } from "../services/cosmos.js";
-import type { ApiResponse, Account } from "@shared/types";
+import type { ApiResponse, Account, Company } from "@shared/types";
 
 export const router = Router();
 
@@ -25,6 +26,41 @@ router.get("/", (_req, res) => {
 // ─── Protected routes ───────────────────────────────────────
 
 router.use(authMiddleware);
+
+// ─── Register Search (Latvian Enterprise Register) ──────────
+
+router.get("/register/search", async (req, res) => {
+  try {
+    const q = (req.query.q as string) || "";
+    if (!q || q.length < 2) {
+      res.json({ data: { found: false, results: [], source: "" } } as ApiResponse);
+      return;
+    }
+    const isRegNumber = /^\d{9,11}$/.test(q.replace(/\s/g, ""));
+    const result = isRegNumber
+      ? await searchCompanyByRegNumber(q.replace(/\s/g, ""))
+      : await searchCompanyByName(q);
+    res.json({ data: result } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "SEARCH_FAILED", message: String(err) } });
+  }
+});
+
+// ─── Companies ──────────────────────────────────────────────
+
+router.get("/companies", async (req, res) => {
+  try {
+    const { resources } = await containers.companies().items
+      .query<Company>({
+        query: "SELECT * FROM c ORDER BY c.name",
+        parameters: [],
+      })
+      .fetchAll();
+    res.json({ data: resources } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
+  }
+});
 
 // Company
 router.post("/companies", async (req, res) => {

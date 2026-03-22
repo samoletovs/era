@@ -413,6 +413,195 @@ body {
   border-color: var(--border-hover);
 }
 
+/* ─── Company Switcher ───────────────────────────────────── */
+
+.company-switcher {
+  padding: 0 12px 12px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 8px;
+}
+
+.company-switcher select {
+  width: 100%;
+  padding: 6px 10px;
+  font-size: var(--text-sm);
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23787878' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+}
+
+.sidebar-bottom {
+  margin-top: auto;
+  padding: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.btn-add-company {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: var(--text-sm);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--ease-out);
+}
+
+.btn-add-company:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
+  color: var(--text-body);
+}
+
+/* ─── Onboarding ─────────────────────────────────────────── */
+
+.onboarding-page {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 40px;
+}
+
+.onboarding-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 40px;
+  max-width: 480px;
+  width: 100%;
+  text-align: center;
+}
+
+.onboarding-icon {
+  font-size: 40px;
+  margin-bottom: 16px;
+}
+
+.onboarding-card h2 {
+  font-size: var(--text-xl);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.onboarding-subtitle {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+.onboarding-details {
+  text-align: left;
+  margin-top: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 14px;
+  font-size: var(--text-sm);
+  border-bottom: 1px solid #F0F0F0;
+}
+
+.detail-row:last-child { border-bottom: none; }
+
+.detail-label {
+  color: var(--text-tertiary);
+  font-weight: 500;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.mono {
+  font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+  font-size: var(--text-sm);
+}
+
+/* Search bar */
+.search-bar {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.search-bar input {
+  flex: 1;
+  height: 42px;
+  padding: 0 14px;
+  font-size: var(--text-base);
+  font-family: var(--font-sans);
+  color: var(--text-body);
+  background: var(--bg-page);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  outline: none;
+  transition: border-color var(--duration-normal) var(--ease-out);
+}
+
+.search-bar input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-bg);
+}
+
+/* Search results */
+.search-results {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 16px;
+  text-align: left;
+}
+
+.search-result-card {
+  display: block;
+  width: 100%;
+  padding: 12px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font-sans);
+  transition: all var(--duration-normal) var(--ease-out);
+}
+
+.search-result-card:hover {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.result-name {
+  font-size: var(--text-base);
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.result-meta {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.result-dot { color: var(--text-tertiary); }
+
 /* ─── Data Tables ────────────────────────────────────────── */
 
 .data-table {
