@@ -1,5 +1,5 @@
 ---
-description: Apply when editing any TypeScript files in the backend API
+description: "Use when editing backend API routes, services, or middleware. Covers validation, error handling, and response patterns."
 applyTo: "src/backend/**/*.ts"
 ---
 

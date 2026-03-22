@@ -1,5 +1,5 @@
 ---
-description: Apply when editing Bicep infrastructure files
+description: "Use when editing Bicep templates, ARM parameters, or Azure infrastructure definitions."
 applyTo: "infrastructure/**/*.bicep"
 ---
 

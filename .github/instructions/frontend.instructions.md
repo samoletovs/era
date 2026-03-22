@@ -1,5 +1,5 @@
 ---
-description: Apply when editing React components or frontend pages
+description: "Use when editing React components, pages, hooks, or CSS. Covers component patterns, styling, and text formatting."
 applyTo: "src/frontend/**/*.{tsx,ts,css}"
 ---
 
