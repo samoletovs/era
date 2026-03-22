@@ -1,167 +1,264 @@
-// ERA ERP - Core Entity Types
+// ERA — Enterprise Resource Agent(s)
+// Core entity types — Latvian SIA company compliance
+
+// ─── Base ────────────────────────────────────────────────────
 
 export interface BaseEntity {
   id: string;
+  companyId: string;
   createdAt: string;
   updatedAt: string;
   createdBy: string;
   isActive: boolean;
+  _etag?: string;
 }
 
-// Finance Module
-export interface Account extends BaseEntity {
-  code: string;
+// ─── Company ─────────────────────────────────────────────────
+
+export interface Company {
+  id: string;
   name: string;
-  type: "asset" | "liability" | "equity" | "revenue" | "expense";
-  parentId?: string;
-  balance: number;
-  currency: string;
+  registrationNumber: string;   // Latvian reg number (e.g. 40003XXXXXX)
+  vatNumber?: string;           // LV + 11 digits
+  legalAddress: Address;
+  bankAccounts: BankAccount[];
+  fiscalYearStart: number;      // month 1-12 (usually 1 for calendar year)
+  currency: "EUR";
+  country: "LV";
+  settings: CompanySettings;
+  createdAt: string;
+  updatedAt: string;
 }
+
+export interface CompanySettings {
+  vatRegistered: boolean;
+  vatRate: number;              // default 21
+  defaultPaymentTermsDays: number;
+  invoiceNumberPrefix: string;
+  nextInvoiceNumber: number;
+}
+
+export interface BankAccount {
+  name: string;
+  iban: string;
+  swift: string;
+  bankName: string;
+  isDefault: boolean;
+}
+
+// ─── Chart of Accounts ──────────────────────────────────────
+
+export interface Account extends BaseEntity {
+  code: string;                 // e.g. "1210" per LV CoA
+  name: string;
+  nameLv: string;               // Latvian name for official reports
+  type: AccountType;
+  parentCode?: string;
+  level: number;                // 1=class, 2=group, 3=account, 4=sub-account
+  isPostable: boolean;          // only level 3-4 accounts accept journal entries
+  balance: number;
+  normalSide: "debit" | "credit";
+}
+
+export type AccountType = "asset" | "liability" | "equity" | "revenue" | "expense";
+
+// ─── General Ledger ─────────────────────────────────────────
 
 export interface JournalEntry extends BaseEntity {
   entryNumber: string;
-  date: string;
+  date: string;                 // ISO date
   description: string;
   lines: JournalLine[];
   status: "draft" | "posted" | "reversed";
+  period: string;               // "2026-03"
+  sourceType?: "manual" | "invoice" | "payment" | "adjustment" | "closing";
+  sourceId?: string;            // reference to originating document
+  totalDebit: number;
+  totalCredit: number;
 }
 
 export interface JournalLine {
-  accountId: string;
+  accountCode: string;
+  accountName: string;
   debit: number;
   credit: number;
   description?: string;
+  vatCode?: string;
 }
+
+// ─── Contacts (Customers & Vendors) ─────────────────────────
+
+export interface Contact extends BaseEntity {
+  type: "customer" | "vendor" | "both";
+  name: string;
+  registrationNumber?: string;
+  vatNumber?: string;
+  email?: string;
+  phone?: string;
+  address: Address;
+  bankAccount?: BankAccount;
+  paymentTermsDays: number;
+  notes?: string;
+}
+
+// ─── Invoices ───────────────────────────────────────────────
 
 export interface Invoice extends BaseEntity {
   invoiceNumber: string;
   type: "sales" | "purchase";
-  customerId?: string;
-  vendorId?: string;
+  contactId: string;
+  contactName: string;
   date: string;
   dueDate: string;
   lines: InvoiceLine[];
   subtotal: number;
-  tax: number;
+  vatAmount: number;
   total: number;
-  status: "draft" | "sent" | "paid" | "overdue" | "cancelled";
-  currency: string;
+  amountPaid: number;
+  status: "draft" | "posted" | "partially_paid" | "paid" | "overdue" | "cancelled";
+  currency: "EUR";
+  // Latvian source document requirements (Section 7)
+  documentNumber: string;       // registration number
+  documentDate: string;
+  // GL posting references
+  journalEntryId?: string;
+  paymentJournalEntryIds: string[];
 }
 
 export interface InvoiceLine {
-  itemId: string;
   description: string;
   quantity: number;
   unitPrice: number;
-  taxRate: number;
-  total: number;
+  vatRate: number;              // 0, 5, 12, or 21
+  vatAmount: number;
+  lineTotal: number;
+  accountCode: string;          // GL account for this line
+  itemId?: string;
 }
 
-// Inventory Module
+// ─── Payments ───────────────────────────────────────────────
+
+export interface Payment extends BaseEntity {
+  type: "incoming" | "outgoing";
+  contactId: string;
+  contactName: string;
+  date: string;
+  amount: number;
+  currency: "EUR";
+  bankAccountIban: string;
+  reference: string;
+  invoiceAllocations: PaymentAllocation[];
+  journalEntryId?: string;
+  status: "draft" | "posted";
+}
+
+export interface PaymentAllocation {
+  invoiceId: string;
+  invoiceNumber: string;
+  amount: number;
+}
+
+// ─── Inventory ──────────────────────────────────────────────
+
 export interface Item extends BaseEntity {
-  sku: string;
+  code: string;
   name: string;
   description?: string;
-  category: string;
+  type: "product" | "service";
   unitOfMeasure: string;
   costPrice: number;
   sellingPrice: number;
-  reorderLevel: number;
-  quantityOnHand: number;
+  vatRate: number;              // default VAT rate for this item
+  quantityOnHand: number;       // 0 for services
+  purchaseAccountCode: string;  // default GL account for purchases
+  salesAccountCode: string;     // default GL account for sales
 }
 
-export interface Warehouse extends BaseEntity {
-  code: string;
-  name: string;
-  address: Address;
-}
-
-// Sales / CRM
-export interface Customer extends BaseEntity {
-  code: string;
-  name: string;
-  email: string;
-  phone?: string;
-  billingAddress: Address;
-  shippingAddress?: Address;
-  taxId?: string;
-  creditLimit: number;
-}
-
-export interface SalesOrder extends BaseEntity {
-  orderNumber: string;
-  customerId: string;
-  date: string;
-  lines: SalesOrderLine[];
-  subtotal: number;
-  tax: number;
-  total: number;
-  status: "draft" | "confirmed" | "shipped" | "delivered" | "cancelled";
-}
-
-export interface SalesOrderLine {
+export interface StockMovement extends BaseEntity {
   itemId: string;
-  description: string;
-  quantity: number;
-  unitPrice: number;
-  discount: number;
-  taxRate: number;
-  total: number;
-}
-
-// Procurement
-export interface Vendor extends BaseEntity {
-  code: string;
-  name: string;
-  email: string;
-  phone?: string;
-  address: Address;
-  taxId?: string;
-  paymentTerms: string;
-}
-
-export interface PurchaseOrder extends BaseEntity {
-  orderNumber: string;
-  vendorId: string;
+  itemCode: string;
+  type: "purchase_receipt" | "sales_delivery" | "adjustment";
+  quantity: number;             // positive = in, negative = out
+  unitCost: number;
+  totalCost: number;
+  sourceType: "invoice" | "manual";
+  sourceId?: string;
   date: string;
-  expectedDate: string;
-  lines: PurchaseOrderLine[];
-  subtotal: number;
-  tax: number;
-  total: number;
-  status: "draft" | "sent" | "received" | "invoiced" | "cancelled";
+  balanceAfter: number;
 }
 
-export interface PurchaseOrderLine {
-  itemId: string;
+// ─── VAT ────────────────────────────────────────────────────
+
+export interface VatReturn extends BaseEntity {
+  period: string;               // "2026-03"
+  startDate: string;
+  endDate: string;
+  outputVat: number;            // VAT on sales
+  inputVat: number;             // VAT on purchases
+  vatPayable: number;           // output - input
+  status: "draft" | "submitted" | "accepted";
+  lines: VatReturnLine[];
+}
+
+export interface VatReturnLine {
+  vatRate: number;
+  taxableAmount: number;
+  vatAmount: number;
+  type: "output" | "input";
+}
+
+// ─── Agent ──────────────────────────────────────────────────
+
+export interface AgentAction extends BaseEntity {
+  agentType: "orchestrator" | "finance" | "purchase" | "sales";
+  action: string;
   description: string;
-  quantity: number;
-  unitPrice: number;
-  taxRate: number;
-  total: number;
+  status: "pending" | "approved" | "rejected" | "executed" | "failed";
+  payload: Record<string, unknown>;
+  result?: Record<string, unknown>;
+  requiresApproval: boolean;
+  approvedBy?: string;
+  approvedAt?: string;
+  error?: string;
 }
 
-// HR
-export interface Employee extends BaseEntity {
-  employeeNumber: string;
-  firstName: string;
-  lastName: string;
+export interface ChatMessage {
+  id: string;
+  companyId: string;
+  role: "user" | "assistant" | "system";
+  content: string;
+  timestamp: string;
+  agentType?: string;
+  actionId?: string;
+}
+
+// ─── Auth / User ────────────────────────────────────────────
+
+export interface UserProfile {
+  id: string;                   // provider UID
   email: string;
-  department: string;
-  position: string;
-  hireDate: string;
-  salary: number;
-  status: "active" | "onLeave" | "terminated";
+  displayName: string;
+  photoUrl?: string;
+  provider: "google" | "microsoft";
+  companies: UserCompanyRole[];
+  createdAt: string;
+  lastLoginAt: string;
 }
 
-// Shared
+export interface UserCompanyRole {
+  companyId: string;
+  companyName: string;
+  role: "owner" | "accountant" | "viewer";
+}
+
+// ─── Shared ─────────────────────────────────────────────────
+
 export interface Address {
   line1: string;
   line2?: string;
   city: string;
-  state: string;
   postalCode: string;
-  country: string;
+  country: string;              // ISO 3166-1 alpha-2
 }
 
 export interface PaginatedResponse<T> {
@@ -169,7 +266,13 @@ export interface PaginatedResponse<T> {
   total: number;
   page: number;
   pageSize: number;
-  hasMore: boolean;
+  continuationToken?: string;
+}
+
+export interface ApiResponse<T = unknown> {
+  data?: T;
+  error?: ApiError;
+  meta?: Record<string, unknown>;
 }
 
 export interface ApiError {

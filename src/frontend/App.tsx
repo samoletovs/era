@@ -1,26 +1,29 @@
 import React from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, NavLink } from "react-router-dom";
 import { Dashboard } from "./pages/Dashboard";
+import { Chat } from "./pages/Chat";
 
 export function App() {
   return (
     <BrowserRouter>
       <div className="app">
-        <header className="app-header">
-          <h1>ERA</h1>
+        <aside className="app-sidebar">
+          <div className="logo">
+            ERA <span>v0.1</span>
+          </div>
           <nav>
-            <a href="/dashboard">Dashboard</a>
-            <a href="/finance">Finance</a>
-            <a href="/inventory">Inventory</a>
-            <a href="/sales">Sales</a>
-            <a href="/procurement">Procurement</a>
-            <a href="/hr">HR</a>
+            <NavLink to="/" end>Dashboard</NavLink>
+            <NavLink to="/chat">Agent chat</NavLink>
+            <NavLink to="/accounts">Chart of accounts</NavLink>
+            <NavLink to="/invoices">Invoices</NavLink>
+            <NavLink to="/contacts">Contacts</NavLink>
+            <NavLink to="/items">Items</NavLink>
           </nav>
-        </header>
+        </aside>
         <main className="app-main">
           <Routes>
             <Route path="/" element={<Dashboard />} />
-            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/chat" element={<Chat />} />
           </Routes>
         </main>
       </div>
