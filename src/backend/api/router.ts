@@ -8,9 +8,10 @@ import { createContact, getContact, listContacts } from "../services/contact.js"
 import { createItem, listItems } from "../services/inventory.js";
 import { generateVatReturn, getBalanceSheet, getProfitAndLoss } from "../services/reporting.js";
 import { searchCompanyByName, searchCompanyByRegNumber } from "../services/company-lookup.js";
+import { recognizeInvoice } from "../services/invoice-recognition.js";
 import { handleChat } from "../services/agent.js";
 import { containers } from "../services/cosmos.js";
-import type { ApiResponse, Account, Company } from "@shared/types";
+import type { ApiResponse, Account, Company, Feedback } from "@shared/types";
 
 export const router = Router();
 
@@ -247,6 +248,91 @@ router.get("/companies/:companyId/trial-balance", async (req, res) => {
   }
 });
 
+// ─── Invoice Upload & Recognition ───────────────────────────
+
+router.post("/companies/:companyId/invoices/upload", async (req, res) => {
+  try {
+    const { image, mimeType } = req.body; // base64 image, mime type
+    if (!image || !mimeType) {
+      res.status(400).json({ error: { code: "MISSING_DATA", message: "image and mimeType required" } });
+      return;
+    }
+
+    // Step 1: Recognize invoice with GPT-4o vision
+    const recognized = await recognizeInvoice(image, mimeType);
+
+    // Step 2: Find or create vendor contact
+    let contactId = "";
+    let contactName = recognized.vendorName || "Unknown vendor";
+
+    if (recognized.vendorName) {
+      const { resources: existing } = await containers.contacts().items
+        .query({
+          query: "SELECT * FROM c WHERE c.companyId = @cid AND c.name = @name",
+          parameters: [
+            { name: "@cid", value: req.params.companyId },
+            { name: "@name", value: recognized.vendorName },
+          ],
+        })
+        .fetchAll();
+
+      if (existing.length > 0) {
+        contactId = existing[0].id;
+      } else {
+        const newContact = await createContact({
+          companyId: req.params.companyId,
+          type: "vendor",
+          name: recognized.vendorName,
+          registrationNumber: recognized.vendorRegistrationNumber,
+          vatNumber: recognized.vendorVatNumber,
+          address: {
+            line1: recognized.vendorAddress || "",
+            city: "",
+            postalCode: "",
+            country: "LV",
+          },
+          createdBy: req.user!.id,
+        });
+        contactId = newContact.id;
+      }
+    }
+
+    // Step 3: Create purchase invoice
+    const invoiceLines = recognized.lines.map((l) => ({
+      description: l.description,
+      quantity: l.quantity,
+      unitPrice: l.unitPrice,
+      vatRate: l.vatRate,
+      accountCode: "6350", // Default: professional services
+    }));
+
+    const invoice = await createInvoice({
+      companyId: req.params.companyId,
+      type: "purchase",
+      contactId,
+      contactName,
+      date: recognized.invoiceDate,
+      dueDate: recognized.dueDate || new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
+      lines: invoiceLines,
+      createdBy: req.user!.id,
+    });
+
+    // Step 4: Auto-post to ledger
+    const postedInvoice = await postInvoice(req.params.companyId, invoice.id, req.user!.id);
+
+    res.status(201).json({
+      data: {
+        recognized,
+        invoice: postedInvoice,
+        contactId,
+        message: `Invoice ${postedInvoice.invoiceNumber} from ${contactName} for €${postedInvoice.total.toFixed(2)} created and posted to ledger.`,
+      },
+    } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "UPLOAD_FAILED", message: String(err) } });
+  }
+});
+
 // ─── Finance: Invoices (CRUD + post) ────────────────────────
 
 router.post("/companies/:companyId/invoices", async (req, res) => {
@@ -441,5 +527,72 @@ router.post("/chat", async (req, res) => {
     res.json({ data: { response } } as ApiResponse);
   } catch (err) {
     res.status(500).json({ error: { code: "AGENT_ERROR", message: String(err) } });
+  }
+});
+
+// ─── Feedback / Dev Tasks ───────────────────────────────────
+
+router.post("/feedback", async (req, res) => {
+  try {
+    const { page, message, companyId } = req.body;
+    if (!message || typeof message !== "string" || message.trim().length === 0) {
+      res.status(400).json({ error: { code: "INVALID_INPUT", message: "Message is required" } });
+      return;
+    }
+    const now = new Date().toISOString();
+    const item: Feedback = {
+      id: `fb-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      page: String(page || "unknown"),
+      message: message.trim().slice(0, 2000),
+      status: "open",
+      submittedBy: req.user!.id,
+      submittedAt: now,
+      companyId: companyId || undefined,
+    };
+    await containers.feedback().items.create(item);
+    res.status(201).json({ data: item } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "CREATE_FAILED", message: String(err) } });
+  }
+});
+
+router.get("/feedback", async (req, res) => {
+  try {
+    const statusFilter = req.query.status ? " WHERE c.status = @status" : "";
+    const params = req.query.status ? [{ name: "@status", value: req.query.status as string }] : [];
+    const { resources } = await containers.feedback().items
+      .query<Feedback>({
+        query: `SELECT * FROM c${statusFilter} ORDER BY c.submittedAt DESC`,
+        parameters: params,
+      })
+      .fetchAll();
+    res.json({ data: resources } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
+  }
+});
+
+router.patch("/feedback/:id", async (req, res) => {
+  try {
+    const { status } = req.body;
+    const validStatuses = ["open", "in-progress", "done", "dismissed"];
+    if (!status || !validStatuses.includes(status)) {
+      res.status(400).json({ error: { code: "INVALID_INPUT", message: "Invalid status" } });
+      return;
+    }
+    const { resource } = await containers.feedback().item(req.params.id, req.params.id).read<Feedback>();
+    if (!resource) {
+      res.status(404).json({ error: { code: "NOT_FOUND", message: "Feedback not found" } });
+      return;
+    }
+    const updated = {
+      ...resource,
+      status,
+      resolvedAt: status === "done" || status === "dismissed" ? new Date().toISOString() : resource.resolvedAt,
+    };
+    await containers.feedback().item(req.params.id, req.params.id).replace(updated);
+    res.json({ data: updated } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "UPDATE_FAILED", message: String(err) } });
   }
 });

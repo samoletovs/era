@@ -1,6 +1,7 @@
 import React from "react";
-import { BrowserRouter, Routes, Route, NavLink, useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { AppProvider, useApp } from "./utils/context";
+import { api } from "./utils/api";
 import { Dashboard } from "./pages/Dashboard";
 import { Chat } from "./pages/Chat";
 import { Accounts } from "./pages/Accounts";
@@ -10,6 +11,7 @@ import { Items } from "./pages/Items";
 import { Reports } from "./pages/Reports";
 import { Onboarding } from "./pages/Onboarding";
 import { Settings } from "./pages/Settings";
+import { UploadInvoice } from "./pages/UploadInvoice";
 
 function Sidebar() {
   const { companies, companyId, setCompanyId } = useApp();
@@ -50,6 +52,7 @@ function Sidebar() {
         <NavLink to="/chat">Agent chat</NavLink>
         <NavLink to="/accounts">Chart of accounts</NavLink>
         <NavLink to="/invoices">Invoices</NavLink>
+        <NavLink to="/upload">Upload invoice</NavLink>
         <NavLink to="/contacts">Contacts</NavLink>
         <NavLink to="/items">Items</NavLink>
         <NavLink to="/reports">Reports</NavLink>
@@ -65,6 +68,60 @@ function Sidebar() {
   );
 }
 
+function FeedbackButton() {
+  const { companyId } = useApp();
+  const location = useLocation();
+  const [open, setOpen] = React.useState(false);
+  const [message, setMessage] = React.useState("");
+  const [sending, setSending] = React.useState(false);
+  const [sent, setSent] = React.useState(false);
+
+  function handleSubmit() {
+    if (!message.trim()) return;
+    setSending(true);
+    api.submitFeedback({ page: location.pathname, message: message.trim(), companyId: companyId || undefined })
+      .then(() => { setSent(true); setMessage(""); setTimeout(() => { setOpen(false); setSent(false); }, 1500); })
+      .catch(() => setSending(false))
+      .finally(() => setSending(false));
+  }
+
+  return (
+    <>
+      <button className="feedback-fab" onClick={() => { setOpen(!open); setSent(false); }} title="Send feedback">
+        {open ? "✕" : "💬"}
+      </button>
+      {open && (
+        <div className="feedback-popover">
+          {sent ? (
+            <div className="feedback-sent">
+              <span>✓</span> Thanks for your feedback!
+            </div>
+          ) : (
+            <>
+              <div className="feedback-header">Send feedback</div>
+              <textarea
+                className="feedback-textarea"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="What could be better? Report a bug, suggest a feature..."
+                rows={4}
+                maxLength={2000}
+                autoFocus
+              />
+              <div className="feedback-footer">
+                <span className="feedback-page">{location.pathname}</span>
+                <button className="btn-primary" onClick={handleSubmit} disabled={sending || !message.trim()}>
+                  {sending ? "Sending..." : "Submit"}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
 export function App() {
   return (
     <AppProvider>
@@ -77,6 +134,7 @@ export function App() {
               <Route path="/chat" element={<Chat />} />
               <Route path="/accounts" element={<Accounts />} />
               <Route path="/invoices" element={<Invoices />} />
+              <Route path="/upload" element={<UploadInvoice />} />
               <Route path="/contacts" element={<Contacts />} />
               <Route path="/items" element={<Items />} />
               <Route path="/reports" element={<Reports />} />
@@ -84,6 +142,7 @@ export function App() {
               <Route path="/settings" element={<Settings />} />
             </Routes>
           </main>
+          <FeedbackButton />
         </div>
       </BrowserRouter>
     </AppProvider>

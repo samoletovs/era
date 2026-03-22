@@ -43,4 +43,5 @@ export const containers = {
   inventory: () => getContainer(CONTAINERS.INVENTORY),
   agentState: () => getContainer(CONTAINERS.AGENT_STATE),
   chat: () => getContainer(CONTAINERS.CHAT),
+  feedback: () => getContainer(CONTAINERS.FEEDBACK),
 };

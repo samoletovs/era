@@ -233,6 +233,19 @@ export interface ChatMessage {
   actionId?: string;
 }
 
+// ─── Feedback / Dev Tasks ───────────────────────────────────
+
+export interface Feedback {
+  id: string;
+  page: string;
+  message: string;
+  status: "open" | "in-progress" | "done" | "dismissed";
+  submittedBy: string;
+  submittedAt: string;
+  resolvedAt?: string;
+  companyId?: string;
+}
+
 // ─── Auth / User ────────────────────────────────────────────
 
 export interface UserProfile {

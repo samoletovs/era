@@ -64,11 +64,37 @@ export function Accounts() {
     });
   };
 
+  const expandToLevel = (level: number) => {
+    const toCollapse = new Set<string>();
+    for (const a of accounts) {
+      if (!a.isPostable && a.level >= level) {
+        toCollapse.add(a.code);
+      }
+    }
+    setCollapsed(toCollapse);
+  };
+
+  // Determine which level button is active
+  const allLevel1 = accounts.filter((a: any) => a.level === 1 && !a.isPostable);
+  const allLevel2 = accounts.filter((a: any) => a.level === 2 && !a.isPostable);
+  const level1AllCollapsed = allLevel1.length > 0 && allLevel1.every((a: any) => collapsed.has(a.code));
+  const level2AllCollapsed = allLevel2.length > 0 && allLevel2.every((a: any) => collapsed.has(a.code));
+  const activeLevel = level1AllCollapsed ? 1 : level2AllCollapsed ? 2 : 3;
+
   if (!companyId) return <NoCompany />;
 
   return (
     <div>
-      <h2 className="page-title">Chart of accounts</h2>
+      <div className="coa-header">
+        <h2 className="page-title">Chart of accounts</h2>
+        {!loading && accounts.length > 0 && (
+          <div className="coa-level-controls">
+            <button className={`coa-level-btn ${activeLevel === 1 ? "active" : ""}`} onClick={() => expandToLevel(1)}>Classes</button>
+            <button className={`coa-level-btn ${activeLevel === 2 ? "active" : ""}`} onClick={() => expandToLevel(2)}>Groups</button>
+            <button className={`coa-level-btn ${activeLevel === 3 ? "active" : ""}`} onClick={() => expandToLevel(3)}>All</button>
+          </div>
+        )}
+      </div>
       {loading ? <p style={{ color: "#A0A0A0" }}>Loading...</p> : (
         <table className="data-table coa-table">
           <thead>

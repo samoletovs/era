@@ -15,7 +15,8 @@
     "test:e2e": "playwright test",
     "lint": "eslint src/ --ext .ts,.tsx",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\"",
-    "infra:deploy": "az deployment group create --resource-group era-rg --template-file infrastructure/main.bicep"
+    "infra:deploy": "az deployment group create --resource-group era-rg --template-file infrastructure/main.bicep",
+    "dev-tasks": "tsx scripts/sync-dev-tasks.ts"
   },
   "dependencies": {
     "@azure/cosmos": "^4.2.0",

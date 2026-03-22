@@ -50,4 +50,9 @@ export const api = {
   updateCompany: (id: string, body: Record<string, unknown>) =>
     apiFetch(`/companies/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   companies: () => apiFetch("/companies"),
+
+  // Feedback
+  submitFeedback: (body: { page: string; message: string; companyId?: string }) =>
+    apiFetch("/feedback", { method: "POST", body: JSON.stringify(body) }),
+  feedback: () => apiFetch("/feedback"),
 };
