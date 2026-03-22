@@ -16,6 +16,7 @@ import { FixedAssets } from "./pages/FixedAssets";
 import { BankRecon } from "./pages/BankRecon";
 import { RecurringEntries } from "./pages/RecurringEntries";
 import { EventLog } from "./pages/EventLog";
+import { Accounting } from "./pages/Accounting";
 
 function Sidebar() {
   const { companies, companyId, setCompanyId } = useApp();
@@ -63,6 +64,7 @@ function Sidebar() {
         <NavLink to="/bank">Bank recon</NavLink>
         <NavLink to="/recurring">Recurring</NavLink>
         <NavLink to="/reports">Reports</NavLink>
+        <NavLink to="/accounting">Accounting</NavLink>
         <NavLink to="/events">Event log</NavLink>
         <NavLink to="/settings">Settings</NavLink>
       </nav>
@@ -150,6 +152,7 @@ export function App() {
               <Route path="/bank" element={<BankRecon />} />
               <Route path="/recurring" element={<RecurringEntries />} />
               <Route path="/events" element={<EventLog />} />
+              <Route path="/accounting" element={<Accounting />} />
               <Route path="/onboarding" element={<Onboarding />} />
               <Route path="/settings" element={<Settings />} />
             </Routes>

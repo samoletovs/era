@@ -16,6 +16,7 @@ function roundCurrency(n: number): number {
 export interface FixedAsset {
   id: string;
   companyId: string;
+  docType: "fixed-asset";
   code: string;
   name: string;
   description?: string;
@@ -60,6 +61,7 @@ export async function acquireAsset(input: AcquireAssetInput): Promise<FixedAsset
   const asset: FixedAsset = {
     id: uuidv4(),
     companyId: input.companyId,
+    docType: "fixed-asset" as const,
     code: input.code,
     name: input.name,
     description: input.description,
@@ -221,3 +223,4 @@ export async function listFixedAssets(companyId: string): Promise<FixedAsset[]> 
     .fetchAll();
   return resources;
 }
+

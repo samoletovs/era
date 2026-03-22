@@ -3,8 +3,11 @@ config(); // Load .env file
 
 import express from "express";
 import cors from "cors";
+import path from "path";
+import { fileURLToPath } from "url";
 import { router } from "./api/router.js";
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -18,6 +21,15 @@ app.get("/health", (_req, res) => {
 
 // API routes
 app.use("/api", router);
+
+// Serve frontend in production
+if (process.env.NODE_ENV === "production") {
+  const frontendPath = path.join(__dirname, "../frontend");
+  app.use(express.static(frontendPath));
+  app.get("*", (_req, res) => {
+    res.sendFile(path.join(frontendPath, "index.html"));
+  });
+}
 
 app.listen(port, () => {
   console.log(`ERA API running on port ${port}`);

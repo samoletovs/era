@@ -1,0 +1,15 @@
+node_modules
+dist
+.git
+.github
+.vscode
+*.md
+tests
+docs
+.env*
+.azure
+_temp_*
+tmp
+*.png
+.playwright-mcp
+coverage

@@ -21,17 +21,28 @@ export function FixedAssets() {
     api.fixedAssets(companyId).then((d: any) => setAssets(d as any[])).catch(() => {}).finally(() => setLoading(false));
   }
 
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
   async function handleAcquire() {
     if (!form.code || !form.name || !form.acquisitionCost) return;
-    await api.acquireAsset(companyId, {
-      code: form.code, name: form.name, assetAccountCode: form.assetAccountCode,
-      depreciationAccountCode: "1240", expenseAccountCode: "6380",
-      acquisitionDate: form.acquisitionDate, acquisitionCost: parseFloat(form.acquisitionCost),
-      residualValue: parseFloat(form.residualValue || "0"), usefulLifeMonths: parseInt(form.usefulLifeMonths),
-    });
-    setShowForm(false);
-    setForm({ code: "", name: "", assetAccountCode: "1220", acquisitionDate: new Date().toISOString().slice(0, 10), acquisitionCost: "", residualValue: "0", usefulLifeMonths: "60" });
-    loadAssets();
+    setError(null);
+    setSaving(true);
+    try {
+      await api.acquireAsset(companyId, {
+        code: form.code, name: form.name, assetAccountCode: form.assetAccountCode,
+        depreciationAccountCode: "1240", expenseAccountCode: "6380",
+        acquisitionDate: form.acquisitionDate, acquisitionCost: parseFloat(form.acquisitionCost),
+        residualValue: parseFloat(form.residualValue || "0"), usefulLifeMonths: parseInt(form.usefulLifeMonths),
+      });
+      setShowForm(false);
+      setForm({ code: "", name: "", assetAccountCode: "1220", acquisitionDate: new Date().toISOString().slice(0, 10), acquisitionCost: "", residualValue: "0", usefulLifeMonths: "60" });
+      loadAssets();
+    } catch (err: any) {
+      setError(err.message || "Failed to acquire asset");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handleDepreciate() {
@@ -70,9 +81,9 @@ export function FixedAssets() {
       )}
 
       {showForm && (
-        <div className="settings-card" style={{ marginBottom: 20 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Acquire new asset</h3>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+        <div className="settings-card" style={{ marginBottom: 20, maxWidth: 720 }}>
+          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>Acquire new asset</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
             <div><div className="detail-label">Code</div><input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="FA-001" className="settings-input" /></div>
             <div><div className="detail-label">Name</div><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Office equipment" className="settings-input" /></div>
             <div><div className="detail-label">GL account</div>
@@ -87,7 +98,8 @@ export function FixedAssets() {
             <div><div className="detail-label">Residual value (€)</div><input type="number" value={form.residualValue} onChange={(e) => setForm({ ...form, residualValue: e.target.value })} placeholder="0" className="settings-input" /></div>
             <div><div className="detail-label">Useful life (months)</div><input type="number" value={form.usefulLifeMonths} onChange={(e) => setForm({ ...form, usefulLifeMonths: e.target.value })} placeholder="60" className="settings-input" /></div>
           </div>
-          <button className="btn-primary" style={{ marginTop: 16 }} onClick={handleAcquire}>Acquire & post to GL</button>
+          {error && <div style={{ marginTop: 12, padding: "8px 12px", background: "var(--error-bg)", color: "var(--error)", borderRadius: "var(--radius-sm)", fontSize: "var(--text-sm)" }}>{error}</div>}
+          <button className="btn-primary" style={{ marginTop: 16 }} onClick={handleAcquire} disabled={saving}>{saving ? "Posting..." : "Acquire & post to GL"}</button>
         </div>
       )}
 

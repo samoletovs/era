@@ -165,10 +165,10 @@ export function Invoices() {
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <h2 className="page-title" style={{ marginBottom: 0 }}>Invoices</h2>
-        <div style={{ display: "flex", gap: 6 }}>
-          <button className={!filter ? "btn-primary" : "btn-secondary"} onClick={() => setFilter("")}>All</button>
-          <button className={filter === "purchase" ? "btn-primary" : "btn-secondary"} onClick={() => setFilter("purchase")}>Purchase</button>
-          <button className={filter === "sales" ? "btn-primary" : "btn-secondary"} onClick={() => setFilter("sales")}>Sales</button>
+        <div className="coa-level-controls">
+          <button className={`coa-level-btn ${!filter ? "active" : ""}`} onClick={() => setFilter("")}>All</button>
+          <button className={`coa-level-btn ${filter === "purchase" ? "active" : ""}`} onClick={() => setFilter("purchase")}>Purchase</button>
+          <button className={`coa-level-btn ${filter === "sales" ? "active" : ""}`} onClick={() => setFilter("sales")}>Sales</button>
         </div>
       </div>
       {loading ? <p style={{ color: "#A0A0A0" }}>Loading...</p> : invoices.length === 0 ? (

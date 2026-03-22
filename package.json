@@ -10,7 +10,7 @@
     "dev:backend": "tsx watch src/backend/index.ts",
     "build": "npm run build:frontend && npm run build:backend",
     "build:frontend": "vite build",
-    "build:backend": "tsc -p tsconfig.backend.json",
+    "build:backend": "node --import tsx scripts/build-backend.ts",
     "test": "vitest",
     "test:e2e": "playwright test",
     "lint": "eslint src/",

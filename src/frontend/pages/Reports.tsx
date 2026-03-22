@@ -69,15 +69,15 @@ export function Reports() {
   return (
     <div>
       <h2 className="page-title">Reports</h2>
-      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-        <button className={view === "pl" ? "btn-primary" : "btn-secondary"} onClick={() => setView("pl")}>Profit & loss</button>
-        <button className={view === "bs" ? "btn-primary" : "btn-secondary"} onClick={() => setView("bs")}>Balance sheet</button>
-        <button className={view === "tb" ? "btn-primary" : "btn-secondary"} onClick={() => setView("tb")}>Trial balance</button>
-        <button className={view === "ar-aging" ? "btn-primary" : "btn-secondary"} onClick={() => setView("ar-aging")}>AR aging</button>
-        <button className={view === "ap-aging" ? "btn-primary" : "btn-secondary"} onClick={() => setView("ap-aging")}>AP aging</button>
-        <button className={view === "vat" ? "btn-primary" : "btn-secondary"} onClick={() => setView("vat")}>VAT declaration</button>
-        <button className={view === "annual" ? "btn-primary" : "btn-secondary"} onClick={() => setView("annual")}>Annual report</button>
-        <button className={view === "budget" ? "btn-primary" : "btn-secondary"} onClick={() => setView("budget")}>Budget vs actual</button>
+      <div className="coa-level-controls" style={{ marginBottom: 16, flexWrap: "wrap" }}>
+        <button className={`coa-level-btn ${view === "pl" ? "active" : ""}`} onClick={() => setView("pl")}>Profit & loss</button>
+        <button className={`coa-level-btn ${view === "bs" ? "active" : ""}`} onClick={() => setView("bs")}>Balance sheet</button>
+        <button className={`coa-level-btn ${view === "tb" ? "active" : ""}`} onClick={() => setView("tb")}>Trial balance</button>
+        <button className={`coa-level-btn ${view === "ar-aging" ? "active" : ""}`} onClick={() => setView("ar-aging")}>AR aging</button>
+        <button className={`coa-level-btn ${view === "ap-aging" ? "active" : ""}`} onClick={() => setView("ap-aging")}>AP aging</button>
+        <button className={`coa-level-btn ${view === "vat" ? "active" : ""}`} onClick={() => setView("vat")}>VAT declaration</button>
+        <button className={`coa-level-btn ${view === "annual" ? "active" : ""}`} onClick={() => setView("annual")}>Annual report</button>
+        <button className={`coa-level-btn ${view === "budget" ? "active" : ""}`} onClick={() => setView("budget")}>Budget vs actual</button>
       </div>
 
       <div className="report-period-bar">

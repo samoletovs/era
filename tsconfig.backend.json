@@ -1,13 +1,13 @@
 {
-  "extends": "../tsconfig.json",
+  "extends": "./tsconfig.json",
   "compilerOptions": {
-    "outDir": "../dist/backend",
-    "rootDir": ".",
+    "outDir": "dist/backend",
+    "rootDir": "src",
     "noEmit": false,
     "module": "ESNext",
     "moduleResolution": "bundler",
     "declaration": false,
     "declarationMap": false
   },
-  "include": ["backend/**/*.ts", "shared/**/*.ts"]
+  "include": ["src/backend/**/*.ts", "src/shared/**/*.ts"]
 }

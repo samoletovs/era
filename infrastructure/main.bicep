@@ -93,49 +93,71 @@ resource cosmosContainers 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/co
   }
 ]
 
-// ─── App Service (F1 free for dev, B1 for prod) ────────────
+// ─── Container Apps (Consumption — pay-per-use, no VM quota needed) ─
 
-resource appServicePlan 'Microsoft.Web/serverfarms@2023-12-01' = {
-  name: '${prefix}-plan'
-  location: location
-  tags: tags
-  sku: {
-    name: environment == 'prod' ? 'B1' : 'F1'
-  }
-  properties: {
-    reserved: false
-  }
+resource containerAppEnv 'Microsoft.App/managedEnvironments@2024-03-01' existing = {
+  name: '${prefix}-env'
 }
 
-resource appService 'Microsoft.Web/sites@2023-12-01' = {
+resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
   name: '${prefix}-api'
   location: location
   tags: tags
-  properties: {
-    serverFarmId: appServicePlan.id
-    siteConfig: {
-      nodeVersion: '~20'
-      appSettings: [
-        { name: 'COSMOS_ENDPOINT', value: cosmosAccount.properties.documentEndpoint }
-        { name: 'COSMOS_DATABASE', value: cosmosDb.name }
-        { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsights.properties.ConnectionString }
-        { name: 'NODE_ENV', value: environment == 'prod' ? 'production' : 'development' }
-      ]
-    }
-    httpsOnly: true
-  }
   identity: {
     type: 'SystemAssigned'
   }
+  properties: {
+    managedEnvironmentId: containerAppEnv.id
+    configuration: {
+      ingress: {
+        external: true
+        targetPort: 3000
+        transport: 'http'
+      }
+    }
+    template: {
+      containers: [
+        {
+          name: 'era-api'
+          image: 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
+          resources: {
+            cpu: json('0.25')
+            memory: '0.5Gi'
+          }
+          env: [
+            { name: 'COSMOS_ENDPOINT', value: cosmosAccount.properties.documentEndpoint }
+            { name: 'COSMOS_DATABASE', value: cosmosDb.name }
+            { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsights.properties.ConnectionString }
+            { name: 'NODE_ENV', value: environment == 'prod' ? 'production' : 'development' }
+            { name: 'PORT', value: '3000' }
+          ]
+        }
+      ]
+      scale: {
+        minReplicas: 0
+        maxReplicas: 3
+        rules: [
+          {
+            name: 'http-rule'
+            http: {
+              metadata: {
+                concurrentRequests: '50'
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
 }
 
-// RBAC: App Service → Cosmos DB (no connection string needed)
+// RBAC: Container App → Cosmos DB (no connection string needed)
 resource cosmosRoleAssignment 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2024-05-15' = {
   parent: cosmosAccount
-  name: guid(cosmosAccount.id, appService.id, 'cosmos-data-contributor')
+  name: guid(cosmosAccount.id, containerApp.id, 'cosmos-data-contributor')
   properties: {
     roleDefinitionId: '${cosmosAccount.id}/sqlRoleDefinitions/00000000-0000-0000-0000-000000000002'
-    principalId: appService.identity.principalId
+    principalId: containerApp.identity.principalId
     scope: cosmosAccount.id
   }
 }
@@ -195,7 +217,7 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
 
 // ─── Outputs ────────────────────────────────────────────────
 
-output apiUrl string = 'https://${appService.properties.defaultHostName}'
+output apiUrl string = 'https://${containerApp.properties.configuration.ingress.fqdn}'
 output cosmosEndpoint string = cosmosAccount.properties.documentEndpoint
 output cosmosDatabase string = cosmosDb.name
 output storageAccountName string = storageAccount.name
