@@ -1,6 +1,8 @@
 import { v4 as uuidv4 } from "uuid";
 import { containers } from "./cosmos.js";
 import { postJournalEntry, GLError } from "./ledger.js";
+import { emitEvent } from "./events.js";
+import { getActiveRule, evaluateInvoiceRule } from "./posting-rules.js";
 import type { Invoice, InvoiceLine, JournalLine, Company } from "@shared/types";
 import { VAT_RATES } from "@shared/constants";
 
@@ -102,6 +104,16 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<Invoice>
   };
 
   await containers.documents().items.create(invoice);
+
+  await emitEvent({
+    companyId: input.companyId,
+    type: "invoice.created",
+    actor: input.createdBy,
+    documentType: "invoice",
+    documentId: invoice.id,
+    data: { invoiceNumber: invoice.invoiceNumber, type: invoice.type, total: invoice.total },
+  });
+
   return invoice;
 }
 
@@ -119,8 +131,16 @@ export async function postInvoice(
   if (!invoice) throw new GLError("NOT_FOUND", "Invoice not found");
   if (invoice.status !== "draft") throw new GLError("NOT_DRAFT", "Only draft invoices can be posted");
 
-  // Build GL journal lines based on invoice type
-  const journalLines = buildInvoiceJournalLines(invoice);
+  // Build GL journal lines — try rule engine first, fall back to hardcoded
+  const ruleType = invoice.type === "sales" ? "sales-invoice" as const : "purchase-invoice" as const;
+  const rule = await getActiveRule("LV", ruleType);
+  let journalLines: JournalLine[];
+  if (rule) {
+    const ruleResult = evaluateInvoiceRule(rule, invoice);
+    journalLines = ruleResult ?? buildInvoiceJournalLines(invoice);
+  } else {
+    journalLines = buildInvoiceJournalLines(invoice);
+  }
 
   // Post journal entry
   const journalEntry = await postJournalEntry({
@@ -139,6 +159,16 @@ export async function postInvoice(
   invoice.updatedAt = new Date().toISOString();
   await containers.documents().item(invoiceId, companyId).replace(invoice);
 
+  await emitEvent({
+    companyId,
+    type: "invoice.posted",
+    actor: createdBy,
+    documentType: "invoice",
+    documentId: invoiceId,
+    journalEntryId: journalEntry.id,
+    data: { invoiceNumber: invoice.invoiceNumber, type: invoice.type, total: invoice.total },
+  });
+
   return invoice;
 }
 
@@ -155,6 +185,7 @@ function buildInvoiceJournalLines(invoice: Invoice): JournalLine[] {
       debit: invoice.total,
       credit: 0,
       description: `AR — ${invoice.contactName}`,
+      contactId: invoice.contactId,
     });
 
     // Credit: Revenue accounts per line
@@ -166,6 +197,9 @@ function buildInvoiceJournalLines(invoice: Invoice): JournalLine[] {
         debit: 0,
         credit: net,
         description: invLine.description,
+        contactId: invoice.contactId,
+        itemId: invLine.itemId,
+        taxCode: invLine.vatRate > 0 ? `LV-${invLine.vatRate}` : undefined,
       });
     }
 
@@ -178,6 +212,9 @@ function buildInvoiceJournalLines(invoice: Invoice): JournalLine[] {
         credit: invoice.vatAmount,
         description: "Output VAT",
         vatCode: "output",
+        contactId: invoice.contactId,
+        taxCode: `LV-${invoice.lines[0]?.vatRate ?? 21}`,
+        taxAmount: invoice.vatAmount,
       });
     }
   } else {
@@ -189,6 +226,7 @@ function buildInvoiceJournalLines(invoice: Invoice): JournalLine[] {
       debit: 0,
       credit: invoice.total,
       description: `AP — ${invoice.contactName}`,
+      contactId: invoice.contactId,
     });
 
     // Debit: Expense/asset accounts per line
@@ -200,6 +238,9 @@ function buildInvoiceJournalLines(invoice: Invoice): JournalLine[] {
         debit: net,
         credit: 0,
         description: invLine.description,
+        contactId: invoice.contactId,
+        itemId: invLine.itemId,
+        taxCode: invLine.vatRate > 0 ? `LV-${invLine.vatRate}` : undefined,
       });
     }
 
@@ -212,6 +253,9 @@ function buildInvoiceJournalLines(invoice: Invoice): JournalLine[] {
         credit: 0,
         description: "Input VAT",
         vatCode: "input",
+        contactId: invoice.contactId,
+        taxCode: `LV-${invoice.lines[0]?.vatRate ?? 21}`,
+        taxAmount: invoice.vatAmount,
       });
     }
   }

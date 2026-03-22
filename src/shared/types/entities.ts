@@ -24,8 +24,8 @@ export interface Company {
   legalAddress: Address;
   bankAccounts: BankAccount[];
   fiscalYearStart: number;      // month 1-12 (usually 1 for calendar year)
-  currency: "EUR";
-  country: "LV";
+  currency: string;             // ISO 4217 (default "EUR")
+  country: string;              // ISO 3166-1 alpha-2 (default "LV")
   settings: CompanySettings;
   createdAt: string;
   updatedAt: string;
@@ -85,6 +85,15 @@ export interface JournalLine {
   credit: number;
   description?: string;
   vatCode?: string;
+  // Enriched dimensions — enables subledger-free AR/AP/tax/inventory reporting
+  contactId?: string;
+  itemId?: string;
+  taxCode?: string;             // e.g. "LV-21", "LV-12", "LV-0"
+  taxAmount?: number;
+  // Multi-currency (optional — defaults to company currency)
+  currencyCode?: string;        // ISO 4217
+  exchangeRate?: number;        // rate to company currency (1.0 if same)
+  amountInCurrency?: number;    // original amount in transaction currency
 }
 
 // ─── Contacts (Customers & Vendors) ─────────────────────────
@@ -231,6 +240,55 @@ export interface ChatMessage {
   timestamp: string;
   agentType?: string;
   actionId?: string;
+}
+
+// ─── Business Events (immutable audit log) ──────────────────
+
+export interface BusinessEvent {
+  id: string;
+  companyId: string;
+  type: string;                 // e.g. "invoice.posted", "payment.applied", "entry.reversed"
+  timestamp: string;
+  actor: string;                // userId or "system"
+  documentType?: string;        // "invoice" | "payment" | "journal-entry" | "item"
+  documentId?: string;
+  journalEntryId?: string;
+  data?: Record<string, unknown>;
+}
+
+// ─── Posting Rules (configurable per country) ───────────────
+
+export type PostingRuleCondition = {
+  field: string;                // e.g. "invoice.type", "line.vatRate"
+  operator: "eq" | "neq" | "gt" | "lt" | "in" | "exists";
+  value: unknown;
+};
+
+export interface PostingRuleLine {
+  accountCode: string;
+  accountName: string;
+  side: "debit" | "credit";
+  amountExpr: string;           // e.g. "invoice.total", "line.netAmount", "line.vatAmount"
+  description?: string;
+  taxCode?: string;
+}
+
+export interface PostingRule {
+  id: string;
+  country: string;              // ISO 3166-1 alpha-2
+  documentType: "sales-invoice" | "purchase-invoice" | "incoming-payment" | "outgoing-payment" | "manual-entry";
+  name: string;
+  description: string;
+  version: number;
+  conditions: PostingRuleCondition[];
+  lines: PostingRuleLine[];
+  effectiveFrom: string;        // ISO date
+  effectiveTo?: string;         // null = current
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string;
+  source?: string;              // e.g. "LV-Cabinet-Regulation-775"
 }
 
 // ─── Feedback / Dev Tasks ───────────────────────────────────

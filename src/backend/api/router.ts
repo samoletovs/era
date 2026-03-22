@@ -10,8 +10,9 @@ import { generateVatReturn, getBalanceSheet, getProfitAndLoss } from "../service
 import { searchCompanyByName, searchCompanyByRegNumber } from "../services/company-lookup.js";
 import { recognizeInvoice } from "../services/invoice-recognition.js";
 import { handleChat } from "../services/agent.js";
+import { seedRules, getActiveRule } from "../services/posting-rules.js";
 import { containers } from "../services/cosmos.js";
-import type { ApiResponse, Account, Company, Feedback } from "@shared/types";
+import type { ApiResponse, Account, Company, Feedback, PostingRule, BusinessEvent } from "@shared/types";
 
 export const router = Router();
 
@@ -594,5 +595,56 @@ router.patch("/feedback/:id", async (req, res) => {
     res.json({ data: updated } as ApiResponse);
   } catch (err) {
     res.status(500).json({ error: { code: "UPDATE_FAILED", message: String(err) } });
+  }
+});
+
+// ─── Posting Rules ──────────────────────────────────────────
+
+router.get("/rules", async (req, res) => {
+  try {
+    const country = (req.query.country as string) || "LV";
+    const { resources } = await containers.rules().items
+      .query<PostingRule>({
+        query: "SELECT * FROM c WHERE c.country = @country ORDER BY c.documentType, c.version DESC",
+        parameters: [{ name: "@country", value: country }],
+      })
+      .fetchAll();
+    res.json({ data: resources } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
+  }
+});
+
+router.post("/rules/seed", async (req, res) => {
+  try {
+    // Dynamic import to allow seeding from country files
+    const { LV_POSTING_RULES } = await import("../../shared/rules/lv.js");
+    const count = await seedRules(LV_POSTING_RULES);
+    res.json({ data: { seeded: count, total: LV_POSTING_RULES.length } } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "SEED_FAILED", message: String(err) } });
+  }
+});
+
+// ─── Events (read-only audit log) ───────────────────────────
+
+router.get("/companies/:companyId/events", async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+    const typeFilter = req.query.type ? " AND c.type = @type" : "";
+    const params: { name: string; value: string | number }[] = [
+      { name: "@cid", value: req.params.companyId },
+    ];
+    if (req.query.type) params.push({ name: "@type", value: req.query.type as string });
+
+    const { resources } = await containers.events().items
+      .query<BusinessEvent>({
+        query: `SELECT * FROM c WHERE c.companyId = @cid${typeFilter} ORDER BY c.timestamp DESC OFFSET 0 LIMIT ${limit}`,
+        parameters: params,
+      })
+      .fetchAll();
+    res.json({ data: resources } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
   }
 });

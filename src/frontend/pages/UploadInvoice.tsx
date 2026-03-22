@@ -3,6 +3,59 @@ import { useApp } from "../utils/context";
 
 const TOKEN = "dev-bypass";
 
+// Convert PDF first page to PNG using canvas (no external dependencies)
+async function pdfToImage(file: File): Promise<{ base64: string; dataUrl: string }> {
+  // Use the browser's built-in PDF rendering via an iframe/embed workaround
+  // For a reliable approach, we render to canvas using a simple PDF.js-free method
+  // by creating an object URL and drawing via an image element from a screenshot
+  // Actually, the most reliable way without pdf.js is to ask the user to screenshot,
+  // but let's try the canvas approach with pdf.js from CDN
+  const pdfjsLib = await loadPdfJs();
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const page = await pdf.getPage(1);
+  const scale = 2; // High resolution
+  const viewport = page.getViewport({ scale });
+
+  const canvas = document.createElement("canvas");
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  const ctx = canvas.getContext("2d")!;
+
+  await page.render({ canvasContext: ctx, viewport }).promise;
+
+  const dataUrl = canvas.toDataURL("image/png");
+  const base64 = dataUrl.split(",")[1];
+  return { base64, dataUrl };
+}
+
+// Lazy-load pdf.js from CDN
+let pdfJsPromise: Promise<any> | null = null;
+function loadPdfJs(): Promise<any> {
+  if (pdfJsPromise) return pdfJsPromise;
+  pdfJsPromise = new Promise((resolve, reject) => {
+    if ((window as any).pdfjsLib) { resolve((window as any).pdfjsLib); return; }
+    const script = document.createElement("script");
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.9.155/pdf.min.mjs";
+    script.type = "module";
+    // Use the classic script approach instead
+    const scriptClassic = document.createElement("script");
+    scriptClassic.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+    scriptClassic.onload = () => {
+      const lib = (window as any).pdfjsLib;
+      if (lib) {
+        lib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+        resolve(lib);
+      } else {
+        reject(new Error("pdf.js failed to load"));
+      }
+    };
+    scriptClassic.onerror = () => reject(new Error("Failed to load pdf.js"));
+    document.head.appendChild(scriptClassic);
+  });
+  return pdfJsPromise;
+}
+
 export function UploadInvoice() {
   const { companyId } = useApp();
   const [dragging, setDragging] = useState(false);
@@ -13,8 +66,12 @@ export function UploadInvoice() {
 
   const processFile = useCallback(async (file: File) => {
     if (!companyId) { setError("No company selected"); return; }
-    if (!file.type.startsWith("image/") && file.type !== "application/pdf") {
-      setError("Please upload an image (JPG, PNG) or PDF file");
+
+    const supportedImages = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+    const isPdf = file.type === "application/pdf";
+
+    if (!supportedImages.includes(file.type) && !isPdf) {
+      setError("Please upload an image (JPG, PNG, WebP) or PDF file");
       return;
     }
 
@@ -22,19 +79,30 @@ export function UploadInvoice() {
     setError("");
     setResult(null);
 
-    // Create preview for images
-    if (file.type.startsWith("image/")) {
-      const url = URL.createObjectURL(file);
-      setPreview(url);
-    } else {
-      setPreview(null);
-    }
+    let base64: string;
+    let mimeType: string;
 
-    // Convert to base64
-    const buffer = await file.arrayBuffer();
-    const base64 = btoa(
-      new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), "")
-    );
+    if (isPdf) {
+      // For PDFs: convert first page to PNG using canvas
+      try {
+        const pdfData = await pdfToImage(file);
+        base64 = pdfData.base64;
+        mimeType = "image/png";
+        setPreview(pdfData.dataUrl);
+      } catch {
+        setError("Could not render PDF. Try uploading a screenshot or photo of the invoice instead.");
+        setStatus("error");
+        return;
+      }
+    } else {
+      // For images: use directly
+      const buffer = await file.arrayBuffer();
+      base64 = btoa(
+        new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), "")
+      );
+      mimeType = file.type;
+      setPreview(URL.createObjectURL(file));
+    }
 
     try {
       const res = await fetch(`/api/companies/${companyId}/invoices/upload`, {
@@ -43,7 +111,7 @@ export function UploadInvoice() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${TOKEN}`,
         },
-        body: JSON.stringify({ image: base64, mimeType: file.type }),
+        body: JSON.stringify({ image: base64, mimeType }),
       });
       const json = await res.json();
 

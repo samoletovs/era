@@ -59,4 +59,6 @@ export const CONTAINERS = {
   AGENT_STATE: "agent-state",
   CHAT: "chat",
   FEEDBACK: "feedback",
+  EVENTS: "events",
+  RULES: "rules",
 } as const;

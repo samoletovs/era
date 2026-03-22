@@ -1,6 +1,8 @@
 import { v4 as uuidv4 } from "uuid";
 import { containers } from "./cosmos.js";
 import { postJournalEntry, GLError } from "./ledger.js";
+import { emitEvent } from "./events.js";
+import { getActiveRule, evaluatePaymentRule } from "./posting-rules.js";
 import type { Payment, PaymentAllocation, Invoice, JournalLine } from "@shared/types";
 
 function roundCurrency(n: number): number {
@@ -62,8 +64,16 @@ export async function createAndPostPayment(input: CreatePaymentInput): Promise<P
     createdBy: input.createdBy,
   };
 
-  // Build GL journal lines
-  const journalLines = buildPaymentJournalLines(payment);
+  // Build GL journal lines — try rule engine first, fall back to hardcoded
+  const ruleType = input.type === "incoming" ? "incoming-payment" as const : "outgoing-payment" as const;
+  const rule = await getActiveRule("LV", ruleType);
+  let journalLines: JournalLine[];
+  if (rule) {
+    const ruleResult = evaluatePaymentRule(rule, payment);
+    journalLines = ruleResult ?? buildPaymentJournalLines(payment);
+  } else {
+    journalLines = buildPaymentJournalLines(payment);
+  }
 
   // Post journal entry
   const journalEntry = await postJournalEntry({
@@ -84,6 +94,16 @@ export async function createAndPostPayment(input: CreatePaymentInput): Promise<P
   // Update invoice paid amounts and statuses
   await updateInvoicesForPayment(input.companyId, input.invoiceAllocations, journalEntry.id);
 
+  await emitEvent({
+    companyId: input.companyId,
+    type: "payment.posted",
+    actor: input.createdBy,
+    documentType: "payment",
+    documentId: payment.id,
+    journalEntryId: journalEntry.id,
+    data: { type: payment.type, amount: payment.amount, contactName: payment.contactName },
+  });
+
   return payment;
 }
 
@@ -99,6 +119,7 @@ function buildPaymentJournalLines(payment: Payment): JournalLine[] {
         debit: payment.amount,
         credit: 0,
         description: `Received from ${payment.contactName}`,
+        contactId: payment.contactId,
       },
       {
         accountCode: "2210",       // Accounts receivable
@@ -106,6 +127,7 @@ function buildPaymentJournalLines(payment: Payment): JournalLine[] {
         debit: 0,
         credit: payment.amount,
         description: `AR settlement — ${payment.reference}`,
+        contactId: payment.contactId,
       },
     ];
   } else {
@@ -117,6 +139,7 @@ function buildPaymentJournalLines(payment: Payment): JournalLine[] {
         debit: payment.amount,
         credit: 0,
         description: `AP settlement — ${payment.reference}`,
+        contactId: payment.contactId,
       },
       {
         accountCode: "2420",       // Bank accounts
@@ -124,6 +147,7 @@ function buildPaymentJournalLines(payment: Payment): JournalLine[] {
         debit: 0,
         credit: payment.amount,
         description: `Paid to ${payment.contactName}`,
+        contactId: payment.contactId,
       },
     ];
   }

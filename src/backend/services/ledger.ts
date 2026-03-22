@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import { containers } from "./cosmos.js";
+import { emitEvent } from "./events.js";
 import type { JournalEntry, JournalLine, Account } from "@shared/types";
 
 // ─── Validation ─────────────────────────────────────────────
@@ -122,6 +123,17 @@ export async function postJournalEntry(input: PostEntryInput): Promise<JournalEn
   // Update account balances
   await updateAccountBalances(input.companyId, input.lines);
 
+  // Emit event
+  await emitEvent({
+    companyId: input.companyId,
+    type: "entry.posted",
+    actor: input.createdBy,
+    documentType: "journal-entry",
+    documentId: entry.id,
+    journalEntryId: entry.id,
+    data: { entryNumber: entry.entryNumber, sourceType: entry.sourceType, totalDebit: entry.totalDebit },
+  });
+
   return entry;
 }
 
@@ -138,7 +150,7 @@ async function updateAccountBalances(companyId: string, lines: JournalLine[]) {
   for (const [accountCode, delta] of deltas) {
     const accountId = `${companyId}-acct-${accountCode}`;
     try {
-      const { resource: account } = await containers.ledger()
+      const { resource: account, etag } = await containers.ledger()
         .item(accountId, companyId)
         .read<Account>();
 
@@ -147,10 +159,12 @@ async function updateAccountBalances(companyId: string, lines: JournalLine[]) {
         const signedDelta = account.normalSide === "credit" ? -delta : delta;
         account.balance = roundCurrency(account.balance + signedDelta);
         account.updatedAt = new Date().toISOString();
-        await containers.ledger().item(accountId, companyId).replace(account);
+        await containers.ledger().item(accountId, companyId).replace(account, {
+          accessCondition: { type: "IfMatch", condition: etag! },
+        });
       }
     } catch {
-      // Account not found — skip (validation should catch this upstream)
+      // Account not found or etag conflict — skip (validation should catch this upstream)
     }
   }
 }
@@ -173,6 +187,17 @@ export async function reverseJournalEntry(
   original.status = "reversed";
   original.updatedAt = new Date().toISOString();
   await containers.ledger().item(entryId, companyId).replace(original);
+
+  // Emit reversal event
+  await emitEvent({
+    companyId,
+    type: "entry.reversed",
+    actor: createdBy,
+    documentType: "journal-entry",
+    documentId: entryId,
+    journalEntryId: entryId,
+    data: { entryNumber: original.entryNumber },
+  });
 
   // Create reversing entry with flipped debits/credits
   const reversedLines: JournalLine[] = original.lines.map((l) => ({
