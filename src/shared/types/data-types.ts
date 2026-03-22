@@ -39,7 +39,7 @@ export const ISODate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in 
 export const ISOTimestamp = z.string().datetime();
 
 /** Fiscal period: YYYY-MM */
-export const FiscalPeriod = z.string().regex(/^\d{4}-\d{2}$/, "Period must be in YYYY-MM format");
+export const FiscalPeriodFormat = z.string().regex(/^\d{4}-\d{2}$/, "Period must be in YYYY-MM format");
 
 // ─── Geography & Standards ──────────────────────────────────
 
@@ -114,7 +114,7 @@ export type TaxCodeType = z.infer<typeof TaxCode>;
 export type MoneyAmountType = z.infer<typeof MoneyAmount>;
 export type ISODateType = z.infer<typeof ISODate>;
 export type ISOTimestampType = z.infer<typeof ISOTimestamp>;
-export type FiscalPeriodType = z.infer<typeof FiscalPeriod>;
+export type FiscalPeriodFormatType = z.infer<typeof FiscalPeriodFormat>;
 export type CountryCodeType = z.infer<typeof CountryCode>;
 export type CurrencyCodeType = z.infer<typeof CurrencyCode>;
 export type DocumentsDocTypeType = z.infer<typeof DocumentsDocType>;

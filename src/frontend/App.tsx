@@ -12,6 +12,10 @@ import { Reports } from "./pages/Reports";
 import { Onboarding } from "./pages/Onboarding";
 import { Settings } from "./pages/Settings";
 import { UploadInvoice } from "./pages/UploadInvoice";
+import { FixedAssets } from "./pages/FixedAssets";
+import { BankRecon } from "./pages/BankRecon";
+import { RecurringEntries } from "./pages/RecurringEntries";
+import { EventLog } from "./pages/EventLog";
 
 function Sidebar() {
   const { companies, companyId, setCompanyId } = useApp();
@@ -55,7 +59,11 @@ function Sidebar() {
         <NavLink to="/upload">Upload invoice</NavLink>
         <NavLink to="/contacts">Contacts</NavLink>
         <NavLink to="/items">Items</NavLink>
+        <NavLink to="/fixed-assets">Fixed assets</NavLink>
+        <NavLink to="/bank">Bank recon</NavLink>
+        <NavLink to="/recurring">Recurring</NavLink>
         <NavLink to="/reports">Reports</NavLink>
+        <NavLink to="/events">Event log</NavLink>
         <NavLink to="/settings">Settings</NavLink>
       </nav>
 
@@ -138,6 +146,10 @@ export function App() {
               <Route path="/contacts" element={<Contacts />} />
               <Route path="/items" element={<Items />} />
               <Route path="/reports" element={<Reports />} />
+              <Route path="/fixed-assets" element={<FixedAssets />} />
+              <Route path="/bank" element={<BankRecon />} />
+              <Route path="/recurring" element={<RecurringEntries />} />
+              <Route path="/events" element={<EventLog />} />
               <Route path="/onboarding" element={<Onboarding />} />
               <Route path="/settings" element={<Settings />} />
             </Routes>

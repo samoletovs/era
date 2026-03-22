@@ -102,7 +102,45 @@ export const api = {
   annualReport: (companyId: string, year: number) =>
     apiFetch(`/companies/${companyId}/reports/annual?year=${year}`),
 
-  // Aging reports (Sprint 2)
+  // Aging reports
   arAging: (companyId: string) => apiFetch(`/companies/${companyId}/reports/ar-aging`),
   apAging: (companyId: string) => apiFetch(`/companies/${companyId}/reports/ap-aging`),
+
+  // Fixed assets
+  fixedAssets: (companyId: string) => apiFetch(`/companies/${companyId}/fixed-assets`),
+  acquireAsset: (companyId: string, body: Record<string, unknown>) =>
+    apiFetch(`/companies/${companyId}/fixed-assets`, { method: "POST", body: JSON.stringify(body) }),
+  depreciate: (companyId: string, period: string) =>
+    apiFetch(`/companies/${companyId}/fixed-assets/depreciate`, { method: "POST", body: JSON.stringify({ period }) }),
+  disposeAsset: (companyId: string, assetId: string, amount: number) =>
+    apiFetch(`/companies/${companyId}/fixed-assets/${assetId}/dispose`, { method: "POST", body: JSON.stringify({ disposalAmount: amount }) }),
+
+  // Bank reconciliation
+  bankReconciliations: (companyId: string) => apiFetch(`/companies/${companyId}/bank-reconciliations`),
+  importBankStatement: (companyId: string, body: Record<string, unknown>) =>
+    apiFetch(`/companies/${companyId}/bank-reconciliations`, { method: "POST", body: JSON.stringify(body) }),
+
+  // Recurring entries
+  recurringTemplates: (companyId: string) => apiFetch(`/companies/${companyId}/recurring-templates`),
+  createRecurringTemplate: (companyId: string, body: Record<string, unknown>) =>
+    apiFetch(`/companies/${companyId}/recurring-templates`, { method: "POST", body: JSON.stringify(body) }),
+  executeTemplate: (companyId: string, templateId: string) =>
+    apiFetch(`/companies/${companyId}/recurring-templates/${templateId}/execute`, { method: "POST" }),
+
+  // Budget
+  budgetVsActual: (companyId: string, year: number) =>
+    apiFetch(`/companies/${companyId}/reports/budget-vs-actual?year=${year}`),
+
+  // Health check
+  companyHealth: (companyId: string) => apiFetch(`/companies/${companyId}/health`),
+
+  // Autonomous month/year end
+  runMonthEnd: (companyId: string, period: string) =>
+    apiFetch(`/companies/${companyId}/run-month-end`, { method: "POST", body: JSON.stringify({ period }) }),
+  runYearEnd: (companyId: string, fiscalYear: number) =>
+    apiFetch(`/companies/${companyId}/run-year-end`, { method: "POST", body: JSON.stringify({ fiscalYear }) }),
+
+  // Event log
+  events: (companyId: string, limit?: number) =>
+    apiFetch(`/companies/${companyId}/events${limit ? `?limit=${limit}` : ""}`),
 };

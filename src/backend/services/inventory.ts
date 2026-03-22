@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import { containers } from "./cosmos.js";
+import { emitEvent } from "./events.js";
 import type { Item, StockMovement } from "@shared/types";
 
 function roundCurrency(n: number): number {
@@ -27,6 +28,7 @@ export async function createItem(input: CreateItemInput): Promise<Item> {
   const now = new Date().toISOString();
   const item: Item = {
     id: uuidv4(),
+    docType: "item" as const,
     companyId: input.companyId,
     code: input.code,
     name: input.name,
@@ -46,6 +48,16 @@ export async function createItem(input: CreateItemInput): Promise<Item> {
   };
 
   await containers.inventory().items.create(item);
+
+  await emitEvent({
+    companyId: input.companyId,
+    type: "item.created",
+    actor: input.createdBy,
+    documentType: "item",
+    documentId: item.id,
+    data: { code: item.code, name: item.name, type: item.type },
+  });
+
   return item;
 }
 
@@ -61,7 +73,7 @@ export async function getItem(companyId: string, itemId: string): Promise<Item |
 export async function listItems(companyId: string): Promise<Item[]> {
   const { resources } = await containers.inventory().items
     .query<Item>({
-      query: "SELECT * FROM c WHERE c.companyId = @cid AND IS_DEFINED(c.code) AND IS_DEFINED(c.sellingPrice) ORDER BY c.name",
+      query: "SELECT * FROM c WHERE c.companyId = @cid AND c.docType = 'item' ORDER BY c.name",
       parameters: [{ name: "@cid", value: companyId }],
     })
     .fetchAll();
@@ -92,6 +104,7 @@ export async function recordStockMovement(input: {
 
   const movement: StockMovement = {
     id: uuidv4(),
+    docType: "stock-movement" as const,
     companyId: input.companyId,
     itemId: input.itemId,
     itemCode: input.itemCode,

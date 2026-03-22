@@ -1,0 +1,168 @@
+{
+  "$schema": "./development-standards.schema.json",
+  "version": "1.0.0",
+
+  "fieldNaming": {
+    "suffixRules": [
+      { "suffix": "Id",     "expectedType": "string",  "description": "Foreign key / UUID reference",    "examples": ["companyId", "contactId", "invoiceId"] },
+      { "suffix": "Code",   "expectedType": "string",  "description": "Human-readable business key",     "examples": ["accountCode", "currencyCode", "countryCode"] },
+      { "suffix": "Name",   "expectedType": "string",  "description": "Display name",                    "examples": ["contactName", "accountName", "itemName"] },
+      { "suffix": "Number", "expectedType": "string",  "description": "Sequential business number",      "examples": ["invoiceNumber", "entryNumber"] },
+      { "suffix": "Date",   "expectedType": "string",  "description": "Date only (YYYY-MM-DD)",          "examples": ["invoiceDate", "dueDate", "documentDate"] },
+      { "suffix": "At",     "expectedType": "string",  "description": "Full timestamp (ISO 8601)",       "examples": ["createdAt", "updatedAt", "postedAt"] },
+      { "suffix": "By",     "expectedType": "string",  "description": "Actor / user reference",          "examples": ["createdBy", "closedBy", "approvedBy"] },
+      { "suffix": "Amount", "expectedType": "number",  "description": "Monetary value (2 decimals)",     "examples": ["netAmount", "taxAmount", "totalAmount"] },
+      { "suffix": "Rate",   "expectedType": "number",  "description": "Percentage or ratio",             "examples": ["taxRate", "exchangeRate", "discountRate"] },
+      { "suffix": "Status", "expectedType": "string",  "description": "Lifecycle state",                 "examples": ["status", "invoiceStatus"] },
+      { "suffix": "Type",   "expectedType": "string",  "description": "Classification enum",             "examples": ["accountType", "documentType"] },
+      { "suffix": "Count",  "expectedType": "number",  "description": "Integer quantity",                "examples": ["lineCount", "periodCount"] }
+    ],
+    "booleanPrefixes": ["is", "has", "can"],
+    "canonicalTaxFields": ["taxCode", "taxRate", "taxAmount"],
+    "canonicalAmountFields": ["netAmount", "taxAmount", "totalAmount", "paidAmount", "balanceDue", "unitPrice", "lineTotal", "costPrice", "sellingPrice"],
+    "deprecatedFields": [
+      { "field": "vatCode",    "replacement": "taxCode",     "entity": "JournalLine" },
+      { "field": "total",      "replacement": "totalAmount", "entity": "Invoice" },
+      { "field": "subtotal",   "replacement": "netAmount",   "entity": "Invoice" },
+      { "field": "amountPaid", "replacement": "paidAmount",  "entity": "Invoice" }
+    ]
+  },
+
+  "dataTypes": {
+    "types": [
+      { "name": "EntityId",       "tsType": "string", "format": "UUID v4",                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$", "zodSchema": "z.string().uuid()" },
+      { "name": "CompanyCode",    "tsType": "string", "format": "1-5 uppercase alphanumeric",  "pattern": "^[A-Z0-9]{1,5}$",  "zodSchema": "z.string().regex(/^[A-Z0-9]{1,5}$/)" },
+      { "name": "AccountCode",    "tsType": "string", "format": "4-digit numeric",             "pattern": "^\\d{4}$",          "zodSchema": "z.string().regex(/^\\d{4}$/)" },
+      { "name": "TaxCode",        "tsType": "string", "format": "{CC}-{rate}",                 "pattern": "^[A-Z]{2}-\\d+$",   "zodSchema": "z.string().regex(/^[A-Z]{2}-\\d+$/)" },
+      { "name": "MoneyAmount",    "tsType": "number", "format": "2 decimal places",            "zodSchema": "z.number()" },
+      { "name": "Percentage",     "tsType": "number", "format": "0-100",                       "zodSchema": "z.number().min(0).max(100)" },
+      { "name": "ExchangeRate",   "tsType": "number", "format": "positive, up to 6 decimals",  "zodSchema": "z.number().positive()" },
+      { "name": "ISODate",        "tsType": "string", "format": "YYYY-MM-DD",                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",      "zodSchema": "z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/)" },
+      { "name": "ISOTimestamp",   "tsType": "string", "format": "ISO 8601",                    "zodSchema": "z.string().datetime()" },
+      { "name": "FiscalPeriod",   "tsType": "string", "format": "YYYY-MM",                     "pattern": "^\\d{4}-\\d{2}$",              "zodSchema": "z.string().regex(/^\\d{4}-\\d{2}$/)" },
+      { "name": "CountryCode",    "tsType": "string", "format": "ISO 3166-1 alpha-2",          "pattern": "^[A-Z]{2}$",                   "zodSchema": "z.string().regex(/^[A-Z]{2}$/)" },
+      { "name": "CurrencyCode",   "tsType": "string", "format": "ISO 4217",                    "pattern": "^[A-Z]{3}$",                   "zodSchema": "z.string().regex(/^[A-Z]{3}$/)" },
+      { "name": "Email",          "tsType": "string", "format": "RFC 5322",                    "zodSchema": "z.string().email()" },
+      { "name": "PhoneE164",      "tsType": "string", "format": "E.164 international",         "pattern": "^\\+\\d{7,15}$",               "zodSchema": "z.string().regex(/^\\+\\d{7,15}$/)" },
+      { "name": "VATNumber",      "tsType": "string", "format": "EU format (CC + digits)",     "pattern": "^[A-Z]{2}\\d{5,12}$",          "zodSchema": "z.string().regex(/^[A-Z]{2}\\d{5,12}$/)" },
+      { "name": "RegistrationNo", "tsType": "string", "format": "country-specific",            "zodSchema": "z.string().min(1).max(20)" }
+    ]
+  },
+
+  "containers": {
+    "definitions": [
+      { "name": "companies",    "partitionKey": "/id",        "entityTypes": ["Company"],                       "docTypeValues": [],                                         "tableGroup": "Main" },
+      { "name": "users",        "partitionKey": "/id",        "entityTypes": ["UserProfile"],                   "docTypeValues": [],                                         "tableGroup": "Main" },
+      { "name": "ledger",       "partitionKey": "/companyId", "entityTypes": ["Account", "JournalEntry", "FiscalPeriod"], "docTypeValues": ["account", "journal-entry", "fiscal-period"], "tableGroup": "Transaction" },
+      { "name": "documents",    "partitionKey": "/companyId", "entityTypes": ["Invoice", "Payment", "VatReturn"],         "docTypeValues": ["invoice", "payment", "credit-note", "vat-return"], "tableGroup": "Transaction" },
+      { "name": "contacts",     "partitionKey": "/companyId", "entityTypes": ["Contact"],                       "docTypeValues": [],                                         "tableGroup": "Main" },
+      { "name": "inventory",    "partitionKey": "/companyId", "entityTypes": ["Item", "StockMovement"],         "docTypeValues": ["item", "stock-movement"],                 "tableGroup": "Transaction" },
+      { "name": "events",       "partitionKey": "/companyId", "entityTypes": ["BusinessEvent"],                 "docTypeValues": [],                                         "tableGroup": "Log" },
+      { "name": "rules",        "partitionKey": "/country",   "entityTypes": ["PostingRule"],                   "docTypeValues": [],                                         "tableGroup": "Parameter" },
+      { "name": "chat",         "partitionKey": "/companyId", "entityTypes": ["ChatMessage"],                   "docTypeValues": [],                                         "tableGroup": "Log" },
+      { "name": "agent-state",  "partitionKey": "/companyId", "entityTypes": ["AgentAction"],                   "docTypeValues": [],                                         "tableGroup": "Worksheet" },
+      { "name": "feedback",     "partitionKey": "/id",        "entityTypes": ["Feedback"],                      "docTypeValues": [],                                         "tableGroup": "Reference" }
+    ]
+  },
+
+  "statusLifecycles": {
+    "entities": [
+      {
+        "entity": "Invoice",
+        "states": ["draft", "posted", "partially_paid", "paid", "overdue", "cancelled"],
+        "transitions": [
+          { "from": "draft",          "to": "posted" },
+          { "from": "draft",          "to": "cancelled" },
+          { "from": "posted",         "to": "partially_paid" },
+          { "from": "posted",         "to": "paid" },
+          { "from": "posted",         "to": "overdue" },
+          { "from": "posted",         "to": "cancelled" },
+          { "from": "partially_paid", "to": "paid" },
+          { "from": "partially_paid", "to": "overdue" },
+          { "from": "overdue",        "to": "partially_paid" },
+          { "from": "overdue",        "to": "paid" }
+        ],
+        "terminalStates": ["paid", "cancelled"]
+      },
+      {
+        "entity": "Payment",
+        "states": ["draft", "posted"],
+        "transitions": [
+          { "from": "draft", "to": "posted" }
+        ],
+        "terminalStates": ["posted"]
+      },
+      {
+        "entity": "JournalEntry",
+        "states": ["draft", "posted", "reversed"],
+        "transitions": [
+          { "from": "draft",  "to": "posted" },
+          { "from": "posted", "to": "reversed" }
+        ],
+        "terminalStates": ["reversed"]
+      },
+      {
+        "entity": "VatReturn",
+        "states": ["draft", "submitted", "accepted"],
+        "transitions": [
+          { "from": "draft",     "to": "submitted" },
+          { "from": "submitted", "to": "accepted" }
+        ],
+        "terminalStates": ["accepted"]
+      },
+      {
+        "entity": "FiscalPeriod",
+        "states": ["open", "closed"],
+        "transitions": [
+          { "from": "open",   "to": "closed" },
+          { "from": "closed", "to": "open" }
+        ],
+        "terminalStates": []
+      },
+      {
+        "entity": "AgentAction",
+        "states": ["pending", "approved", "rejected", "executed", "failed"],
+        "transitions": [
+          { "from": "pending",  "to": "approved" },
+          { "from": "pending",  "to": "rejected" },
+          { "from": "approved", "to": "executed" },
+          { "from": "approved", "to": "failed" }
+        ],
+        "terminalStates": ["executed", "failed", "rejected"]
+      }
+    ]
+  },
+
+  "errorCodes": {
+    "prefixes": [
+      { "prefix": "VAL", "category": "Validation errors",         "range": "001-099" },
+      { "prefix": "BIZ", "category": "Business rule violations",  "range": "001-099" },
+      { "prefix": "FIN", "category": "Financial errors",          "range": "001-099" },
+      { "prefix": "AUTH","category": "Authentication / authorization", "range": "001-099" },
+      { "prefix": "SYS", "category": "System / infrastructure",   "range": "001-099" },
+      { "prefix": "DUP", "category": "Duplicate detection",       "range": "001-099" }
+    ]
+  },
+
+  "auditEvents": {
+    "namingPattern": "{entity}.{action}",
+    "mandatoryEvents": [
+      "invoice.created",
+      "invoice.posted",
+      "invoice.cancelled",
+      "payment.posted",
+      "entry.posted",
+      "entry.reversed",
+      "period.closed",
+      "period.reopened",
+      "year-end.closed"
+    ],
+    "requiredFields": ["id", "companyId", "type", "timestamp", "actor"]
+  },
+
+  "coverageTargets": {
+    "businessLogic": 90,
+    "financialCalculations": 100,
+    "apiRoutes": 80
+  }
+}

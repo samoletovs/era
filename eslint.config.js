@@ -1,7 +1,9 @@
+import tseslint from "typescript-eslint";
 import eraPlugin from "./eslint-plugin-era.js";
 
 /** @type {import('eslint').Linter.Config[]} */
 export default [
+  ...tseslint.configs.recommended,
   {
     files: ["src/**/*.ts", "src/**/*.tsx"],
     plugins: {
@@ -22,6 +24,11 @@ export default [
       "prefer-const": "error",
       "no-var": "error",
       "eqeqeq": ["error", "always"],
+
+      // Relax some typescript-eslint rules for ERA's patterns
+      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+      "@typescript-eslint/no-namespace": "off",       // Needed for Express type augmentation
     },
   },
   {

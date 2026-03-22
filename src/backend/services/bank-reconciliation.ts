@@ -109,7 +109,7 @@ async function autoMatchStatementLines(recon: BankReconciliation): Promise<void>
   // Get recent GL entries for the bank account
   const { resources: glEntries } = await containers.ledger().items
     .query<any>({
-      query: "SELECT * FROM c WHERE c.companyId = @cid AND IS_DEFINED(c.entryNumber) AND c.status = 'posted' ORDER BY c.date DESC OFFSET 0 LIMIT 200",
+      query: "SELECT * FROM c WHERE c.companyId = @cid AND c.docType = 'journal-entry' AND c.status = 'posted' ORDER BY c.date DESC OFFSET 0 LIMIT 200",
       parameters: [{ name: "@cid", value: recon.companyId }],
     })
     .fetchAll();
@@ -223,7 +223,7 @@ export async function completeReconciliation(
 export async function listReconciliations(companyId: string): Promise<BankReconciliation[]> {
   const { resources } = await containers.documents().items
     .query<BankReconciliation>({
-      query: "SELECT * FROM c WHERE c.companyId = @cid AND IS_DEFINED(c.bankAccountCode) AND IS_DEFINED(c.statementBalance) ORDER BY c.statementDate DESC",
+      query: "SELECT * FROM c WHERE c.companyId = @cid AND c.docType = 'bank-reconciliation' ORDER BY c.statementDate DESC",
       parameters: [{ name: "@cid", value: companyId }],
     })
     .fetchAll();

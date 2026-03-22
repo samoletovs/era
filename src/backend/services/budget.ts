@@ -68,7 +68,7 @@ export async function getBudgetVsActual(companyId: string, fiscalYear: number): 
   // Get budget entries
   const { resources: budgets } = await containers.ledger().items
     .query<BudgetEntry>({
-      query: "SELECT * FROM c WHERE c.companyId = @cid AND IS_DEFINED(c.fiscalYear) AND c.fiscalYear = @year AND IS_DEFINED(c.accountCode) AND NOT IS_DEFINED(c.entryNumber) AND NOT IS_DEFINED(c.normalSide)",
+      query: "SELECT * FROM c WHERE c.companyId = @cid AND c.docType = 'budget' AND c.fiscalYear = @year",
       parameters: [
         { name: "@cid", value: companyId },
         { name: "@year", value: fiscalYear },
@@ -79,7 +79,7 @@ export async function getBudgetVsActual(companyId: string, fiscalYear: number): 
   // Get actual account balances (revenue + expense)
   const { resources: accounts } = await containers.ledger().items
     .query<Account>({
-      query: "SELECT * FROM c WHERE c.companyId = @cid AND IS_DEFINED(c.code) AND IS_DEFINED(c.normalSide) AND c.isPostable = true AND (c.type = 'revenue' OR c.type = 'expense') ORDER BY c.code",
+      query: "SELECT * FROM c WHERE c.companyId = @cid AND c.docType = 'account' AND c.isPostable = true AND (c.type = 'revenue' OR c.type = 'expense') ORDER BY c.code",
       parameters: [{ name: "@cid", value: companyId }],
     })
     .fetchAll();

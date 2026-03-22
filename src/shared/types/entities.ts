@@ -32,7 +32,7 @@ export interface Company {
 }
 
 export interface CompanySettings {
-  vatRegistered: boolean;
+  isVatRegistered: boolean;
   vatRate: number;              // default 21
   defaultPaymentTermsDays: number;
   invoiceNumberPrefix: string;
@@ -50,6 +50,7 @@ export interface BankAccount {
 // ─── Chart of Accounts ──────────────────────────────────────
 
 export interface Account extends BaseEntity {
+  docType: "account";
   code: string;                 // e.g. "1210" per LV CoA
   name: string;
   nameLv: string;               // Latvian name for official reports
@@ -66,6 +67,7 @@ export type AccountType = "asset" | "liability" | "equity" | "revenue" | "expens
 // ─── General Ledger ─────────────────────────────────────────
 
 export interface JournalEntry extends BaseEntity {
+  docType: "journal-entry";
   entryNumber: string;
   date: string;                 // ISO date
   description: string;
@@ -84,6 +86,7 @@ export interface JournalLine {
   debit: number;
   credit: number;
   description?: string;
+  /** @deprecated Use taxCode instead */
   vatCode?: string;
   // Enriched dimensions — enables subledger-free AR/AP/tax/inventory reporting
   contactId?: string;
@@ -114,6 +117,7 @@ export interface Contact extends BaseEntity {
 // ─── Invoices ───────────────────────────────────────────────
 
 export interface Invoice extends BaseEntity {
+  docType: "invoice";
   invoiceNumber: string;        // ERA internal number (INV-00001, PINV-00002)
   vendorInvoiceNumber?: string; // Original invoice number from vendor/supplier
   type: "sales" | "purchase";
@@ -154,6 +158,7 @@ export interface InvoiceLine {
 // ─── Payments ───────────────────────────────────────────────
 
 export interface Payment extends BaseEntity {
+  docType: "payment";
   type: "incoming" | "outgoing";
   contactId: string;
   contactName: string;
@@ -176,6 +181,7 @@ export interface PaymentAllocation {
 // ─── Inventory ──────────────────────────────────────────────
 
 export interface Item extends BaseEntity {
+  docType: "item";
   code: string;
   name: string;
   description?: string;
@@ -190,6 +196,7 @@ export interface Item extends BaseEntity {
 }
 
 export interface StockMovement extends BaseEntity {
+  docType: "stock-movement";
   itemId: string;
   itemCode: string;
   type: "purchase_receipt" | "sales_delivery" | "adjustment";
@@ -205,6 +212,7 @@ export interface StockMovement extends BaseEntity {
 // ─── VAT ────────────────────────────────────────────────────
 
 export interface VatReturn extends BaseEntity {
+  docType: "vat-return";
   period: string;               // "2026-03"
   startDate: string;
   endDate: string;
@@ -231,7 +239,7 @@ export interface AgentAction extends BaseEntity {
   status: "pending" | "approved" | "rejected" | "executed" | "failed";
   payload: Record<string, unknown>;
   result?: Record<string, unknown>;
-  requiresApproval: boolean;
+  isApprovalRequired: boolean;
   approvedBy?: string;
   approvedAt?: string;
   error?: string;
@@ -326,6 +334,20 @@ export interface UserCompanyRole {
   companyId: string;
   companyName: string;
   role: "owner" | "accountant" | "viewer";
+}
+
+// ─── Fiscal Period ──────────────────────────────────────────
+
+export interface FiscalPeriod {
+  id: string;
+  companyId: string;
+  docType: "fiscal-period";
+  period: string;               // "2026-03"
+  status: "open" | "closed";
+  closedBy?: string;
+  closedAt?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ─── Shared ─────────────────────────────────────────────────

@@ -326,4 +326,196 @@ export const AGENT_TOOLS: ChatCompletionTool[] = [
       },
     },
   },
+
+  // ─── Autonomous / Agentic Tools ─────────────────────────
+
+  {
+    type: "function",
+    function: {
+      name: "run_month_end",
+      description: "Run the FULL month-end close process autonomously: marks overdue invoices, executes recurring entries (rent, salaries, etc.), runs fixed asset depreciation, and closes the period. Call this at the start of each new month for the previous month, or when the user mentions month-end, period close, or closing the books.",
+      parameters: {
+        type: "object",
+        properties: {
+          companyId: { type: "string" },
+          period: { type: "string", description: "Period to close in YYYY-MM format (e.g. '2026-02')" },
+        },
+        required: ["companyId", "period"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "run_year_end",
+      description: "Run the FULL year-end close process: closes all 12 monthly periods, runs depreciation, executes the closing journal entry (zeros P&L to retained earnings). Use when the user mentions annual close, year-end, or fiscal year close.",
+      parameters: {
+        type: "object",
+        properties: {
+          companyId: { type: "string" },
+          fiscalYear: { type: "number", description: "Fiscal year to close (e.g. 2025)" },
+        },
+        required: ["companyId", "fiscalYear"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "check_company_health",
+      description: "Run a health check on the company: identifies overdue invoices, unclosed periods, unposted drafts, missing VAT returns. Returns a health score 0-100 with actionable issues. Call this when the user asks 'what needs attention', 'any issues', 'company status', or proactively at the start of a conversation.",
+      parameters: {
+        type: "object",
+        properties: {
+          companyId: { type: "string" },
+        },
+        required: ["companyId"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_credit_note",
+      description: "Create a credit note for an existing invoice. Reverses the original GL posting. Use when a customer returns goods, invoice has errors, or a refund is needed.",
+      parameters: {
+        type: "object",
+        properties: {
+          companyId: { type: "string" },
+          originalInvoiceId: { type: "string", description: "ID of the invoice to credit" },
+          reason: { type: "string", description: "Reason for the credit note" },
+        },
+        required: ["companyId", "originalInvoiceId", "reason"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "generate_invoice_pdf",
+      description: "Generate a PDF for an invoice. Returns a download URL. Use when the user wants to send, print, or download an invoice.",
+      parameters: {
+        type: "object",
+        properties: {
+          companyId: { type: "string" },
+          invoiceId: { type: "string" },
+        },
+        required: ["companyId", "invoiceId"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_aging_report",
+      description: "Get AR (accounts receivable) or AP (accounts payable) aging report showing amounts by customer/vendor in buckets: current, 30 days, 60 days, 90+ days. Use when the user asks about who owes money, outstanding debts, overdue amounts, or cash collection.",
+      parameters: {
+        type: "object",
+        properties: {
+          companyId: { type: "string" },
+          type: { type: "string", enum: ["ar", "ap"], description: "ar = who owes us, ap = who we owe" },
+        },
+        required: ["companyId", "type"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "generate_vat_declaration",
+      description: "Generate the official VAT declaration (PVN deklarācija) for a period, broken down by VAT rate (21%, 12%, 5%). Use for VID filing.",
+      parameters: {
+        type: "object",
+        properties: {
+          companyId: { type: "string" },
+          year: { type: "number" },
+          month: { type: "number" },
+        },
+        required: ["companyId", "year", "month"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "generate_annual_report",
+      description: "Generate the annual financial statements in Latvian format: balance sheet + P&L with Latvian regulatory groupings (long-term assets, current assets, equity, etc.). Required for filing with the Enterprise Register.",
+      parameters: {
+        type: "object",
+        properties: {
+          companyId: { type: "string" },
+          fiscalYear: { type: "number" },
+        },
+        required: ["companyId", "fiscalYear"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "acquire_fixed_asset",
+      description: "Register a new fixed asset (equipment, vehicle, building, etc.) and post the acquisition journal entry. The asset will be automatically depreciated each month when running month-end.",
+      parameters: {
+        type: "object",
+        properties: {
+          companyId: { type: "string" },
+          code: { type: "string", description: "Asset code/tag number" },
+          name: { type: "string" },
+          assetAccountCode: { type: "string", description: "GL account: 1210=Land/buildings, 1220=Equipment, 1230=Other" },
+          acquisitionDate: { type: "string", description: "YYYY-MM-DD" },
+          acquisitionCost: { type: "number" },
+          residualValue: { type: "number", description: "Expected value at end of life (often 0)" },
+          usefulLifeMonths: { type: "number", description: "Depreciation period in months (e.g. 60 for 5 years)" },
+        },
+        required: ["companyId", "code", "name", "assetAccountCode", "acquisitionDate", "acquisitionCost", "usefulLifeMonths"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_recurring_template",
+      description: "Create a recurring journal entry template (e.g. monthly rent, insurance, loan payment). It will be automatically executed during month-end close.",
+      parameters: {
+        type: "object",
+        properties: {
+          companyId: { type: "string" },
+          name: { type: "string", description: "Template name (e.g. 'Monthly office rent')" },
+          description: { type: "string" },
+          frequency: { type: "string", enum: ["monthly", "quarterly", "yearly"] },
+          lines: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                accountCode: { type: "string" },
+                accountName: { type: "string" },
+                debit: { type: "number" },
+                credit: { type: "number" },
+                description: { type: "string" },
+              },
+              required: ["accountCode", "accountName", "debit", "credit"],
+            },
+          },
+          nextRunDate: { type: "string", description: "YYYY-MM-DD — when to first execute" },
+        },
+        required: ["companyId", "name", "description", "frequency", "lines"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_budget_vs_actual",
+      description: "Compare budgeted amounts vs actual spending for a fiscal year. Shows variance per account.",
+      parameters: {
+        type: "object",
+        properties: {
+          companyId: { type: "string" },
+          fiscalYear: { type: "number" },
+        },
+        required: ["companyId", "fiscalYear"],
+      },
+    },
+  },
 ];

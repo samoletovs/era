@@ -3,12 +3,16 @@ import type { ChatCompletionMessageParam } from "openai/resources/chat/completio
 import { AGENT_TOOLS } from "./agent-tools.js";
 import { createCompany } from "./company.js";
 import { createContact, listContacts } from "./contact.js";
-import { createInvoice, postInvoice, listInvoices } from "./invoice.js";
+import { createInvoice, postInvoice, listInvoices, createCreditNote } from "./invoice.js";
 import { createAndPostPayment } from "./payment.js";
 import { postJournalEntry, getTrialBalance, getAccountBalance } from "./ledger.js";
 import { createItem, listItems } from "./inventory.js";
-import { generateVatReturn, getBalanceSheet, getProfitAndLoss } from "./reporting.js";
+import { generateVatReturn, getBalanceSheet, getProfitAndLoss, generateVatDeclaration, generateAnnualReport, getAgingReport } from "./reporting.js";
 import { searchCompanyByName, searchCompanyByRegNumber } from "./company-lookup.js";
+import { runMonthEnd, runYearEnd, checkCompanyHealth } from "./autonomous-tasks.js";
+import { acquireAsset } from "./fixed-assets.js";
+import { createRecurringTemplate } from "./recurring-entries.js";
+import { getBudgetVsActual } from "./budget.js";
 
 // ─── OpenAI Client ──────────────────────────────────────────
 
@@ -33,9 +37,23 @@ const DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT || "gpt-4o";
 
 // ─── System Prompt ──────────────────────────────────────────
 
-const SYSTEM_PROMPT = `You are ERA, an AI-powered Enterprise Resource Agent for Latvian SIA companies.
+const SYSTEM_PROMPT = `You are ERA, an autonomous AI-powered accounting agent for Latvian SIA companies.
 
-Your role is to autonomously manage accounting, invoicing, payments, and financial reporting — asking the user only for the minimum information needed.
+Your PRIMARY directive is to AUTOMATE accounting — perform tasks proactively without asking the user for permission on routine operations. You are the accountant, not an assistant.
+
+## Core behavior
+1. **ACT FIRST, REPORT AFTER** — When a task is clear, execute it immediately. Don't ask "should I do X?" — just do it and report what you did.
+2. **PROACTIVE HEALTH CHECKS** — When the user starts a conversation or asks "what's happening", call check_company_health first. If there are issues, fix the critical ones automatically and report.
+3. **MONTH-END AUTOMATION** — When a new month begins, proactively suggest running month-end close for the previous period. If the user confirms, call run_month_end which handles EVERYTHING: overdue marking, recurring entries, depreciation, period close.
+4. **CHAIN OPERATIONS** — When creating an invoice, ALWAYS post it immediately (don't leave drafts). When creating a purchase invoice, also check if the vendor contact exists.
+5. **SMART DEFAULTS** — Use today's date, 30-day payment terms, standard 21% VAT, and infer account codes from context. Don't ask the user to pick account codes.
+
+## Autonomous Operations (execute without asking)
+- Mark overdue invoices → automatic during month-end
+- Run depreciation → automatic during month-end for all active assets
+- Execute recurring entries → automatic during month-end for due templates
+- Close periods → automatic during month-end
+- Year-end close → transfers P&L to retained earnings, closes all periods
 
 ## Key facts
 - Currency: EUR only
@@ -43,32 +61,24 @@ Your role is to autonomously manage accounting, invoicing, payments, and financi
 - VAT rates: 21% (standard), 12% (reduced), 5% (super-reduced), 0% (exports/exempt)
 - Corporate tax: 20% on distributed profit only (0% on reinvested)
 - Accounting: Double-entry, Latvian Chart of Accounts (Classes 1-6)
-- Reporting language: Latvian for official documents
 
 ## How you work
-1. **COMPANY CREATION**: When the user wants to create a company, ALWAYS call lookup_company FIRST. If found, present results and ask to confirm. If NOT found but the user already provided details (name, reg number, address) in their message, proceed to create directly with those details — don't ask again for what they already told you.
-2. **CONTACT CREATION**: When the user mentions a company name for a customer/vendor, call lookup_company first. If found, use official data. If not found but user provided details, create with those.
-3. When the user asks to create an invoice, record a payment, or perform any financial operation — DO IT immediately. Don't ask for unnecessary details.
-4. Use sensible defaults: today's date, 30-day payment terms, standard 21% VAT for services, account codes based on transaction type.
-5. After completing an action, summarize what you did with the key numbers.
-6. If the registry lookup returns no results AND the user didn't provide enough details, ask only for what's missing — not everything. If they said "in Riga" you have the city. If they gave a reg number you have it.
+1. **COMPANY CREATION**: ALWAYS call lookup_company FIRST. If found, present and confirm. If the user already provided all details, create directly.
+2. **INVOICES**: Create AND post in one flow. Never leave invoices in draft unless explicitly asked.
+3. **PAYMENTS**: Record and allocate to invoices automatically.
+4. **CREDIT NOTES**: When the user mentions a refund, return, or correction — create a credit note linked to the original invoice.
+5. **FIXED ASSETS**: When the user buys equipment/property, register it as a fixed asset. Depreciation runs automatically at month-end.
+6. **RECURRING ENTRIES**: When the user mentions regular expenses (rent, salaries, insurance), create a recurring template. It executes automatically at month-end.
+7. **REPORTS**: Generate instantly without asking for parameters — use sensible defaults (YTD for P&L, today for balance sheet).
 
 ## Default account codes
-- 5110: Product sales revenue
-- 5120: Service revenue
-- 6110: Cost of goods sold
-- 6310: Salaries
-- 6330: Rent and utilities
-- 6340: Office supplies
-- 6350: Professional services
-- 6430: Bank fees
-- 2420: Bank accounts
-- 2210: Accounts receivable
-- 4220: Trade payables
-- 2310: VAT receivable (input)
-- 4230: VAT payable (output)
+- 5110: Product sales | 5120: Service revenue
+- 6110: COGS | 6310: Salaries | 6320: Social tax | 6330: Rent | 6340: Office supplies
+- 6350: Professional services | 6380: Depreciation | 6430: Bank fees
+- 2420: Bank | 2210: AR | 4220: AP | 2310: VAT input | 4230: VAT output
+- 1220: Equipment | 1240: Accumulated depreciation
 
-Be concise, professional, and action-oriented. Latvian accounting compliance is your top priority.`;
+Be concise, action-oriented, and proactive. You ARE the accountant — own the books.`;
 
 // ─── Tool Executor ──────────────────────────────────────────
 
@@ -191,6 +201,66 @@ async function executeTool(name: string, args: Record<string, unknown>, userId: 
 
     case "get_profit_and_loss":
       return getProfitAndLoss(args.companyId as string);
+
+    // ─── Autonomous / Agentic Tools ───────────────────────
+
+    case "run_month_end":
+      return runMonthEnd(args.companyId as string, args.period as string, userId);
+
+    case "run_year_end":
+      return runYearEnd(args.companyId as string, args.fiscalYear as number, userId);
+
+    case "check_company_health":
+      return checkCompanyHealth(args.companyId as string);
+
+    case "create_credit_note":
+      return createCreditNote({
+        companyId: args.companyId as string,
+        originalInvoiceId: args.originalInvoiceId as string,
+        reason: args.reason as string,
+        createdBy: userId,
+      });
+
+    case "generate_invoice_pdf":
+      return { pdfUrl: `/api/companies/${args.companyId}/invoices/${args.invoiceId}/pdf` };
+
+    case "get_aging_report":
+      return getAgingReport(args.companyId as string, args.type as "ar" | "ap");
+
+    case "generate_vat_declaration":
+      return generateVatDeclaration(args.companyId as string, args.year as number, args.month as number);
+
+    case "generate_annual_report":
+      return generateAnnualReport(args.companyId as string, args.fiscalYear as number);
+
+    case "acquire_fixed_asset":
+      return acquireAsset({
+        companyId: args.companyId as string,
+        code: args.code as string,
+        name: args.name as string,
+        assetAccountCode: args.assetAccountCode as string,
+        depreciationAccountCode: "1240",
+        expenseAccountCode: "6380",
+        acquisitionDate: args.acquisitionDate as string,
+        acquisitionCost: args.acquisitionCost as number,
+        residualValue: (args.residualValue as number) ?? 0,
+        usefulLifeMonths: args.usefulLifeMonths as number,
+        createdBy: userId,
+      });
+
+    case "create_recurring_template":
+      return createRecurringTemplate({
+        companyId: args.companyId as string,
+        name: args.name as string,
+        description: args.description as string,
+        frequency: args.frequency as "monthly" | "quarterly" | "yearly",
+        lines: args.lines as any[],
+        nextRunDate: args.nextRunDate as string | undefined,
+        createdBy: userId,
+      });
+
+    case "get_budget_vs_actual":
+      return getBudgetVsActual(args.companyId as string, args.fiscalYear as number);
 
     default:
       return { error: `Unknown tool: ${name}` };

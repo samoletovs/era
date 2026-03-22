@@ -7,10 +7,12 @@ export function Dashboard() {
   const { companyId, companies } = useApp();
   const navigate = useNavigate();
   const [data, setData] = useState<any>(null);
+  const [health, setHealth] = useState<any>(null);
 
   useEffect(() => {
     if (!companyId) return;
     api.dashboard(companyId).then(setData).catch(() => {});
+    api.companyHealth(companyId).then(setHealth).catch(() => {});
   }, [companyId]);
 
   if (!companyId) return (
@@ -47,6 +49,32 @@ export function Dashboard() {
           <div className="subtitle">Current period</div>
         </div>
       </div>
+
+      {health && (
+        <div className="metric-card" style={{ marginBottom: 20 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <div className="label">Company health</div>
+            <div style={{ fontSize: 28, fontWeight: 600, color: health.score >= 80 ? "#34C759" : health.score >= 50 ? "#FF9500" : "#FF3B30" }}>
+              {health.score}/100
+            </div>
+          </div>
+          {health.issues?.length > 0 ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {health.issues.map((issue: any, i: number) => (
+                <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: "var(--text-sm)" }}>
+                  <span style={{ flexShrink: 0 }}>{issue.severity === "critical" ? "🔴" : issue.severity === "warning" ? "🟡" : "🔵"}</span>
+                  <div>
+                    <span style={{ color: "var(--text-body)" }}>{issue.message}</span>
+                    {issue.action && <span style={{ color: "var(--text-tertiary)", marginLeft: 4 }}>— {issue.action}</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p style={{ color: "#34C759", fontSize: "var(--text-sm)" }}>All good — no issues detected.</p>
+          )}
+        </div>
+      )}
 
       {data?.recentInvoices?.length > 0 && (
         <div className="metric-card">

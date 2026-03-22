@@ -113,6 +113,7 @@ export const LATVIAN_CHART_OF_ACCOUNTS: AccountTemplate[] = [
 export function buildAccountsForCompany(companyId: string, createdBy: string): Account[] {
   const now = new Date().toISOString();
   return LATVIAN_CHART_OF_ACCOUNTS.map((t) => ({
+    docType: "account" as const,
     id: `${companyId}-acct-${t.code}`,
     companyId,
     code: t.code,

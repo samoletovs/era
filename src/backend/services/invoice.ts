@@ -82,6 +82,7 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<Invoice>
 
   const invoice: Invoice = {
     id: uuidv4(),
+    docType: "invoice" as const,
     companyId: input.companyId,
     invoiceNumber,
     type: input.type,
@@ -294,7 +295,7 @@ export async function listInvoices(
 
   const { resources } = await containers.documents().items
     .query<Invoice>({
-      query: `SELECT * FROM c WHERE c.companyId = @cid AND IS_DEFINED(c.invoiceNumber) ${typeFilter} ORDER BY c.date DESC`,
+      query: `SELECT * FROM c WHERE c.companyId = @cid AND c.docType = 'invoice' ${typeFilter} ORDER BY c.date DESC`,
       parameters: params,
     })
     .fetchAll();
@@ -360,7 +361,7 @@ export async function cancelInvoice(
 export async function getInvoicePostings(companyId: string, invoiceId: string) {
   const { resources } = await containers.ledger().items
     .query({
-      query: "SELECT * FROM c WHERE c.companyId = @cid AND c.sourceId = @sid AND IS_DEFINED(c.entryNumber)",
+      query: "SELECT * FROM c WHERE c.companyId = @cid AND c.sourceId = @sid AND c.docType = 'journal-entry'",
       parameters: [
         { name: "@cid", value: companyId },
         { name: "@sid", value: invoiceId },
@@ -421,6 +422,7 @@ export async function createCreditNote(input: CreateCreditNoteInput): Promise<In
 
   const creditNote: Invoice = {
     id: uuidv4(),
+    docType: "invoice" as const,
     companyId: input.companyId,
     invoiceNumber,
     type: original.type,

@@ -571,6 +571,58 @@ Format for new decisions: **Context → Decision → Consequences**.
 
 ---
 
+## 15. Automated enforcement
+
+ERA includes a custom ESLint plugin (`eslint-plugin-era.js`) that enforces key standards at lint time.
+
+### Rules
+
+| Rule | Severity | What it checks |
+|------|----------|---------------|
+| `era/field-suffixes` | warn | Fields ending in `*Amount`, `*Rate`, `*Count` must be `number`; `*Date`, `*At` must be `string`; booleans must start with `is`/`has`/`can` |
+| `era/doctype-required` | warn | Interfaces for shared-container entities (`Invoice`, `Account`, `Item`, etc.) must include a `docType` field |
+| `era/no-cross-partition-query` | warn | Cosmos SQL query strings must include a partition key filter (`companyId`, `id`, or `country`) |
+
+Additional built-in rules enforced:
+- `no-eval`, `no-implied-eval`, `no-new-func` — security (§12)
+- `no-alert` — frontend must use toast system (§9)
+- `eqeqeq` — always use strict equality
+
+### Configuration
+
+The ESLint flat config is in `eslint.config.js`. Rules are set to `warn` (not `error`) during the migration period. Promote to `error` once existing code is brought into compliance.
+
+Test files (`tests/**`) are excluded from `field-suffixes` and `doctype-required` to avoid noise in test fixtures.
+
+### Running
+
+```bash
+npm run lint          # Run all ESLint rules including ERA custom rules
+```
+
+---
+
+## 16. Machine-readable schema
+
+The standards are also available in machine-readable form for tooling consumption:
+
+| File | Purpose |
+|------|---------|
+| `docs/development-standards.schema.json` | JSON Schema defining the structure of ERA standards data |
+| `docs/development-standards.data.json` | Instance data with all current field rules, data types, containers, lifecycles, error codes, audit events, and coverage targets |
+
+### Use cases
+
+- **Code generators** can read `dataTypes` to generate Zod schemas for new entities
+- **CI pipelines** can validate that new entities include required `docType` values
+- **Status transition validators** can read `statusLifecycles` to enforce valid transitions at runtime
+- **Audit compliance checks** can verify all `mandatoryEvents` are emitted
+- **Documentation generators** can produce up-to-date field reference tables
+
+When updating standards, update **both** the human-readable `development-standards.md` and the machine-readable `development-standards.data.json` to keep them in sync.
+
+---
+
 ## Appendix A: Entity table reference
 
 Quick reference for all ERA entities and their classification (inspired by D365 F&O table groups):
@@ -629,4 +681,6 @@ Fields that should be migrated when modifying existing entities:
 
 | Date | Change | Author |
 |------|--------|--------|
-| 2026-03-22 | Initial standards document created | ERA team |
+| 2026-03-22 | Added automated ESLint enforcement (§15): `era/field-suffixes`, `era/doctype-required`, `era/no-cross-partition-query` | ERA team |
+| 2026-03-22 | Added machine-readable JSON Schema + data file (§16) for tooling consumption | ERA team |
+| 2026-03-22 | Initial standards document created (§1–§14, Appendix A–B) | ERA team |

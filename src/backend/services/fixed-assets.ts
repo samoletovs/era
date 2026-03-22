@@ -117,7 +117,7 @@ export async function runDepreciation(
 ): Promise<{ assetsDepreciated: number; totalAmount: number; journalEntryId?: string }> {
   const { resources: assets } = await containers.inventory().items
     .query<FixedAsset>({
-      query: "SELECT * FROM c WHERE c.companyId = @cid AND IS_DEFINED(c.usefulLifeMonths) AND c.status = 'active'",
+      query: "SELECT * FROM c WHERE c.companyId = @cid AND c.docType = 'fixed-asset' AND c.status = 'active'",
       parameters: [{ name: "@cid", value: companyId }],
     })
     .fetchAll();
@@ -215,7 +215,7 @@ export async function disposeAsset(
 export async function listFixedAssets(companyId: string): Promise<FixedAsset[]> {
   const { resources } = await containers.inventory().items
     .query<FixedAsset>({
-      query: "SELECT * FROM c WHERE c.companyId = @cid AND IS_DEFINED(c.usefulLifeMonths) ORDER BY c.code",
+      query: "SELECT * FROM c WHERE c.companyId = @cid AND c.docType = 'fixed-asset' ORDER BY c.code",
       parameters: [{ name: "@cid", value: companyId }],
     })
     .fetchAll();

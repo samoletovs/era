@@ -34,13 +34,24 @@ export function Invoices() {
       const data = await api.invoices(companyId, filter || undefined);
       setInvoices(data as any[]);
       if (selected?.id === inv.id) handleSelect(inv);
-    } catch (e: any) { alert(e.message); }
+    } catch (e: any) { console.error(e.message); }
   }
 
   async function handleCancel(inv: any) {
     if (!confirm(`Cancel invoice ${inv.invoiceNumber}? This will reverse the GL entries.`)) return;
     try {
       await api.cancelInvoice(companyId, inv.id, "Cancelled by user");
+      const data = await api.invoices(companyId, filter || undefined);
+      setInvoices(data as any[]);
+      setSelected(null);
+    } catch (e: any) { console.error(e.message); }
+  }
+
+  async function handleCreditNote(inv: any) {
+    const reason = prompt(`Reason for credit note on ${inv.invoiceNumber}?`);
+    if (!reason) return;
+    try {
+      await api.createCreditNote(companyId, inv.id, reason);
       const data = await api.invoices(companyId, filter || undefined);
       setInvoices(data as any[]);
       setSelected(null);
@@ -82,6 +93,12 @@ export function Invoices() {
                 {selected.status === "draft" && (
                   <button className="btn-primary" onClick={() => handlePost(selected)}>Post to ledger</button>
                 )}
+                {selected.status !== "cancelled" && selected.status !== "draft" && (
+                  <button className="btn-secondary" onClick={() => handleCreditNote(selected)}>Credit note</button>
+                )}
+                <a href={api.invoicePdfUrl(companyId, selected.id)} target="_blank" rel="noopener noreferrer" className="btn-secondary" style={{ display: "inline-flex", alignItems: "center", textDecoration: "none" }}>
+                  PDF ↓
+                </a>
                 {selected.status !== "cancelled" && (
                   <button className="btn-secondary" style={{ color: "#FF3B30" }} onClick={() => handleCancel(selected)}>Cancel invoice</button>
                 )}

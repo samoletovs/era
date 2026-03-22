@@ -13,7 +13,7 @@
     "build:backend": "tsc -p tsconfig.backend.json",
     "test": "vitest",
     "test:e2e": "playwright test",
-    "lint": "eslint src/ --ext .ts,.tsx",
+    "lint": "eslint src/",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\"",
     "infra:deploy": "az deployment group create --resource-group era-rg --template-file infrastructure/main.bicep",
     "dev-tasks": "tsx scripts/sync-dev-tasks.ts"
@@ -51,6 +51,7 @@
     "prettier": "^3.4.0",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",
+    "typescript-eslint": "^8.57.1",
     "vite": "^6.0.0",
     "vitest": "^2.1.0"
   },

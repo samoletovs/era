@@ -47,6 +47,7 @@ export async function createAndPostPayment(input: CreatePaymentInput): Promise<P
   const now = new Date().toISOString();
   const payment: Payment = {
     id: uuidv4(),
+    docType: "payment" as const,
     companyId: input.companyId,
     type: input.type,
     contactId: input.contactId,
@@ -199,7 +200,7 @@ export async function listPayments(
 
   const { resources } = await containers.documents().items
     .query<Payment>({
-      query: `SELECT * FROM c WHERE c.companyId = @cid AND IS_DEFINED(c.bankAccountIban) ${typeFilter} ORDER BY c.date DESC`,
+      query: `SELECT * FROM c WHERE c.companyId = @cid AND c.docType = 'payment' ${typeFilter} ORDER BY c.date DESC`,
       parameters: params,
     })
     .fetchAll();

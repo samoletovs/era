@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import { containers } from "./cosmos.js";
+import { emitEvent } from "./events.js";
 import type { Contact } from "@shared/types";
 
 interface CreateContactInput {
@@ -35,6 +36,16 @@ export async function createContact(input: CreateContactInput): Promise<Contact>
   };
 
   await containers.contacts().items.create(contact);
+
+  await emitEvent({
+    companyId: input.companyId,
+    type: "contact.created",
+    actor: input.createdBy,
+    documentType: "contact",
+    documentId: contact.id,
+    data: { name: contact.name, type: contact.type },
+  });
+
   return contact;
 }
 

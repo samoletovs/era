@@ -135,6 +135,88 @@ export function Settings() {
           {saved && <span style={{ color: "#34C759", fontSize: 13 }}>✓ Saved</span>}
         </div>
       </div>
+
+      <PeriodManagement companyId={companyId} />
+    </div>
+  );
+}
+
+function PeriodManagement({ companyId }: { companyId: string }) {
+  const [monthEndPeriod, setMonthEndPeriod] = useState(() => {
+    const d = new Date(); d.setMonth(d.getMonth() - 1);
+    return d.toISOString().slice(0, 7);
+  });
+  const [yearEndYear, setYearEndYear] = useState(new Date().getFullYear() - 1);
+  const [monthEndResult, setMonthEndResult] = useState<any>(null);
+  const [yearEndResult, setYearEndResult] = useState<any>(null);
+  const [running, setRunning] = useState("");
+
+  async function handleMonthEnd() {
+    setRunning("month");
+    setMonthEndResult(null);
+    try {
+      const result = await api.runMonthEnd(companyId, monthEndPeriod);
+      setMonthEndResult(result);
+    } catch (e: any) { alert(e.message); }
+    finally { setRunning(""); }
+  }
+
+  async function handleYearEnd() {
+    if (!confirm(`Run year-end close for FY${yearEndYear}? This will close all periods and transfer P&L to retained earnings.`)) return;
+    setRunning("year");
+    setYearEndResult(null);
+    try {
+      const result = await api.runYearEnd(companyId, yearEndYear);
+      setYearEndResult(result);
+    } catch (e: any) { alert(e.message); }
+    finally { setRunning(""); }
+  }
+
+  return (
+    <div className="settings-card" style={{ marginTop: 24 }}>
+      <h3 className="section-title">Period management</h3>
+
+      <div className="settings-row" style={{ alignItems: "flex-end", gap: 12, marginBottom: 16 }}>
+        <div className="settings-field" style={{ flex: "none" }}>
+          <label>Month-end close</label>
+          <input type="month" value={monthEndPeriod} onChange={(e) => setMonthEndPeriod(e.target.value)} style={{ width: 160 }} />
+        </div>
+        <button className="btn-primary" onClick={handleMonthEnd} disabled={running === "month"} style={{ marginBottom: 0 }}>
+          {running === "month" ? "Running..." : "Run month-end"}
+        </button>
+      </div>
+
+      {monthEndResult && (
+        <div style={{ marginBottom: 20, padding: 12, background: "var(--bg-subtle)", borderRadius: "var(--radius-sm)", fontSize: "var(--text-sm)" }}>
+          <strong>Month-end complete — {monthEndResult.period}</strong>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 8 }}>
+            {monthEndResult.steps?.map((s: any, i: number) => (
+              <div key={i} style={{ color: s.status === "completed" ? "#34C759" : s.status === "failed" ? "#FF3B30" : "var(--text-tertiary)" }}>
+                {s.status === "completed" ? "✓" : s.status === "failed" ? "✗" : "—"} {s.name}: {s.detail}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="settings-row" style={{ alignItems: "flex-end", gap: 12 }}>
+        <div className="settings-field" style={{ flex: "none" }}>
+          <label>Year-end close</label>
+          <input type="number" value={yearEndYear} onChange={(e) => setYearEndYear(Number(e.target.value))} style={{ width: 100 }} />
+        </div>
+        <button className="btn-secondary" style={{ color: "#FF9500", marginBottom: 0 }} onClick={handleYearEnd} disabled={running === "year"}>
+          {running === "year" ? "Running..." : "Run year-end close"}
+        </button>
+      </div>
+
+      {yearEndResult && (
+        <div style={{ marginTop: 12, padding: 12, background: "var(--bg-subtle)", borderRadius: "var(--radius-sm)", fontSize: "var(--text-sm)" }}>
+          <strong>Year-end complete — FY{yearEndResult.fiscalYear}</strong>
+          {yearEndResult.netResult != null && (
+            <div style={{ marginTop: 4 }}>Net result: <strong style={{ color: yearEndResult.netResult >= 0 ? "#34C759" : "#FF3B30" }}>€{yearEndResult.netResult?.toFixed(2)}</strong> transferred to retained earnings</div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

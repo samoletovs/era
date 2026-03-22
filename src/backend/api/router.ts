@@ -17,6 +17,7 @@ import { importBankStatement, postUnmatchedLine, completeReconciliation, listRec
 import { createRecurringTemplate, listRecurringTemplates, executeRecurringTemplate } from "../services/recurring-entries.js";
 import { acquireAsset, runDepreciation, disposeAsset, listFixedAssets } from "../services/fixed-assets.js";
 import { setBudget, getBudgetVsActual } from "../services/budget.js";
+import { runMonthEnd, runYearEnd, checkCompanyHealth } from "../services/autonomous-tasks.js";
 import { containers } from "../services/cosmos.js";
 import type { ApiResponse, Account, Company, Feedback, PostingRule, BusinessEvent } from "@shared/types";
 
@@ -112,7 +113,7 @@ router.get("/companies/:companyId/accounts", async (req, res) => {
   try {
     const { resources } = await containers.ledger().items
       .query<Account>({
-        query: "SELECT * FROM c WHERE c.companyId = @companyId AND IS_DEFINED(c.code) AND IS_DEFINED(c.normalSide) ORDER BY c.code",
+        query: "SELECT * FROM c WHERE c.companyId = @companyId AND c.docType = 'account' ORDER BY c.code",
         parameters: [{ name: "@companyId", value: req.params.companyId }],
       })
       .fetchAll();
@@ -128,7 +129,7 @@ router.get("/companies/:companyId/journal-entries", async (req, res) => {
   try {
     const { resources } = await containers.ledger().items
       .query({
-        query: "SELECT * FROM c WHERE c.companyId = @companyId AND IS_DEFINED(c.entryNumber) ORDER BY c.date DESC",
+        query: "SELECT * FROM c WHERE c.companyId = @companyId AND c.docType = 'journal-entry' ORDER BY c.date DESC",
         parameters: [{ name: "@companyId", value: req.params.companyId }],
       })
       .fetchAll();
@@ -151,7 +152,7 @@ router.get("/companies/:companyId/invoices", async (req, res) => {
     }
     const { resources } = await containers.documents().items
       .query({
-        query: `SELECT * FROM c WHERE c.companyId = @companyId AND IS_DEFINED(c.invoiceNumber) ${typeFilter} ORDER BY c.date DESC`,
+        query: `SELECT * FROM c WHERE c.companyId = @companyId AND c.docType = 'invoice' ${typeFilter} ORDER BY c.date DESC`,
         parameters: params,
       })
       .fetchAll();
@@ -183,7 +184,7 @@ router.get("/companies/:companyId/items", async (req, res) => {
   try {
     const { resources } = await containers.inventory().items
       .query({
-        query: "SELECT * FROM c WHERE c.companyId = @companyId AND IS_DEFINED(c.code) ORDER BY c.name",
+        query: "SELECT * FROM c WHERE c.companyId = @companyId AND c.docType = 'item' ORDER BY c.name",
         parameters: [{ name: "@companyId", value: req.params.companyId }],
       })
       .fetchAll();
@@ -272,7 +273,7 @@ router.post("/companies/:companyId/invoices/upload", async (req, res) => {
 
     // Step 2: Find or create vendor contact
     let contactId = "";
-    let contactName = recognized.vendorName || "Unknown vendor";
+    const contactName = recognized.vendorName || "Unknown vendor";
 
     if (recognized.vendorName) {
       const { resources: existing } = await containers.contacts().items
@@ -493,7 +494,7 @@ router.get("/companies/:companyId/contacts/:contactId/transactions", async (req,
     // Get invoices for this contact
     const { resources: invoices } = await containers.documents().items
       .query({
-        query: "SELECT * FROM c WHERE c.companyId = @cid AND c.contactId = @contactId AND IS_DEFINED(c.invoiceNumber) ORDER BY c.date DESC",
+        query: "SELECT * FROM c WHERE c.companyId = @cid AND c.contactId = @contactId AND c.docType = 'invoice' ORDER BY c.date DESC",
         parameters: [
           { name: "@cid", value: cid },
           { name: "@contactId", value: contactId },
@@ -504,7 +505,7 @@ router.get("/companies/:companyId/contacts/:contactId/transactions", async (req,
     // Get payments for this contact
     const { resources: payments } = await containers.documents().items
       .query({
-        query: "SELECT * FROM c WHERE c.companyId = @cid AND c.contactId = @contactId AND IS_DEFINED(c.bankAccountIban) ORDER BY c.date DESC",
+        query: "SELECT * FROM c WHERE c.companyId = @cid AND c.contactId = @contactId AND c.docType = 'payment' ORDER BY c.date DESC",
         parameters: [
           { name: "@cid", value: cid },
           { name: "@contactId", value: contactId },
@@ -604,7 +605,7 @@ router.get("/companies/:companyId/dashboard", async (req, res) => {
     // Recent invoices
     const { resources: recentInvoices } = await containers.documents().items
       .query({
-        query: "SELECT TOP 5 c.invoiceNumber, c.type, c.contactName, c.total, c.status, c.date FROM c WHERE c.companyId = @cid AND IS_DEFINED(c.invoiceNumber) ORDER BY c.date DESC",
+        query: "SELECT TOP 5 c.invoiceNumber, c.type, c.contactName, c.total, c.status, c.date FROM c WHERE c.companyId = @cid AND c.docType = 'invoice' ORDER BY c.date DESC",
         parameters: [{ name: "@cid", value: cid }],
       })
       .fetchAll();
@@ -1015,5 +1016,39 @@ router.get("/companies/:companyId/reports/budget-vs-actual", async (req, res) =>
     res.json({ data: report } as ApiResponse);
   } catch (err) {
     res.status(500).json({ error: { code: "REPORT_FAILED", message: String(err) } });
+  }
+});
+
+// ─── Autonomous Task Endpoints ──────────────────────────────
+
+router.post("/companies/:companyId/run-month-end", async (req, res) => {
+  try {
+    const period = req.body.period || (() => {
+      const d = new Date(); d.setMonth(d.getMonth() - 1);
+      return d.toISOString().slice(0, 7);
+    })();
+    const result = await runMonthEnd(req.params.companyId, period, req.user!.id);
+    res.json({ data: result } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "MONTH_END_FAILED", message: String(err) } });
+  }
+});
+
+router.post("/companies/:companyId/run-year-end", async (req, res) => {
+  try {
+    const fiscalYear = req.body.fiscalYear || new Date().getFullYear() - 1;
+    const result = await runYearEnd(req.params.companyId, fiscalYear, req.user!.id);
+    res.json({ data: result } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "YEAR_END_FAILED", message: String(err) } });
+  }
+});
+
+router.get("/companies/:companyId/health", async (req, res) => {
+  try {
+    const health = await checkCompanyHealth(req.params.companyId);
+    res.json({ data: health } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "HEALTH_CHECK_FAILED", message: String(err) } });
   }
 });

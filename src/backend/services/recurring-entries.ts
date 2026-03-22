@@ -54,7 +54,7 @@ export async function createRecurringTemplate(input: {
 export async function listRecurringTemplates(companyId: string): Promise<RecurringTemplate[]> {
   const { resources } = await containers.documents().items
     .query<RecurringTemplate>({
-      query: "SELECT * FROM c WHERE c.companyId = @cid AND IS_DEFINED(c.frequency) AND IS_DEFINED(c.lines) AND NOT IS_DEFINED(c.invoiceNumber) ORDER BY c.name",
+      query: "SELECT * FROM c WHERE c.companyId = @cid AND c.docType = 'recurring-template' ORDER BY c.name",
       parameters: [{ name: "@cid", value: companyId }],
     })
     .fetchAll();

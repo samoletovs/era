@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { containers } from "./cosmos.js";
 import { buildAccountsForCompany } from "./chart-of-accounts.js";
+import { emitEvent } from "./events.js";
 import type { Company, CompanySettings } from "@shared/types";
 
 interface CreateCompanyInput {
@@ -38,7 +39,7 @@ export async function createCompany(input: CreateCompanyInput): Promise<Company>
   const code = input.code || generateCode(input.name);
 
   const settings: CompanySettings = {
-    vatRegistered: !!input.vatNumber,
+    isVatRegistered: !!input.vatNumber,
     vatRate: 21,
     defaultPaymentTermsDays: 30,
     invoiceNumberPrefix: "INV",
@@ -70,6 +71,15 @@ export async function createCompany(input: CreateCompanyInput): Promise<Company>
   for (const account of accounts) {
     await ledgerContainer.items.create(account);
   }
+
+  await emitEvent({
+    companyId: id,
+    type: "company.created",
+    actor: input.createdBy,
+    documentType: "company",
+    documentId: id,
+    data: { name: company.name, code: company.code },
+  });
 
   return company;
 }
