@@ -10,7 +10,7 @@ const CKAN_BASE = "https://data.gov.lv/dati/api/3/action";
 
 // Resource IDs from data.gov.lv for UR (Uzņēmumu reģistrs) datasets
 // The main enterprise register resource (register dataset)
-const UR_REGISTER_RESOURCE = "25e80bf3-f107-4ab4-89ef-251b5b9571ac";
+const UR_REGISTER_RESOURCE = "25e80bf3-f107-4ab4-89ef-251b5b9374e9";
 
 interface URCompanyRecord {
   regcode: string;           // Registration number (11 digits)
@@ -89,11 +89,11 @@ async function ckanDatastoreSearch(query: string): Promise<CompanyLookupResult> 
   return {
     found: true,
     results: data.result.records.map((r: Record<string, string>) => ({
-      registrationNumber: r.regcode || r.registration_number || r.reg_code || "",
-      name: r.name || r.nosaukums || "",
-      legalForm: r.type || r.legal_form || r.tips || "",
-      address: r.address || r.juridiska_adrese || r.adrese || "",
-      registeredDate: r.registered || r.registration_date || r.reg_date || "",
+      registrationNumber: r.regcode || "",
+      name: r.name || "",
+      legalForm: r.type_text || r.type || "",
+      address: r.address || "",
+      registeredDate: r.registered || "",
     })),
     source: "data.gov.lv (Uzņēmumu reģistrs)",
   };
@@ -123,11 +123,11 @@ async function ckanDatastoreSearchByRegCode(regCode: string): Promise<CompanyLoo
   return {
     found: true,
     results: data.result.records.map((r: Record<string, string>) => ({
-      registrationNumber: r.regcode || r.registration_number || "",
-      name: r.name || r.nosaukums || "",
-      legalForm: r.type || r.legal_form || "",
-      address: r.address || r.juridiska_adrese || "",
-      registeredDate: r.registered || r.registration_date || "",
+      registrationNumber: r.regcode || "",
+      name: r.name || "",
+      legalForm: r.type_text || r.type || "",
+      address: r.address || "",
+      registeredDate: r.registered || "",
     })),
     source: "data.gov.lv (Uzņēmumu reģistrs)",
   };
