@@ -42,6 +42,9 @@ export const api = {
 
   // Contacts
   contacts: (companyId: string) => apiFetch(`/companies/${companyId}/contacts`),
+  contact: (companyId: string, id: string) => apiFetch(`/companies/${companyId}/contacts/${id}`),
+  contactTransactions: (companyId: string, contactId: string) =>
+    apiFetch(`/companies/${companyId}/contacts/${contactId}/transactions`),
 
   // Items
   items: (companyId: string) => apiFetch(`/companies/${companyId}/items`),

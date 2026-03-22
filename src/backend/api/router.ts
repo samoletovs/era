@@ -477,6 +477,48 @@ router.get("/companies/:companyId/contacts/:contactId", async (req, res) => {
   res.json({ data: contact } as ApiResponse);
 });
 
+router.get("/companies/:companyId/contacts/:contactId/transactions", async (req, res) => {
+  try {
+    const cid = req.params.companyId;
+    const contactId = req.params.contactId;
+
+    // Get invoices for this contact
+    const { resources: invoices } = await containers.documents().items
+      .query({
+        query: "SELECT * FROM c WHERE c.companyId = @cid AND c.contactId = @contactId AND IS_DEFINED(c.invoiceNumber) ORDER BY c.date DESC",
+        parameters: [
+          { name: "@cid", value: cid },
+          { name: "@contactId", value: contactId },
+        ],
+      })
+      .fetchAll();
+
+    // Get payments for this contact
+    const { resources: payments } = await containers.documents().items
+      .query({
+        query: "SELECT * FROM c WHERE c.companyId = @cid AND c.contactId = @contactId AND IS_DEFINED(c.bankAccountIban) ORDER BY c.date DESC",
+        parameters: [
+          { name: "@cid", value: cid },
+          { name: "@contactId", value: contactId },
+        ],
+      })
+      .fetchAll();
+
+    // Calculate totals
+    const totalInvoiced = invoices
+      .filter((i: any) => i.status !== "cancelled")
+      .reduce((s: number, i: any) => s + (i.total || 0), 0);
+    const totalPaid = payments.reduce((s: number, p: any) => s + (p.amount || 0), 0);
+    const balance = Math.round((totalInvoiced - totalPaid) * 100) / 100;
+
+    res.json({
+      data: { invoices, payments, totalInvoiced, totalPaid, balance },
+    } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
+  }
+});
+
 // ─── Inventory ──────────────────────────────────────────────
 
 router.post("/companies/:companyId/items", async (req, res) => {
