@@ -5,15 +5,37 @@ import type { Company, CompanySettings } from "@shared/types";
 
 interface CreateCompanyInput {
   name: string;
+  code?: string;
   registrationNumber: string;
   vatNumber?: string;
   legalAddress: Company["legalAddress"];
   createdBy: string;
 }
 
+// Generate a short code from company name (max 5 chars, uppercase)
+// "SIA DAIS" → "DAIS", "Sabiedrība ar ierobežotu atbildību \"DAIS\"" → "DAIS"
+function generateCode(name: string): string {
+  // Try to extract quoted name first (common in LV register)
+  const quoted = name.match(/[""]([^""]+)[""]/) || name.match(/"([^"]+)"/);
+  const cleanName = quoted ? quoted[1] : name;
+
+  // Remove common prefixes
+  const stripped = cleanName
+    .replace(/^(SIA|AS|IK|ZS|PS)\s+/i, "")
+    .replace(/^Sabiedrība ar ierobežotu atbildību\s*/i, "")
+    .trim();
+
+  // Take first 5 meaningful characters, uppercase
+  return stripped
+    .replace(/[^a-zA-ZāčēģīķļņšūžĀČĒĢĪĶĻŅŠŪŽ0-9]/g, "")
+    .slice(0, 5)
+    .toUpperCase();
+}
+
 export async function createCompany(input: CreateCompanyInput): Promise<Company> {
   const id = uuidv4();
   const now = new Date().toISOString();
+  const code = input.code || generateCode(input.name);
 
   const settings: CompanySettings = {
     vatRegistered: !!input.vatNumber,
@@ -25,6 +47,7 @@ export async function createCompany(input: CreateCompanyInput): Promise<Company>
 
   const company: Company = {
     id,
+    code,
     name: input.name,
     registrationNumber: input.registrationNumber,
     vatNumber: input.vatNumber,

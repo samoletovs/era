@@ -13,6 +13,8 @@ import { Onboarding } from "./pages/Onboarding";
 function Sidebar() {
   const { companies, companyId, setCompanyId } = useApp();
   const navigate = useNavigate();
+  const [switcherOpen, setSwitcherOpen] = React.useState(false);
+  const activeCompany = companies.find((c) => c.id === companyId);
 
   return (
     <aside className="app-sidebar">
@@ -20,14 +22,25 @@ function Sidebar() {
 
       {companies.length > 0 && (
         <div className="company-switcher">
-          <select
-            value={companyId}
-            onChange={(e) => setCompanyId(e.target.value)}
-          >
-            {companies.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
+          <button className="switcher-btn" onClick={() => setSwitcherOpen(!switcherOpen)}>
+            <span className="switcher-code">{activeCompany?.code || "—"}</span>
+            <span className="switcher-name">{activeCompany?.name || "Select company"}</span>
+            <span className="switcher-arrow">{switcherOpen ? "▴" : "▾"}</span>
+          </button>
+          {switcherOpen && (
+            <div className="switcher-dropdown">
+              {companies.map((c) => (
+                <button
+                  key={c.id}
+                  className={`switcher-option ${c.id === companyId ? "active" : ""}`}
+                  onClick={() => { setCompanyId(c.id); setSwitcherOpen(false); }}
+                >
+                  <span className="switcher-code">{c.code}</span>
+                  <span className="switcher-name">{c.name}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

@@ -1,16 +1,68 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { api } from "../utils/api";
 import { useApp } from "../utils/context";
+
+function computeSubtotals(accounts: any[]): Map<string, number> {
+  const totals = new Map<string, number>();
+  for (const a of accounts) {
+    if (a.isPostable) totals.set(a.code, a.balance);
+  }
+  // Roll up level 2 from children
+  for (const a of accounts) {
+    if (a.level === 2 && !a.isPostable) {
+      const sum = accounts
+        .filter((c: any) => c.parentCode === a.code && c.isPostable)
+        .reduce((s: number, c: any) => s + c.balance, 0);
+      totals.set(a.code, sum);
+    }
+  }
+  // Roll up level 1 from level 2 children
+  for (const a of accounts) {
+    if (a.level === 1 && !a.isPostable) {
+      const sum = accounts
+        .filter((c: any) => c.parentCode === a.code)
+        .reduce((s: number, c: any) => s + (totals.get(c.code) ?? 0), 0);
+      totals.set(a.code, sum);
+    }
+  }
+  return totals;
+}
 
 export function Accounts() {
   const { companyId } = useApp();
   const [accounts, setAccounts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!companyId) { setLoading(false); return; }
     api.accounts(companyId).then((data: any) => { setAccounts(data); setLoading(false); }).catch(() => setLoading(false));
   }, [companyId]);
+
+  const totals = useMemo(() => computeSubtotals(accounts), [accounts]);
+
+  const visibleAccounts = useMemo(() => {
+    return accounts.filter((a: any) => {
+      if (a.level === 1) return true;
+      // Check if any ancestor is collapsed
+      let parent = a.parentCode;
+      while (parent) {
+        if (collapsed.has(parent)) return false;
+        const parentAcct = accounts.find((p: any) => p.code === parent);
+        parent = parentAcct?.parentCode;
+      }
+      return true;
+    });
+  }, [accounts, collapsed]);
+
+  const toggleCollapse = (code: string) => {
+    setCollapsed(prev => {
+      const next = new Set(prev);
+      if (next.has(code)) next.delete(code);
+      else next.add(code);
+      return next;
+    });
+  };
 
   if (!companyId) return <NoCompany />;
 
@@ -18,19 +70,53 @@ export function Accounts() {
     <div>
       <h2 className="page-title">Chart of accounts</h2>
       {loading ? <p style={{ color: "#A0A0A0" }}>Loading...</p> : (
-        <table className="data-table">
+        <table className="data-table coa-table">
           <thead>
             <tr><th>Code</th><th>Name</th><th>Type</th><th>Balance</th></tr>
           </thead>
           <tbody>
-            {accounts.filter((a: any) => a.isPostable).map((a: any) => (
-              <tr key={a.id}>
-                <td className="mono">{a.code}</td>
-                <td>{a.name}</td>
-                <td><span className="badge">{a.type}</span></td>
-                <td className="num">€{a.balance.toFixed(2)}</td>
-              </tr>
-            ))}
+            {visibleAccounts.map((a: any) => {
+              const balance = totals.get(a.code) ?? 0;
+              const hasChildren = !a.isPostable && accounts.some((c: any) => c.parentCode === a.code);
+              const isCollapsed = collapsed.has(a.code);
+
+              if (a.level === 1) {
+                return (
+                  <tr key={a.id} className="coa-class" onClick={() => hasChildren && toggleCollapse(a.code)}>
+                    <td className="mono">{a.code}</td>
+                    <td>
+                      {hasChildren && <span className="coa-toggle">{isCollapsed ? "▸" : "▾"}</span>}
+                      {a.name}
+                    </td>
+                    <td><span className="badge">{a.type}</span></td>
+                    <td className="num">€{balance.toFixed(2)}</td>
+                  </tr>
+                );
+              }
+
+              if (a.level === 2) {
+                return (
+                  <tr key={a.id} className="coa-group" onClick={() => hasChildren && toggleCollapse(a.code)}>
+                    <td className="mono">{a.code}</td>
+                    <td>
+                      {hasChildren && <span className="coa-toggle">{isCollapsed ? "▸" : "▾"}</span>}
+                      {a.name}
+                    </td>
+                    <td></td>
+                    <td className="num">€{balance.toFixed(2)}</td>
+                  </tr>
+                );
+              }
+
+              return (
+                <tr key={a.id} className="coa-account">
+                  <td className="mono">{a.code}</td>
+                  <td>{a.name}</td>
+                  <td></td>
+                  <td className="num">€{balance.toFixed(2)}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       )}

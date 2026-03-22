@@ -18,10 +18,24 @@ export function Onboarding() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<RegisterResult[]>([]);
   const [selected, setSelected] = useState<RegisterResult | null>(null);
+  const [companyCode, setCompanyCode] = useState("");
   const [searching, setSearching] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
   const [createdCompany, setCreatedCompany] = useState<any>(null);
+
+  // Generate code from company name (extract quoted part, take first 5 chars)
+  function generateCode(name: string): string {
+    const quoted = name.match(/[""\u201C\u201D]([^""\u201C\u201D]+)[""\u201C\u201D]/) || name.match(/"([^"]+)"/);
+    const clean = (quoted ? quoted[1] : name).replace(/^(SIA|AS)\s+/i, "").trim();
+    return clean.replace(/[^a-zA-Z0-9]/g, "").slice(0, 5).toUpperCase();
+  }
+
+  function handleSelect(r: RegisterResult) {
+    setSelected(r);
+    setCompanyCode(generateCode(r.name));
+    setStep("confirm");
+  }
 
   async function handleSearch() {
     if (!query.trim() || query.trim().length < 2) return;
@@ -46,11 +60,6 @@ export function Onboarding() {
     }
   }
 
-  function handleSelect(r: RegisterResult) {
-    setSelected(r);
-    setStep("confirm");
-  }
-
   async function handleCreate() {
     if (!selected) return;
     setCreating(true);
@@ -66,6 +75,7 @@ export function Onboarding() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${TOKEN}` },
         body: JSON.stringify({
           name: selected.name,
+          code: companyCode || generateCode(selected.name),
           registrationNumber: selected.registrationNumber,
           vatNumber: `LV${selected.registrationNumber}`,
           legalAddress: {
@@ -135,6 +145,16 @@ export function Onboarding() {
           <h2>Confirm company details</h2>
           <p className="onboarding-subtitle">This data was retrieved from the Latvian Enterprise Register.</p>
           <div className="onboarding-details">
+            <div className="detail-row">
+              <span className="detail-label">Company code</span>
+              <input
+                className="code-input"
+                value={companyCode}
+                onChange={(e) => setCompanyCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 5))}
+                maxLength={5}
+                placeholder="DAIS"
+              />
+            </div>
             <div className="detail-row"><span className="detail-label">Name</span><span><strong>{selected.name}</strong></span></div>
             <div className="detail-row"><span className="detail-label">Registration number</span><span className="mono">{selected.registrationNumber}</span></div>
             <div className="detail-row"><span className="detail-label">Legal form</span><span>{selected.legalForm}</span></div>

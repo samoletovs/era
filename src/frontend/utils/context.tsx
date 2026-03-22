@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 
 interface CompanyInfo {
   id: string;
+  code: string;
   name: string;
 }
 
@@ -39,7 +40,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       });
       const json = await res.json();
       if (json.data) {
-        setCompanies(json.data.map((c: any) => ({ id: c.id, name: c.name })));
+        setCompanies(json.data.map((c: any) => ({ id: c.id, code: c.code || "—", name: c.name })));
         // If no company selected but list has items, select first
         if (!companyId && json.data.length > 0) {
           setCompanyId(json.data[0].id);
