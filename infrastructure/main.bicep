@@ -77,6 +77,9 @@ resource cosmosContainers 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/co
         indexingPolicy: {
           automatic: true
           indexingMode: 'consistent'
+          includedPaths: [
+            { path: '/*' }
+          ]
           excludedPaths: [
             { path: '/"_etag"/?' }
           ]
@@ -87,18 +90,17 @@ resource cosmosContainers 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/co
   }
 ]
 
-// ─── App Service (B1 — ~$13/mo) ────────────────────────────
+// ─── App Service (F1 free for dev, B1 for prod) ────────────
 
 resource appServicePlan 'Microsoft.Web/serverfarms@2023-12-01' = {
   name: '${prefix}-plan'
   location: location
   tags: tags
   sku: {
-    name: 'B1'
+    name: environment == 'prod' ? 'B1' : 'F1'
   }
-  kind: 'linux'
   properties: {
-    reserved: true
+    reserved: false
   }
 }
 
@@ -109,7 +111,7 @@ resource appService 'Microsoft.Web/sites@2023-12-01' = {
   properties: {
     serverFarmId: appServicePlan.id
     siteConfig: {
-      linuxFxVersion: 'NODE|20-lts'
+      nodeVersion: '~20'
       appSettings: [
         { name: 'COSMOS_ENDPOINT', value: cosmosAccount.properties.documentEndpoint }
         { name: 'COSMOS_DATABASE', value: cosmosDb.name }
