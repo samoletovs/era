@@ -200,7 +200,7 @@ export async function listPayments(
 
   const { resources } = await containers.documents().items
     .query<Payment>({
-      query: `SELECT * FROM c WHERE c.companyId = @cid AND c.docType = 'payment' ${typeFilter} ORDER BY c.date DESC`,
+      query: `SELECT * FROM c WHERE c.companyId = @cid AND (c.docType = 'payment' OR IS_DEFINED(c.bankAccountIban)) ${typeFilter} ORDER BY c.date DESC`,
       parameters: params,
     })
     .fetchAll();

@@ -28,7 +28,7 @@ export async function getPeriodStatus(companyId: string, period: string): Promis
   try {
     const { resources } = await containers.ledger().items
       .query<FiscalPeriod>({
-        query: "SELECT * FROM c WHERE c.companyId = @cid AND c.period = @period AND c.docType = 'fiscal-period'",
+        query: "SELECT * FROM c WHERE c.companyId = @cid AND c.period = @period AND (c.docType = 'fiscal-period' OR (IS_DEFINED(c.status) AND IS_DEFINED(c.period) AND NOT IS_DEFINED(c.entryNumber) AND NOT IS_DEFINED(c.code)))",
         parameters: [
           { name: "@cid", value: companyId },
           { name: "@period", value: period },
@@ -106,7 +106,7 @@ export async function yearEndClose(
   // 1. Get all revenue and expense accounts with balances
   const { resources: accounts } = await containers.ledger().items
     .query<Account>({
-      query: "SELECT * FROM c WHERE c.companyId = @cid AND c.docType = 'account' AND c.isPostable = true AND c.balance != 0 AND (c.type = 'revenue' OR c.type = 'expense')",
+      query: "SELECT * FROM c WHERE c.companyId = @cid AND (c.docType = 'account' OR (IS_DEFINED(c.code) AND IS_DEFINED(c.normalSide))) AND c.isPostable = true AND c.balance != 0 AND (c.type = 'revenue' OR c.type = 'expense')",
       parameters: [{ name: "@cid", value: companyId }],
     })
     .fetchAll();

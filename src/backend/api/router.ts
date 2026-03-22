@@ -113,7 +113,7 @@ router.get("/companies/:companyId/accounts", async (req, res) => {
   try {
     const { resources } = await containers.ledger().items
       .query<Account>({
-        query: "SELECT * FROM c WHERE c.companyId = @companyId AND c.docType = 'account' ORDER BY c.code",
+        query: "SELECT * FROM c WHERE c.companyId = @companyId AND (c.docType = 'account' OR (IS_DEFINED(c.code) AND IS_DEFINED(c.normalSide))) ORDER BY c.code",
         parameters: [{ name: "@companyId", value: req.params.companyId }],
       })
       .fetchAll();
@@ -129,7 +129,7 @@ router.get("/companies/:companyId/journal-entries", async (req, res) => {
   try {
     const { resources } = await containers.ledger().items
       .query({
-        query: "SELECT * FROM c WHERE c.companyId = @companyId AND c.docType = 'journal-entry' ORDER BY c.date DESC",
+        query: "SELECT * FROM c WHERE c.companyId = @companyId AND (c.docType = 'journal-entry' OR IS_DEFINED(c.entryNumber)) ORDER BY c.date DESC",
         parameters: [{ name: "@companyId", value: req.params.companyId }],
       })
       .fetchAll();
@@ -152,7 +152,7 @@ router.get("/companies/:companyId/invoices", async (req, res) => {
     }
     const { resources } = await containers.documents().items
       .query({
-        query: `SELECT * FROM c WHERE c.companyId = @companyId AND c.docType = 'invoice' ${typeFilter} ORDER BY c.date DESC`,
+        query: `SELECT * FROM c WHERE c.companyId = @companyId AND (c.docType = 'invoice' OR IS_DEFINED(c.invoiceNumber)) ${typeFilter} ORDER BY c.date DESC`,
         parameters: params,
       })
       .fetchAll();
@@ -184,7 +184,7 @@ router.get("/companies/:companyId/items", async (req, res) => {
   try {
     const { resources } = await containers.inventory().items
       .query({
-        query: "SELECT * FROM c WHERE c.companyId = @companyId AND c.docType = 'item' ORDER BY c.name",
+        query: "SELECT * FROM c WHERE c.companyId = @companyId AND (c.docType = 'item' OR IS_DEFINED(c.sellingPrice)) ORDER BY c.name",
         parameters: [{ name: "@companyId", value: req.params.companyId }],
       })
       .fetchAll();
@@ -494,7 +494,7 @@ router.get("/companies/:companyId/contacts/:contactId/transactions", async (req,
     // Get invoices for this contact
     const { resources: invoices } = await containers.documents().items
       .query({
-        query: "SELECT * FROM c WHERE c.companyId = @cid AND c.contactId = @contactId AND c.docType = 'invoice' ORDER BY c.date DESC",
+        query: "SELECT * FROM c WHERE c.companyId = @cid AND c.contactId = @contactId AND (c.docType = 'invoice' OR IS_DEFINED(c.invoiceNumber)) ORDER BY c.date DESC",
         parameters: [
           { name: "@cid", value: cid },
           { name: "@contactId", value: contactId },
@@ -505,7 +505,7 @@ router.get("/companies/:companyId/contacts/:contactId/transactions", async (req,
     // Get payments for this contact
     const { resources: payments } = await containers.documents().items
       .query({
-        query: "SELECT * FROM c WHERE c.companyId = @cid AND c.contactId = @contactId AND c.docType = 'payment' ORDER BY c.date DESC",
+        query: "SELECT * FROM c WHERE c.companyId = @cid AND c.contactId = @contactId AND (c.docType = 'payment' OR IS_DEFINED(c.bankAccountIban)) ORDER BY c.date DESC",
         parameters: [
           { name: "@cid", value: cid },
           { name: "@contactId", value: contactId },
@@ -605,7 +605,7 @@ router.get("/companies/:companyId/dashboard", async (req, res) => {
     // Recent invoices
     const { resources: recentInvoices } = await containers.documents().items
       .query({
-        query: "SELECT TOP 5 c.invoiceNumber, c.type, c.contactName, c.total, c.status, c.date FROM c WHERE c.companyId = @cid AND c.docType = 'invoice' ORDER BY c.date DESC",
+        query: "SELECT TOP 5 c.invoiceNumber, c.type, c.contactName, c.total, c.status, c.date FROM c WHERE c.companyId = @cid AND (c.docType = 'invoice' OR IS_DEFINED(c.invoiceNumber)) ORDER BY c.date DESC",
         parameters: [{ name: "@cid", value: cid }],
       })
       .fetchAll();

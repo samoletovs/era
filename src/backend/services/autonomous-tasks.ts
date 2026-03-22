@@ -202,7 +202,7 @@ export async function checkCompanyHealth(companyId: string): Promise<CompanyHeal
   // 1. Check for overdue invoices
   const { resources: overdueInvoices } = await containers.documents().items
     .query<any>({
-      query: "SELECT VALUE COUNT(1) FROM c WHERE c.companyId = @cid AND c.docType = 'invoice' AND (c.status = 'posted' OR c.status = 'partially_paid') AND c.dueDate < @today",
+      query: "SELECT VALUE COUNT(1) FROM c WHERE c.companyId = @cid AND (c.docType = 'invoice' OR IS_DEFINED(c.invoiceNumber)) AND (c.status = 'posted' OR c.status = 'partially_paid') AND c.dueDate < @today",
       parameters: [{ name: "@cid", value: companyId }, { name: "@today", value: today }],
     })
     .fetchAll();
@@ -219,7 +219,7 @@ export async function checkCompanyHealth(companyId: string): Promise<CompanyHeal
   // 2. Check if last month is still open
   const { resources: periodDocs } = await containers.ledger().items
     .query<any>({
-      query: "SELECT * FROM c WHERE c.companyId = @cid AND c.period = @period AND c.docType = 'fiscal-period'",
+      query: "SELECT * FROM c WHERE c.companyId = @cid AND c.period = @period AND (c.docType = 'fiscal-period' OR (IS_DEFINED(c.status) AND IS_DEFINED(c.period) AND NOT IS_DEFINED(c.entryNumber)))",
       parameters: [{ name: "@cid", value: companyId }, { name: "@period", value: lastPeriod }],
     })
     .fetchAll();
@@ -236,7 +236,7 @@ export async function checkCompanyHealth(companyId: string): Promise<CompanyHeal
   // 3. Check for unposted draft invoices
   const { resources: draftCounts } = await containers.documents().items
     .query<any>({
-      query: "SELECT VALUE COUNT(1) FROM c WHERE c.companyId = @cid AND c.docType = 'invoice' AND c.status = 'draft'",
+      query: "SELECT VALUE COUNT(1) FROM c WHERE c.companyId = @cid AND (c.docType = 'invoice' OR IS_DEFINED(c.invoiceNumber)) AND c.status = 'draft'",
       parameters: [{ name: "@cid", value: companyId }],
     })
     .fetchAll();
@@ -258,7 +258,7 @@ export async function checkCompanyHealth(companyId: string): Promise<CompanyHeal
   if (vatCheckMonth >= 0) {
     const { resources: vatReturns } = await containers.documents().items
       .query<any>({
-        query: "SELECT VALUE COUNT(1) FROM c WHERE c.companyId = @cid AND c.docType = 'vat-return' AND c.period = @period",
+        query: "SELECT VALUE COUNT(1) FROM c WHERE c.companyId = @cid AND (c.docType = 'vat-return' OR IS_DEFINED(c.vatPayable)) AND c.period = @period",
         parameters: [
           { name: "@cid", value: companyId },
           { name: "@period", value: `${vatCheckYear}-${String(vatCheckMonth + 1).padStart(2, "0")}` },

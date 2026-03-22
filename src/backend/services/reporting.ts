@@ -22,7 +22,7 @@ export async function generateVatReturn(
   // Get all posted invoices in this period
   const { resources: invoices } = await containers.documents().items
     .query<Invoice>({
-      query: "SELECT * FROM c WHERE c.companyId = @cid AND c.docType = 'invoice' AND c.status != 'draft' AND c.status != 'cancelled' AND c.date >= @start AND c.date <= @end",
+      query: "SELECT * FROM c WHERE c.companyId = @cid AND (c.docType = 'invoice' OR IS_DEFINED(c.invoiceNumber)) AND c.status != 'draft' AND c.status != 'cancelled' AND c.date >= @start AND c.date <= @end",
       parameters: [
         { name: "@cid", value: companyId },
         { name: "@start", value: startDate },
@@ -111,7 +111,7 @@ export interface ProfitLossReport {
 export async function getBalanceSheet(companyId: string): Promise<BalanceSheetReport> {
   const { resources: accounts } = await containers.ledger().items
     .query<Account>({
-      query: "SELECT * FROM c WHERE c.companyId = @cid AND c.docType = 'account' AND c.isPostable = true AND c.balance != 0 ORDER BY c.code",
+      query: "SELECT * FROM c WHERE c.companyId = @cid AND (c.docType = 'account' OR (IS_DEFINED(c.code) AND IS_DEFINED(c.normalSide))) AND c.isPostable = true AND c.balance != 0 ORDER BY c.code",
       parameters: [{ name: "@cid", value: companyId }],
     })
     .fetchAll();
@@ -157,7 +157,7 @@ export async function getProfitAndLoss(companyId: string, from?: string, to?: st
   // Query posted journal entries within the period
   const { resources: entries } = await containers.ledger().items
     .query<any>({
-      query: "SELECT * FROM c WHERE c.companyId = @cid AND c.docType = 'journal-entry' AND c.status = 'posted' AND c.date >= @from AND c.date <= @to",
+      query: "SELECT * FROM c WHERE c.companyId = @cid AND (c.docType = 'journal-entry' OR IS_DEFINED(c.entryNumber)) AND c.status = 'posted' AND c.date >= @from AND c.date <= @to",
       parameters: [
         { name: "@cid", value: companyId },
         { name: "@from", value: periodStart },
@@ -250,7 +250,7 @@ export async function generateVatDeclaration(
 
   const { resources: invoices } = await containers.documents().items
     .query<Invoice>({
-      query: "SELECT * FROM c WHERE c.companyId = @cid AND c.docType = 'invoice' AND c.status != 'draft' AND c.status != 'cancelled' AND c.date >= @start AND c.date <= @end",
+      query: "SELECT * FROM c WHERE c.companyId = @cid AND (c.docType = 'invoice' OR IS_DEFINED(c.invoiceNumber)) AND c.status != 'draft' AND c.status != 'cancelled' AND c.date >= @start AND c.date <= @end",
       parameters: [
         { name: "@cid", value: companyId },
         { name: "@start", value: startDate },
@@ -346,7 +346,7 @@ export async function generateAnnualReport(companyId: string, fiscalYear: number
   // Group accounts by Latvian CoA classes for annual report
   const { resources: allAccounts } = await containers.ledger().items
     .query<Account>({
-      query: "SELECT * FROM c WHERE c.companyId = @cid AND c.docType = 'account' AND c.isPostable = true AND c.balance != 0 ORDER BY c.code",
+      query: "SELECT * FROM c WHERE c.companyId = @cid AND (c.docType = 'account' OR (IS_DEFINED(c.code) AND IS_DEFINED(c.normalSide))) AND c.isPostable = true AND c.balance != 0 ORDER BY c.code",
       parameters: [{ name: "@cid", value: companyId }],
     })
     .fetchAll();
@@ -414,7 +414,7 @@ export async function getAgingReport(companyId: string, type: "ar" | "ap"): Prom
   const invType = type === "ar" ? "sales" : "purchase";
   const { resources: invoices } = await containers.documents().items
     .query<Invoice>({
-      query: "SELECT * FROM c WHERE c.companyId = @cid AND c.docType = 'invoice' AND c.type = @type AND (c.status = 'posted' OR c.status = 'partially_paid' OR c.status = 'overdue')",
+      query: "SELECT * FROM c WHERE c.companyId = @cid AND (c.docType = 'invoice' OR IS_DEFINED(c.invoiceNumber)) AND c.type = @type AND (c.status = 'posted' OR c.status = 'partially_paid' OR c.status = 'overdue')",
       parameters: [
         { name: "@cid", value: companyId },
         { name: "@type", value: invType },
@@ -465,7 +465,7 @@ export async function markOverdueInvoices(companyId: string): Promise<number> {
   const today = new Date().toISOString().slice(0, 10);
   const { resources: invoices } = await containers.documents().items
     .query<Invoice>({
-      query: "SELECT * FROM c WHERE c.companyId = @cid AND c.docType = 'invoice' AND (c.status = 'posted' OR c.status = 'partially_paid') AND c.dueDate < @today",
+      query: "SELECT * FROM c WHERE c.companyId = @cid AND (c.docType = 'invoice' OR IS_DEFINED(c.invoiceNumber)) AND (c.status = 'posted' OR c.status = 'partially_paid') AND c.dueDate < @today",
       parameters: [
         { name: "@cid", value: companyId },
         { name: "@today", value: today },

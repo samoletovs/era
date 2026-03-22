@@ -73,7 +73,7 @@ export async function getItem(companyId: string, itemId: string): Promise<Item |
 export async function listItems(companyId: string): Promise<Item[]> {
   const { resources } = await containers.inventory().items
     .query<Item>({
-      query: "SELECT * FROM c WHERE c.companyId = @cid AND c.docType = 'item' ORDER BY c.name",
+      query: "SELECT * FROM c WHERE c.companyId = @cid AND (c.docType = 'item' OR IS_DEFINED(c.sellingPrice)) ORDER BY c.name",
       parameters: [{ name: "@cid", value: companyId }],
     })
     .fetchAll();

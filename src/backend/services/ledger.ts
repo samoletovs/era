@@ -61,7 +61,7 @@ function roundCurrency(n: number): number {
 async function nextEntryNumber(companyId: string, period: string): Promise<string> {
   const { resources } = await containers.ledger().items
     .query<{ entryNumber: string }>({
-      query: "SELECT c.entryNumber FROM c WHERE c.companyId = @cid AND c.period = @period AND c.docType = 'journal-entry' ORDER BY c.entryNumber DESC OFFSET 0 LIMIT 1",
+      query: "SELECT c.entryNumber FROM c WHERE c.companyId = @cid AND c.period = @period AND (c.docType = 'journal-entry' OR IS_DEFINED(c.entryNumber)) ORDER BY c.entryNumber DESC OFFSET 0 LIMIT 1",
       parameters: [
         { name: "@cid", value: companyId },
         { name: "@period", value: period },
@@ -245,7 +245,7 @@ export async function getTrialBalance(companyId: string, from?: string, to?: str
   // Get all postable accounts
   const { resources: accounts } = await containers.ledger().items
     .query<Account>({
-      query: "SELECT * FROM c WHERE c.companyId = @cid AND c.docType = 'account' AND (c.isPostable = true OR c.isPostable = false) ORDER BY c.code",
+      query: "SELECT * FROM c WHERE c.companyId = @cid AND (c.docType = 'account' OR (IS_DEFINED(c.code) AND IS_DEFINED(c.normalSide))) AND (c.isPostable = true OR c.isPostable = false) ORDER BY c.code",
       parameters: [{ name: "@cid", value: companyId }],
     })
     .fetchAll();
@@ -253,7 +253,7 @@ export async function getTrialBalance(companyId: string, from?: string, to?: str
   // Get all posted journal entries
   const { resources: allEntries } = await containers.ledger().items
     .query<any>({
-      query: "SELECT * FROM c WHERE c.companyId = @cid AND c.docType = 'journal-entry' AND c.status = 'posted'",
+      query: "SELECT * FROM c WHERE c.companyId = @cid AND (c.docType = 'journal-entry' OR IS_DEFINED(c.entryNumber)) AND c.status = 'posted'",
       parameters: [{ name: "@cid", value: companyId }],
     })
     .fetchAll();
