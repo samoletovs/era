@@ -82,3 +82,15 @@ export async function getCompany(id: string): Promise<Company | null> {
     return null;
   }
 }
+
+export async function updateCompany(
+  id: string,
+  updates: Partial<Pick<Company, "code" | "name" | "vatNumber" | "settings" | "bankAccounts" | "legalAddress">>
+): Promise<Company | null> {
+  const company = await getCompany(id);
+  if (!company) return null;
+
+  Object.assign(company, updates, { updatedAt: new Date().toISOString() });
+  const { resource } = await containers.companies().item(id, id).replace(company);
+  return resource ?? null;
+}

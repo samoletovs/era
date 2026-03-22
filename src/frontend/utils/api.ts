@@ -47,4 +47,7 @@ export const api = {
 
   // Company
   company: (id: string) => apiFetch(`/companies/${id}`),
+  updateCompany: (id: string, body: Record<string, unknown>) =>
+    apiFetch(`/companies/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  companies: () => apiFetch("/companies"),
 };

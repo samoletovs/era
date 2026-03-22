@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.js";
-import { createCompany, getCompany } from "../services/company.js";
+import { createCompany, getCompany, updateCompany } from "../services/company.js";
 import { postJournalEntry, reverseJournalEntry, getTrialBalance, GLError } from "../services/ledger.js";
 import { createInvoice, postInvoice, getInvoice, listInvoices } from "../services/invoice.js";
 import { createAndPostPayment, listPayments } from "../services/payment.js";
@@ -84,6 +84,19 @@ router.get("/companies/:id", async (req, res) => {
   }
   const response: ApiResponse = { data: company };
   res.json(response);
+});
+
+router.patch("/companies/:id", async (req, res) => {
+  try {
+    const company = await updateCompany(req.params.id, req.body);
+    if (!company) {
+      res.status(404).json({ error: { code: "NOT_FOUND", message: "Company not found" } });
+      return;
+    }
+    res.json({ data: company } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "UPDATE_FAILED", message: String(err) } });
+  }
 });
 
 // Chart of Accounts

@@ -9,6 +9,7 @@ import { Contacts } from "./pages/Contacts";
 import { Items } from "./pages/Items";
 import { Reports } from "./pages/Reports";
 import { Onboarding } from "./pages/Onboarding";
+import { Settings } from "./pages/Settings";
 
 function Sidebar() {
   const { companies, companyId, setCompanyId } = useApp();
@@ -52,6 +53,7 @@ function Sidebar() {
         <NavLink to="/contacts">Contacts</NavLink>
         <NavLink to="/items">Items</NavLink>
         <NavLink to="/reports">Reports</NavLink>
+        <NavLink to="/settings">Settings</NavLink>
       </nav>
 
       <div className="sidebar-bottom">
@@ -79,6 +81,7 @@ export function App() {
               <Route path="/items" element={<Items />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/onboarding" element={<Onboarding />} />
+              <Route path="/settings" element={<Settings />} />
             </Routes>
           </main>
         </div>
