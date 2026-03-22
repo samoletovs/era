@@ -1,6 +1,10 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.js";
 import { createCompany, getCompany } from "../services/company.js";
+import { postJournalEntry, reverseJournalEntry, getTrialBalance, GLError } from "../services/ledger.js";
+import { createInvoice, postInvoice, getInvoice, listInvoices } from "../services/invoice.js";
+import { createAndPostPayment, listPayments } from "../services/payment.js";
+import { createContact, getContact, listContacts } from "../services/contact.js";
 import { containers } from "../services/cosmos.js";
 import type { ApiResponse, Account } from "@shared/types";
 
@@ -144,4 +148,135 @@ router.get("/companies/:companyId/chat", async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
   }
+});
+
+// ─── Finance: Journal Entries ───────────────────────────────
+
+function handleGLError(err: unknown, res: import("express").Response) {
+  if (err instanceof GLError) {
+    res.status(400).json({ error: { code: err.code, message: err.message } });
+  } else {
+    res.status(500).json({ error: { code: "INTERNAL", message: String(err) } });
+  }
+}
+
+router.post("/companies/:companyId/journal-entries", async (req, res) => {
+  try {
+    const entry = await postJournalEntry({
+      companyId: req.params.companyId,
+      ...req.body,
+      createdBy: req.user!.id,
+    });
+    res.status(201).json({ data: entry } as ApiResponse);
+  } catch (err) {
+    handleGLError(err, res);
+  }
+});
+
+router.post("/companies/:companyId/journal-entries/:entryId/reverse", async (req, res) => {
+  try {
+    const entry = await reverseJournalEntry(
+      req.params.companyId,
+      req.params.entryId,
+      req.user!.id
+    );
+    res.json({ data: entry } as ApiResponse);
+  } catch (err) {
+    handleGLError(err, res);
+  }
+});
+
+router.get("/companies/:companyId/trial-balance", async (req, res) => {
+  try {
+    const result = await getTrialBalance(req.params.companyId);
+    res.json({ data: result } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
+  }
+});
+
+// ─── Finance: Invoices (CRUD + post) ────────────────────────
+
+router.post("/companies/:companyId/invoices", async (req, res) => {
+  try {
+    const invoice = await createInvoice({
+      companyId: req.params.companyId,
+      ...req.body,
+      createdBy: req.user!.id,
+    });
+    res.status(201).json({ data: invoice } as ApiResponse);
+  } catch (err) {
+    handleGLError(err, res);
+  }
+});
+
+router.get("/companies/:companyId/invoices/:invoiceId", async (req, res) => {
+  const invoice = await getInvoice(req.params.companyId, req.params.invoiceId);
+  if (!invoice) {
+    res.status(404).json({ error: { code: "NOT_FOUND", message: "Invoice not found" } });
+    return;
+  }
+  res.json({ data: invoice } as ApiResponse);
+});
+
+router.post("/companies/:companyId/invoices/:invoiceId/post", async (req, res) => {
+  try {
+    const invoice = await postInvoice(
+      req.params.companyId,
+      req.params.invoiceId,
+      req.user!.id
+    );
+    res.json({ data: invoice } as ApiResponse);
+  } catch (err) {
+    handleGLError(err, res);
+  }
+});
+
+// ─── Finance: Payments ──────────────────────────────────────
+
+router.post("/companies/:companyId/payments", async (req, res) => {
+  try {
+    const payment = await createAndPostPayment({
+      companyId: req.params.companyId,
+      ...req.body,
+      createdBy: req.user!.id,
+    });
+    res.status(201).json({ data: payment } as ApiResponse);
+  } catch (err) {
+    handleGLError(err, res);
+  }
+});
+
+router.get("/companies/:companyId/payments", async (req, res) => {
+  try {
+    const type = req.query.type as "incoming" | "outgoing" | undefined;
+    const payments = await listPayments(req.params.companyId, type);
+    res.json({ data: payments } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
+  }
+});
+
+// ─── Contacts (CRUD) ────────────────────────────────────────
+
+router.post("/companies/:companyId/contacts", async (req, res) => {
+  try {
+    const contact = await createContact({
+      companyId: req.params.companyId,
+      ...req.body,
+      createdBy: req.user!.id,
+    });
+    res.status(201).json({ data: contact } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "CREATE_FAILED", message: String(err) } });
+  }
+});
+
+router.get("/companies/:companyId/contacts/:contactId", async (req, res) => {
+  const contact = await getContact(req.params.companyId, req.params.contactId);
+  if (!contact) {
+    res.status(404).json({ error: { code: "NOT_FOUND", message: "Contact not found" } });
+    return;
+  }
+  res.json({ data: contact } as ApiResponse);
 });
