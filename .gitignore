@@ -37,3 +37,6 @@ npm-debug.log*
 # Temp
 _temp_*/
 tmp/
+
+# Old skills location (moved to .github/skills/)
+.skills/
