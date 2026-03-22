@@ -7,8 +7,22 @@ export const AGENT_TOOLS: ChatCompletionTool[] = [
   {
     type: "function",
     function: {
+      name: "lookup_company",
+      description: "Search the Latvian Enterprise Register (Uzņēmumu reģistrs) for a company by name or registration number. ALWAYS call this FIRST when the user wants to create a company or add a contact — look up the real data, then present it to the user for confirmation before creating.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Company name (e.g. 'Dais') or registration number (e.g. '40003999999')" },
+        },
+        required: ["query"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "create_company",
-      description: "Create a new company (SIA) with Latvian Chart of Accounts pre-populated",
+      description: "Create a new company (SIA) with Latvian Chart of Accounts pre-populated. Only call this AFTER looking up the company in the register and getting user confirmation.",
       parameters: {
         type: "object",
         properties: {

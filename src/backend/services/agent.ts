@@ -8,6 +8,7 @@ import { createAndPostPayment } from "./payment.js";
 import { postJournalEntry, getTrialBalance, getAccountBalance } from "./ledger.js";
 import { createItem, listItems } from "./inventory.js";
 import { generateVatReturn, getBalanceSheet, getProfitAndLoss } from "./reporting.js";
+import { searchCompanyByName, searchCompanyByRegNumber } from "./company-lookup.js";
 
 // ─── OpenAI Client ──────────────────────────────────────────
 
@@ -45,10 +46,12 @@ Your role is to autonomously manage accounting, invoicing, payments, and financi
 - Reporting language: Latvian for official documents
 
 ## How you work
-1. When the user asks to create an invoice, record a payment, or perform any financial operation — DO IT immediately using the available tools. Don't ask for unnecessary details.
-2. Use sensible defaults: today's date, 30-day payment terms, standard 21% VAT for services, account codes based on transaction type.
-3. After completing an action, summarize what you did with the key numbers (amounts, account codes, invoice numbers).
-4. If you need information you truly can't infer (like a contact name or amount), ask — but keep it to one question at a time.
+1. **COMPANY CREATION**: When the user wants to create a company, ALWAYS call lookup_company FIRST to search the Latvian Enterprise Register (data.gov.lv). Present the found results (name, reg number, address) and ask the user to confirm before creating. If found, use the official data — don't ask the user to type it.
+2. **CONTACT CREATION**: When the user mentions a company name for a customer/vendor, call lookup_company first to find their official details, then present for confirmation.
+3. When the user asks to create an invoice, record a payment, or perform any financial operation — DO IT immediately. Don't ask for unnecessary details.
+4. Use sensible defaults: today's date, 30-day payment terms, standard 21% VAT for services, account codes based on transaction type.
+5. After completing an action, summarize what you did with the key numbers.
+6. If the registry lookup returns no results, tell the user and ask them to provide the details manually — but only the minimum needed (name, reg number, city).
 
 ## Default account codes
 - 5110: Product sales revenue
@@ -71,6 +74,16 @@ Be concise, professional, and action-oriented. Latvian accounting compliance is 
 
 async function executeTool(name: string, args: Record<string, unknown>, userId: string): Promise<unknown> {
   switch (name) {
+    case "lookup_company": {
+      const query = args.query as string;
+      // Detect if query looks like a registration number (all digits, 11 chars)
+      const isRegNumber = /^\d{11}$/.test(query.replace(/\s/g, ""));
+      if (isRegNumber) {
+        return searchCompanyByRegNumber(query.replace(/\s/g, ""));
+      }
+      return searchCompanyByName(query);
+    }
+
     case "create_company":
       return createCompany({
         name: args.name as string,
