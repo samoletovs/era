@@ -188,9 +188,10 @@ function buildInvoiceJournalLines(invoice: Invoice): JournalLine[] {
       contactId: invoice.contactId,
     });
 
-    // Credit: Revenue accounts per line
+    // Credit: Revenue accounts per line (skip zero-amount lines)
     for (const invLine of invoice.lines) {
       const net = roundCurrency(invLine.quantity * invLine.unitPrice);
+      if (net === 0) continue;
       lines.push({
         accountCode: invLine.accountCode,
         accountName: invLine.description,
@@ -229,9 +230,10 @@ function buildInvoiceJournalLines(invoice: Invoice): JournalLine[] {
       contactId: invoice.contactId,
     });
 
-    // Debit: Expense/asset accounts per line
+    // Debit: Expense/asset accounts per line (skip zero-amount lines)
     for (const invLine of invoice.lines) {
       const net = roundCurrency(invLine.quantity * invLine.unitPrice);
+      if (net === 0) continue;
       lines.push({
         accountCode: invLine.accountCode,
         accountName: invLine.description,

@@ -298,14 +298,33 @@ router.post("/companies/:companyId/invoices/upload", async (req, res) => {
       }
     }
 
-    // Step 3: Create purchase invoice
-    const invoiceLines = recognized.lines.map((l) => ({
-      description: l.description,
-      quantity: l.quantity,
-      unitPrice: l.unitPrice,
-      vatRate: l.vatRate,
-      accountCode: "6350", // Default: professional services
-    }));
+    // Step 3: Create purchase invoice — filter out zero-amount lines
+    const invoiceLines = recognized.lines
+      .filter((l) => l.quantity > 0 && l.unitPrice > 0)
+      .map((l) => ({
+        description: l.description || "Item",
+        quantity: l.quantity,
+        unitPrice: l.unitPrice,
+        vatRate: [0, 5, 12, 21].includes(l.vatRate) ? l.vatRate : 21,
+        accountCode: "6350", // Default: professional services
+      }));
+
+    // If no valid lines, fall back to using the total as a single line
+    if (invoiceLines.length === 0 && recognized.total > 0) {
+      const net = recognized.subtotal || recognized.total / 1.21;
+      invoiceLines.push({
+        description: `Invoice ${recognized.invoiceNumber || ""}`.trim(),
+        quantity: 1,
+        unitPrice: Math.round(net * 100) / 100,
+        vatRate: 21,
+        accountCode: "6350",
+      });
+    }
+
+    if (invoiceLines.length === 0) {
+      res.status(400).json({ error: { code: "NO_LINES", message: "Could not extract any line items with amounts from the invoice." } });
+      return;
+    }
 
     const invoice = await createInvoice({
       companyId: req.params.companyId,
