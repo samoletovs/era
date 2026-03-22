@@ -8,12 +8,50 @@ export function Reports() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
+  // Period controls
+  const currentYear = new Date().getFullYear();
+  const today = new Date().toISOString().slice(0, 10);
+  const [dateFrom, setDateFrom] = useState(`${currentYear}-01-01`);
+  const [dateTo, setDateTo] = useState(today);
+
+  // Quick period presets
+  function setPreset(preset: string) {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth(); // 0-indexed
+    switch (preset) {
+      case "ytd": setDateFrom(`${y}-01-01`); setDateTo(today); break;
+      case "q1": setDateFrom(`${y}-01-01`); setDateTo(`${y}-03-31`); break;
+      case "q2": setDateFrom(`${y}-04-01`); setDateTo(`${y}-06-30`); break;
+      case "q3": setDateFrom(`${y}-07-01`); setDateTo(`${y}-09-30`); break;
+      case "q4": setDateFrom(`${y}-10-01`); setDateTo(`${y}-12-31`); break;
+      case "last-month": {
+        const lm = m === 0 ? 11 : m - 1;
+        const ly = m === 0 ? y - 1 : y;
+        const lastDay = new Date(ly, lm + 1, 0).getDate();
+        setDateFrom(`${ly}-${String(lm + 1).padStart(2, "0")}-01`);
+        setDateTo(`${ly}-${String(lm + 1).padStart(2, "0")}-${lastDay}`);
+        break;
+      }
+      case "this-month": {
+        setDateFrom(`${y}-${String(m + 1).padStart(2, "0")}-01`);
+        setDateTo(today);
+        break;
+      }
+      case "last-year": setDateFrom(`${y - 1}-01-01`); setDateTo(`${y - 1}-12-31`); break;
+    }
+  }
+
   useEffect(() => {
     if (!companyId) return;
     setLoading(true);
-    const fetcher = view === "pl" ? api.profitLoss : view === "bs" ? api.balanceSheet : api.trialBalance;
-    fetcher(companyId).then(setData).catch(() => setData(null)).finally(() => setLoading(false));
-  }, [companyId, view]);
+    setData(null);
+    let fetcher: Promise<any>;
+    if (view === "pl") fetcher = api.profitLoss(companyId, dateFrom, dateTo);
+    else if (view === "bs") fetcher = api.balanceSheet(companyId, dateTo);
+    else fetcher = api.trialBalance(companyId, dateTo);
+    fetcher.then(setData).catch(() => setData(null)).finally(() => setLoading(false));
+  }, [companyId, view, dateFrom, dateTo]);
 
   if (!companyId) return (
     <div className="empty-state">
@@ -25,10 +63,38 @@ export function Reports() {
   return (
     <div>
       <h2 className="page-title">Reports</h2>
-      <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         <button className={view === "pl" ? "btn-primary" : "btn-secondary"} onClick={() => setView("pl")}>Profit & loss</button>
         <button className={view === "bs" ? "btn-primary" : "btn-secondary"} onClick={() => setView("bs")}>Balance sheet</button>
         <button className={view === "tb" ? "btn-primary" : "btn-secondary"} onClick={() => setView("tb")}>Trial balance</button>
+      </div>
+
+      <div className="report-period-bar">
+        <div className="period-dates">
+          {view === "pl" ? (
+            <>
+              <label>From</label>
+              <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+              <label>To</label>
+              <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+            </>
+          ) : (
+            <>
+              <label>As of</label>
+              <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+            </>
+          )}
+        </div>
+        <div className="period-presets">
+          <button onClick={() => setPreset("this-month")}>This month</button>
+          <button onClick={() => setPreset("last-month")}>Last month</button>
+          <button onClick={() => setPreset("q1")}>Q1</button>
+          <button onClick={() => setPreset("q2")}>Q2</button>
+          <button onClick={() => setPreset("q3")}>Q3</button>
+          <button onClick={() => setPreset("q4")}>Q4</button>
+          <button onClick={() => setPreset("ytd")}>YTD</button>
+          <button onClick={() => setPreset("last-year")}>Last year</button>
+        </div>
       </div>
 
       {loading ? <p style={{ color: "#A0A0A0" }}>Loading...</p> : !data ? (

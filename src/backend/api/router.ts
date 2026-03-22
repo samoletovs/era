@@ -6,13 +6,17 @@ import { createInvoice, postInvoice, getInvoice, listInvoices, findDuplicateInvo
 import { createAndPostPayment, listPayments } from "../services/payment.js";
 import { createContact, getContact, listContacts } from "../services/contact.js";
 import { createItem, listItems } from "../services/inventory.js";
-import { generateVatReturn, getBalanceSheet, getProfitAndLoss, generateVatDeclaration, generateAnnualReport } from "../services/reporting.js";
+import { generateVatReturn, getBalanceSheet, getProfitAndLoss, generateVatDeclaration, generateAnnualReport, getAgingReport, markOverdueInvoices } from "../services/reporting.js";
 import { searchCompanyByName, searchCompanyByRegNumber } from "../services/company-lookup.js";
 import { recognizeInvoice } from "../services/invoice-recognition.js";
 import { handleChat } from "../services/agent.js";
 import { seedRules, getActiveRule } from "../services/posting-rules.js";
 import { closePeriod, reopenPeriod, yearEndClose, getPeriodStatus } from "../services/period-close.js";
 import { generateInvoicePdf } from "../services/invoice-pdf.js";
+import { importBankStatement, postUnmatchedLine, completeReconciliation, listReconciliations } from "../services/bank-reconciliation.js";
+import { createRecurringTemplate, listRecurringTemplates, executeRecurringTemplate } from "../services/recurring-entries.js";
+import { acquireAsset, runDepreciation, disposeAsset, listFixedAssets } from "../services/fixed-assets.js";
+import { setBudget, getBudgetVsActual } from "../services/budget.js";
 import { containers } from "../services/cosmos.js";
 import type { ApiResponse, Account, Company, Feedback, PostingRule, BusinessEvent } from "@shared/types";
 
@@ -549,7 +553,9 @@ router.get("/companies/:companyId/reports/balance-sheet", async (req, res) => {
 
 router.get("/companies/:companyId/reports/profit-loss", async (req, res) => {
   try {
-    const report = await getProfitAndLoss(req.params.companyId);
+    const from = req.query.from as string | undefined;
+    const to = req.query.to as string | undefined;
+    const report = await getProfitAndLoss(req.params.companyId, from, to);
     res.json({ data: report } as ApiResponse);
   } catch (err) {
     res.status(500).json({ error: { code: "REPORT_FAILED", message: String(err) } });
@@ -838,6 +844,172 @@ router.get("/companies/:companyId/reports/annual", async (req, res) => {
   try {
     const year = parseInt(req.query.year as string) || new Date().getFullYear() - 1;
     const report = await generateAnnualReport(req.params.companyId, year);
+    res.json({ data: report } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "REPORT_FAILED", message: String(err) } });
+  }
+});
+
+// ─── AR/AP Aging ────────────────────────────────────────────
+
+router.get("/companies/:companyId/reports/ar-aging", async (req, res) => {
+  try {
+    const report = await getAgingReport(req.params.companyId, "ar");
+    res.json({ data: report } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "REPORT_FAILED", message: String(err) } });
+  }
+});
+
+router.get("/companies/:companyId/reports/ap-aging", async (req, res) => {
+  try {
+    const report = await getAgingReport(req.params.companyId, "ap");
+    res.json({ data: report } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "REPORT_FAILED", message: String(err) } });
+  }
+});
+
+// ─── Mark Overdue Invoices ──────────────────────────────────
+
+router.post("/companies/:companyId/invoices/mark-overdue", async (req, res) => {
+  try {
+    const count = await markOverdueInvoices(req.params.companyId);
+    res.json({ data: { updated: count } } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "UPDATE_FAILED", message: String(err) } });
+  }
+});
+
+// ─── Bank Reconciliation ────────────────────────────────────
+
+router.post("/companies/:companyId/bank-reconciliations", async (req, res) => {
+  try {
+    const result = await importBankStatement({ ...req.body, companyId: req.params.companyId, createdBy: req.user!.id });
+    res.status(201).json({ data: result } as ApiResponse);
+  } catch (err) {
+    handleGLError(err, res);
+  }
+});
+
+router.get("/companies/:companyId/bank-reconciliations", async (req, res) => {
+  try {
+    const list = await listReconciliations(req.params.companyId);
+    res.json({ data: list } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
+  }
+});
+
+router.post("/companies/:companyId/bank-reconciliations/:reconId/post-line", async (req, res) => {
+  try {
+    await postUnmatchedLine(
+      req.params.companyId, req.params.reconId, req.body.lineId,
+      req.body.accountCode, req.body.accountName, req.user!.id
+    );
+    res.json({ data: { success: true } } as ApiResponse);
+  } catch (err) {
+    handleGLError(err, res);
+  }
+});
+
+router.post("/companies/:companyId/bank-reconciliations/:reconId/complete", async (req, res) => {
+  try {
+    const result = await completeReconciliation(req.params.companyId, req.params.reconId, req.user!.id);
+    res.json({ data: result } as ApiResponse);
+  } catch (err) {
+    handleGLError(err, res);
+  }
+});
+
+// ─── Recurring Entries ──────────────────────────────────────
+
+router.get("/companies/:companyId/recurring-templates", async (req, res) => {
+  try {
+    const list = await listRecurringTemplates(req.params.companyId);
+    res.json({ data: list } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
+  }
+});
+
+router.post("/companies/:companyId/recurring-templates", async (req, res) => {
+  try {
+    const template = await createRecurringTemplate({ ...req.body, companyId: req.params.companyId, createdBy: req.user!.id });
+    res.status(201).json({ data: template } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "CREATE_FAILED", message: String(err) } });
+  }
+});
+
+router.post("/companies/:companyId/recurring-templates/:templateId/execute", async (req, res) => {
+  try {
+    const date = req.body.date || new Date().toISOString().slice(0, 10);
+    const entry = await executeRecurringTemplate(req.params.companyId, req.params.templateId, date, req.user!.id);
+    res.json({ data: entry } as ApiResponse);
+  } catch (err) {
+    handleGLError(err, res);
+  }
+});
+
+// ─── Fixed Assets ───────────────────────────────────────────
+
+router.get("/companies/:companyId/fixed-assets", async (req, res) => {
+  try {
+    const assets = await listFixedAssets(req.params.companyId);
+    res.json({ data: assets } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
+  }
+});
+
+router.post("/companies/:companyId/fixed-assets", async (req, res) => {
+  try {
+    const asset = await acquireAsset({ ...req.body, companyId: req.params.companyId, createdBy: req.user!.id });
+    res.status(201).json({ data: asset } as ApiResponse);
+  } catch (err) {
+    handleGLError(err, res);
+  }
+});
+
+router.post("/companies/:companyId/fixed-assets/depreciate", async (req, res) => {
+  try {
+    const period = req.body.period || new Date().toISOString().slice(0, 7);
+    const result = await runDepreciation(req.params.companyId, period, req.user!.id);
+    res.json({ data: result } as ApiResponse);
+  } catch (err) {
+    handleGLError(err, res);
+  }
+});
+
+router.post("/companies/:companyId/fixed-assets/:assetId/dispose", async (req, res) => {
+  try {
+    const asset = await disposeAsset(
+      req.params.companyId, req.params.assetId,
+      req.body.disposalDate || new Date().toISOString().slice(0, 10),
+      req.body.disposalAmount || 0, req.user!.id
+    );
+    res.json({ data: asset } as ApiResponse);
+  } catch (err) {
+    handleGLError(err, res);
+  }
+});
+
+// ─── Budgets ────────────────────────────────────────────────
+
+router.post("/companies/:companyId/budgets", async (req, res) => {
+  try {
+    const count = await setBudget({ ...req.body, companyId: req.params.companyId, createdBy: req.user!.id });
+    res.json({ data: { entriesCreated: count } } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "CREATE_FAILED", message: String(err) } });
+  }
+});
+
+router.get("/companies/:companyId/reports/budget-vs-actual", async (req, res) => {
+  try {
+    const year = parseInt(req.query.year as string) || new Date().getFullYear();
+    const report = await getBudgetVsActual(req.params.companyId, year);
     res.json({ data: report } as ApiResponse);
   } catch (err) {
     res.status(500).json({ error: { code: "REPORT_FAILED", message: String(err) } });

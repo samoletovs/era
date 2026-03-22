@@ -25,9 +25,6 @@ export const api = {
   // Journal entries
   journalEntries: (companyId: string) => apiFetch(`/companies/${companyId}/journal-entries`),
 
-  // Trial balance
-  trialBalance: (companyId: string) => apiFetch(`/companies/${companyId}/trial-balance`),
-
   // Invoices
   invoices: (companyId: string, type?: string) =>
     apiFetch(`/companies/${companyId}/invoices${type ? `?type=${type}` : ""}`),
@@ -53,8 +50,17 @@ export const api = {
   payments: (companyId: string) => apiFetch(`/companies/${companyId}/payments`),
 
   // Reports
-  balanceSheet: (companyId: string) => apiFetch(`/companies/${companyId}/reports/balance-sheet`),
-  profitLoss: (companyId: string) => apiFetch(`/companies/${companyId}/reports/profit-loss`),
+  balanceSheet: (companyId: string, asOf?: string) =>
+    apiFetch(`/companies/${companyId}/reports/balance-sheet${asOf ? `?asOf=${asOf}` : ""}`),
+  profitLoss: (companyId: string, from?: string, to?: string) => {
+    const params = new URLSearchParams();
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    const qs = params.toString();
+    return apiFetch(`/companies/${companyId}/reports/profit-loss${qs ? `?${qs}` : ""}`);
+  },
+  trialBalance: (companyId: string, asOf?: string) =>
+    apiFetch(`/companies/${companyId}/reports/trial-balance${asOf ? `?asOf=${asOf}` : ""}`),
 
   // Company
   company: (id: string) => apiFetch(`/companies/${id}`),

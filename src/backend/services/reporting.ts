@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import { containers } from "./cosmos.js";
-import type { VatReturn, VatReturnLine, Invoice, Account } from "@shared/types";
+import type { VatReturn, VatReturnLine, Invoice, Account, JournalEntry } from "@shared/types";
 
 function roundCurrency(n: number): number {
   return Math.round(n * 100) / 100;
@@ -149,27 +149,60 @@ export async function getBalanceSheet(companyId: string): Promise<BalanceSheetRe
   };
 }
 
-export async function getProfitAndLoss(companyId: string): Promise<ProfitLossReport> {
-  const { resources: accounts } = await containers.ledger().items
-    .query<Account>({
-      query: "SELECT * FROM c WHERE c.companyId = @cid AND IS_DEFINED(c.code) AND IS_DEFINED(c.normalSide) AND c.isPostable = true AND c.balance != 0 AND (c.type = 'revenue' OR c.type = 'expense') ORDER BY c.code",
-      parameters: [{ name: "@cid", value: companyId }],
+export async function getProfitAndLoss(companyId: string, from?: string, to?: string): Promise<ProfitLossReport> {
+  const periodStart = from || `${new Date().getFullYear()}-01-01`;
+  const periodEnd = to || new Date().toISOString().slice(0, 10);
+
+  // Query posted journal entries within the period
+  const { resources: entries } = await containers.ledger().items
+    .query<any>({
+      query: "SELECT * FROM c WHERE c.companyId = @cid AND IS_DEFINED(c.entryNumber) AND c.status = 'posted' AND c.date >= @from AND c.date <= @to",
+      parameters: [
+        { name: "@cid", value: companyId },
+        { name: "@from", value: periodStart },
+        { name: "@to", value: periodEnd },
+      ],
     })
     .fetchAll();
 
-  const revenue = accounts
-    .filter((a) => a.type === "revenue")
-    .map((a) => ({ code: a.code, name: a.name, amount: Math.abs(a.balance) }));
-  const expenses = accounts
-    .filter((a) => a.type === "expense")
-    .map((a) => ({ code: a.code, name: a.name, amount: Math.abs(a.balance) }));
+  // Aggregate by account code
+  const accountTotals = new Map<string, { code: string; name: string; type: string; amount: number }>();
+
+  for (const entry of entries) {
+    for (const line of (entry.lines || [])) {
+      const code = line.accountCode;
+      if (!code) continue;
+
+      // Determine if this is a revenue or expense account by code prefix
+      let type = "";
+      if (code.startsWith("5")) type = "revenue";
+      else if (code.startsWith("6")) type = "expense";
+      else continue; // skip non-P&L accounts
+
+      const existing = accountTotals.get(code);
+      const amount = type === "revenue" ? (line.credit - line.debit) : (line.debit - line.credit);
+
+      if (existing) {
+        existing.amount = roundCurrency(existing.amount + amount);
+      } else {
+        accountTotals.set(code, { code, name: line.accountName || code, type, amount: roundCurrency(amount) });
+      }
+    }
+  }
+
+  const revenue = Array.from(accountTotals.values())
+    .filter((a) => a.type === "revenue" && a.amount !== 0)
+    .sort((a, b) => a.code.localeCompare(b.code));
+  const expenses = Array.from(accountTotals.values())
+    .filter((a) => a.type === "expense" && a.amount !== 0)
+    .sort((a, b) => a.code.localeCompare(b.code));
 
   const totalRevenue = roundCurrency(revenue.reduce((s, r) => s + r.amount, 0));
   const totalExpenses = roundCurrency(expenses.reduce((s, e) => s + e.amount, 0));
 
   return {
-    periodStart: `${new Date().getFullYear()}-01-01`,
-    periodEnd: new Date().toISOString().slice(0, 10),
+    periodStart,
+    periodEnd,
     revenue,
     expenses,
     totalRevenue,
@@ -350,4 +383,103 @@ export async function generateAnnualReport(companyId: string, fiscalYear: number
       netProfit: roundCurrency(pl.netProfit - sumByCodeRange("6500", "6599")),
     },
   };
+}
+
+// ─── AR/AP Aging Reports ────────────────────────────────────
+
+export interface AgingBucket {
+  contactId: string;
+  contactName: string;
+  current: number;
+  days30: number;
+  days60: number;
+  days90plus: number;
+  total: number;
+}
+
+export interface AgingReport {
+  type: "ar" | "ap";
+  date: string;
+  buckets: AgingBucket[];
+  totalCurrent: number;
+  totalDays30: number;
+  totalDays60: number;
+  totalDays90plus: number;
+  grandTotal: number;
+}
+
+export async function getAgingReport(companyId: string, type: "ar" | "ap"): Promise<AgingReport> {
+  // Get all posted, unpaid/partially-paid invoices
+  const invType = type === "ar" ? "sales" : "purchase";
+  const { resources: invoices } = await containers.documents().items
+    .query<Invoice>({
+      query: "SELECT * FROM c WHERE c.companyId = @cid AND IS_DEFINED(c.invoiceNumber) AND c.type = @type AND (c.status = 'posted' OR c.status = 'partially_paid' OR c.status = 'overdue')",
+      parameters: [
+        { name: "@cid", value: companyId },
+        { name: "@type", value: invType },
+      ],
+    })
+    .fetchAll();
+
+  const today = new Date();
+  const contactMap = new Map<string, AgingBucket>();
+
+  for (const inv of invoices) {
+    const outstanding = roundCurrency(inv.total - inv.amountPaid);
+    if (outstanding <= 0) continue;
+
+    const dueDate = new Date(inv.dueDate);
+    const daysOverdue = Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+
+    let bucket = contactMap.get(inv.contactId);
+    if (!bucket) {
+      bucket = { contactId: inv.contactId, contactName: inv.contactName, current: 0, days30: 0, days60: 0, days90plus: 0, total: 0 };
+      contactMap.set(inv.contactId, bucket);
+    }
+
+    if (daysOverdue <= 0) bucket.current = roundCurrency(bucket.current + outstanding);
+    else if (daysOverdue <= 30) bucket.days30 = roundCurrency(bucket.days30 + outstanding);
+    else if (daysOverdue <= 60) bucket.days60 = roundCurrency(bucket.days60 + outstanding);
+    else bucket.days90plus = roundCurrency(bucket.days90plus + outstanding);
+
+    bucket.total = roundCurrency(bucket.total + outstanding);
+  }
+
+  const buckets = Array.from(contactMap.values()).sort((a, b) => b.total - a.total);
+  return {
+    type,
+    date: today.toISOString().slice(0, 10),
+    buckets,
+    totalCurrent: roundCurrency(buckets.reduce((s, b) => s + b.current, 0)),
+    totalDays30: roundCurrency(buckets.reduce((s, b) => s + b.days30, 0)),
+    totalDays60: roundCurrency(buckets.reduce((s, b) => s + b.days60, 0)),
+    totalDays90plus: roundCurrency(buckets.reduce((s, b) => s + b.days90plus, 0)),
+    grandTotal: roundCurrency(buckets.reduce((s, b) => s + b.total, 0)),
+  };
+}
+
+// ─── Mark Overdue Invoices ──────────────────────────────────
+
+export async function markOverdueInvoices(companyId: string): Promise<number> {
+  const today = new Date().toISOString().slice(0, 10);
+  const { resources: invoices } = await containers.documents().items
+    .query<Invoice>({
+      query: "SELECT * FROM c WHERE c.companyId = @cid AND IS_DEFINED(c.invoiceNumber) AND (c.status = 'posted' OR c.status = 'partially_paid') AND c.dueDate < @today",
+      parameters: [
+        { name: "@cid", value: companyId },
+        { name: "@today", value: today },
+      ],
+    })
+    .fetchAll();
+
+  let count = 0;
+  for (const inv of invoices) {
+    if (inv.status !== "overdue") {
+      inv.status = "overdue";
+      inv.updatedAt = new Date().toISOString();
+      await containers.documents().item(inv.id, companyId).replace(inv);
+      count++;
+    }
+  }
+  return count;
 }
