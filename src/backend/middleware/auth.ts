@@ -85,13 +85,17 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
   const authHeader = req.headers.authorization;
   const queryToken = req.query.token as string | undefined;
 
-  // Dev bypass — allowed when explicitly enabled via env var (for pre-auth-flow phase)
-  if (process.env.NODE_ENV !== "production" || process.env.ALLOW_DEV_BYPASS === "true") {
-    if (authHeader === "Bearer dev-bypass" || queryToken === "dev-bypass") {
-      req.user = { id: "dev-user", email: "dev@era.local", name: "Developer", provider: "google" };
-      next();
-      return;
+  // Dev bypass — in development: always allowed; in production: only if ALLOW_DEV_BYPASS=true
+  // This is a temporary measure until Google/Microsoft OAuth login is implemented.
+  // To disable: remove ALLOW_DEV_BYPASS env var from Container App.
+  const devBypassAllowed = process.env.NODE_ENV !== "production" || process.env.ALLOW_DEV_BYPASS === "true";
+  if (devBypassAllowed && (authHeader === "Bearer dev-bypass" || queryToken === "dev-bypass")) {
+    if (process.env.NODE_ENV === "production") {
+      console.warn(JSON.stringify({ level: "warn", message: "Dev bypass used in production — disable ALLOW_DEV_BYPASS before go-live" }));
     }
+    req.user = { id: "dev-user", email: "dev@era.local", name: "Developer", provider: "google" };
+    next();
+    return;
   }
 
   const rawToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : queryToken;

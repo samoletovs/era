@@ -28,6 +28,12 @@ param acrLoginServer string = 'caae790480deacr.azurecr.io'
 @description('Container image tag')
 param imageTag string = 'v4'
 
+@description('Allowed CORS origins (comma-separated)')
+param allowedOrigins string = ''
+
+@description('Enable dev-bypass auth (set to false for go-live)')
+param allowDevBypass string = 'true'
+
 var prefix = '${appName}-${environment}'
 var tags = {
   project: 'era'
@@ -168,6 +174,8 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'AZURE_OPENAI_ENDPOINT', value: azureOpenAiEndpoint }
             { name: 'AZURE_OPENAI_API_KEY', secretRef: 'azure-openai-key' }
             { name: 'AZURE_OPENAI_DEPLOYMENT', value: azureOpenAiDeployment }
+            { name: 'ALLOWED_ORIGINS', value: allowedOrigins }
+            { name: 'ALLOW_DEV_BYPASS', value: allowDevBypass }
           ]
         }
       ]
