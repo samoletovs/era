@@ -11,88 +11,102 @@ description: >-
   general principles. Follow the step-by-step process below.
 ---
 
-# Design System — The Jony Ive Approach
+# Design System — Ive Principles
 
-This skill tells you exactly how to make any UI embody the design philosophy of 
-**Sir Jony Ive** — the legendary former Apple Chief Design Officer whose work defined 
-the aesthetic of the iMac, iPod, iPhone, iPad, Apple Watch, iOS 7+, and Apple Park.
+This skill tells you exactly how to make any UI embody the **universal design 
+principles** of Sir Jony Ive — not by copying Apple's specific aesthetic, but by 
+applying the deeper philosophy that Ive carries across ALL his work: from the 
+original iMac to the Ferrari Luce interior (2026) designed at his firm LoveFrom.
 
-## The Ive Philosophy: Design Principles
+**Important: This is NOT an "Apple design" system.** Ive left Apple in 2019 and 
+continues applying these same principles to Ferrari, Airbnb, OpenAI, and other 
+projects through LoveFrom. The principles are universal — they work for any 
+product in any domain.
 
-Ive's approach is rooted in **Dieter Rams** ("as little design as possible") and 
-the **Bauhaus** tradition ("form follows function", "less is more"). These aren't 
-abstract ideas — they translate to specific, actionable CSS decisions.
+## The Ive Principles (Universal, Not Apple-Specific)
+
+Ive's approach draws from **Dieter Rams** ("as little design as possible"), the 
+**Bauhaus** tradition ("form follows function"), and his own discipline of 
+**material honesty** refined across 30+ years. These principles translate to 
+specific, actionable CSS and design decisions.
 
 ### Core Principles (Memorize These)
 
-1. **Reduction to essence** — "True simplicity is derived from so much more than 
-   just the absence of clutter and ornamentation. It's about bringing order to 
-   complexity." Remove every element that doesn't serve a clear purpose. If removing 
-   something doesn't hurt the experience, it shouldn't be there.
+1. **"Everything is founded on being functional. It's not styled, it's not 
+   garnish, because that's a distraction and it doesn't last well."** (Ive, 
+   Ferrari Luce 2026) — Every element must justify its existence through function. 
+   Decoration ages poorly. Function is timeless.
 
-2. **Quiet confidence** — The design shouldn't shout. It should feel **inevitable** — 
-   like it couldn't have been done any other way. No decoration, no flourish, no 
-   visual noise. The interface recedes; the content comes forward.
+2. **"We treated every single element as if it was a camera or a watch."** — Each 
+   component deserves the same obsessive care as a standalone product. A button, 
+   an input, a card — each one should feel like a precision instrument. No element 
+   is too small to design well.
 
-3. **Obsessive precision** — Sub-pixel alignment, mathematically consistent spacing, 
-   exact optical balance. Every gap, every margin, every radius follows a deliberate 
-   system. Nothing is arbitrary. Ive's team would spend weeks on the precise radius 
-   of a single corner.
+3. **"It felt like designing hundreds of products, but in aggregate it feels 
+   singular and coherent."** — Unity through consistency. When individual components 
+   are excellent AND consistent, the whole transcends the parts. One radius, one 
+   weight system, one spacing grid, one accent.
 
-4. **Material honesty** — Surfaces communicate what they are through subtle physical 
-   cues: light, shadow, translucency, depth. Not heavy skeuomorphism, but gentle 
-   optical hints that create hierarchy — the way light falls on frosted glass.
+4. **Material honesty** — In physical design, Ive uses anodized aluminum milled 
+   from solid billets — no plastic, no fakes. In UI, this means: no fake gradients, 
+   no decorative effects that don't serve hierarchy. Surfaces should communicate 
+   their role honestly through subtle light, shadow, and weight.
 
-5. **Content is the hero** — UI chrome dissolves away. Navigation, toolbars, controls 
-   become near-invisible until needed. The user's data, text, and actions take center 
-   stage. The interface is a frame, not a painting.
+5. **Reduction to essence** — "True simplicity is derived from so much more than 
+   just the absence of clutter. It's about bringing order to complexity." Remove 
+   what doesn't serve. But also: make what remains excellent. Simplicity is not 
+   emptiness — it's focus.
 
-6. **Purposeful restraint** — One accent color. One typeface. One radius value. One 
-   shadow intensity. Restraint creates coherence. When everything is consistent, the 
-   few intentional deviations carry enormous visual weight.
+6. **Physical and engaging** — Ive chose physical toggle switches over touchscreens 
+   for the Ferrari Luce because "the functionality is superior." In UI: form 
+   inputs should feel solid. Buttons should have tactile weight. Hover states 
+   should respond like well-machined controls, not cartoon animations.
 
-7. **Depth through light, not decoration** — Hierarchy comes from subtle changes in 
-   luminosity, translucency, and weight — not from colored borders, heavy shadows, or 
-   graphic ornaments. Think of light passing through layers of frosted glass.
+7. **Reducing cognitive load** — The Ferrari instrument cluster "reduces cognitive 
+   load on the driver." In UI: dashboard metrics should read at a glance. 
+   Navigation should be instantly parseable. The hierarchy should guide the eye 
+   effortlessly — the user never has to figure out where to look.
 
-8. **Tactile responsiveness** — Every interactive element responds to touch/hover with 
-   subtle, purposeful feedback. Not bouncy or playful — precise and immediate, like 
-   the click of a well-machined button.
+8. **Timelessness over trend** — Ive designs for decades, not seasons. Ferrari 
+   chairman Elkann: "There are elements here that are timeless, things that will 
+   truly last." In UI: avoid trendy effects (glassmorphism, neubrutalism, etc.). 
+   Use established, tested patterns that will look right in 5 years.
 
-## What "Good" Looks Like (The Ive Standard)
+9. **Obsessive precision** — Millimetrically perfect tolerances. Security screws 
+   that "justify themselves aesthetically." In UI: mathematically consistent 
+   spacing (4px grid), optically balanced alignment, no arbitrary values.
 
-The target aesthetic is **ethereal, precise, and serene**. If you squint at the screen, 
-you should see almost pure white with the faintest gray structure and one or two tiny 
-spots of color. The interface should feel like a beautifully lit gallery — the walls 
-disappear, and you see only the art.
+## What "Good" Looks Like
 
-**Reference products that embody Ive-level design:**
-- **Apple HIG / Liquid Glass (2025)** — Ive's ultimate evolution: translucent layers, 
-  depth through refraction, controls that float above content
-- **Linear** (linear.app) — The closest any SaaS app gets to Apple-level precision
-- **Apple.com** — Study the product pages: vast whitespace, surgical typography, 
-  images that breathe
-- **iOS Settings app** — Grouped lists, clear hierarchy, zero decoration
-- **Vercel** — Monochrome discipline with one accent
-- **Stripe Dashboard** — Dense data presented with extreme clarity
-- **SF Symbols** — Apple's icon system: optically balanced, consistent weight
+The target aesthetic is **precise, confident, and warm**. Not cold minimalism — the 
+Ferrari Luce uses rich leather, warm aluminum, and heritage-inspired instrument 
+faces. The goal is an interface that feels crafted and human, not sterile.
+
+**Reference products that embody these principles acrosss many domains:**
+- **Ferrari Luce interior** (LoveFrom, 2026) — Physical controls, CNC aluminum, 
+  avionics-inspired instruments. Each element is a standalone product.
+- **Linear** (linear.app) — Disciplined SaaS UI: one accent, precise spacing, quiet
+- **Stripe Dashboard** — Dense data presented with extreme clarity and hierarchy
+- **Vercel** — Monochrome restraint with surgical accent use
+- **Braun products** (Dieter Rams) — The original source: function dictates form
+- **Leica cameras** — Precision instruments where every surface is deliberate
 
 **Key insights from testing (learned through iterations):**
-- **Toggle/segmented controls**: Apple-style white selected tab on gray bg with tiny 
-  shadow — like a physical switch that has been pressed. Better than filled tabs.
-- **Navigation steppers**: Active indicators use near-black (#1C1C1C), NOT accent 
-  blue. Accent is only for primary CTAs — this is the Ive discipline.
-- **Card shadows**: `0 1px 2px rgba(0,0,0,0.03)` — so subtle you feel it rather than 
-  see it. Most cards rely on border alone. Shadow implies elevation; use it only when 
-  something genuinely floats above the surface.
-- **Form labels**: Uppercase at 11px, weight 500, color #A0A0A0 — they exist as 
-  scaffolding, not as content. They guide without demanding attention.
-- **Drop zones**: Nearly invisible by default. Gray dashed border, barely-there 
-  background. The emptiness itself communicates "place something here."
-- **Disabled buttons**: opacity 0.35, pointer-events none. A disabled control should 
-  be almost invisible — it's not a valid path, so it shouldn't attract the eye.
+- **Toggle/segmented controls**: White selected tab on subtle gray bg with tiny 
+  shadow — like a physical switch that has moved position. Function, not style.
+- **Navigation**: Active items use near-black text (#1C1C1C) with medium weight, 
+  NOT accent color backgrounds. Accent is reserved for primary CTAs only.
+- **Card shadows**: `0 1px 2px rgba(0,0,0,0.03)` — you feel elevation rather than 
+  see it. Most elements need no shadow — use border or spacing instead.
+- **Form labels**: Small uppercase scaffolding (11px, weight 500, #A0A0A0). They 
+  guide without demanding attention. They're the equivalent of laser-etched markings.
+- **Metric numbers**: Weight 300 (light, not ultralight). Like the physical 
+  aluminum needle on the Ferrari Luce instruments — present and readable, but 
+  refined. Weight 200 can feel fragile; 300 has authority while remaining elegant.
 - **Text rendering**: `text-rendering: optimizeLegibility; -webkit-font-smoothing: 
-  antialiased;` — Ive's team obsessed over subpixel rendering. So should you.
+  antialiased;` — precision in every pixel.
+- **Always deploy with API**: When deploying to SWA or similar, include the API 
+  backend (`--api-location api`). Frontend-only deploys can overwrite the API.
 - **Always deploy with API**: When deploying to SWA or similar, include the API 
   backend (`--api-location api`). Frontend-only deploys can overwrite the API.
 
@@ -120,53 +134,45 @@ Read the existing code and identify these specific problems (most UIs have all o
 
 ### Step 2: Apply the Color System
 
-This is the most important step. Ive's palette is **almost monochrome** — a precisely 
-calibrated grayscale with ONE carefully chosen accent. The discipline of restraint is 
-what makes Ive's work feel premium. When everything is gray, the single blue accent 
-carries immense visual authority.
+Almost monochrome — a precisely calibrated grayscale with ONE carefully chosen accent. 
+The discipline of restraint is what separates good design from great. When everything 
+is gray, the single accent color carries immense visual authority.
 
 **Light theme (DEFAULT — always use this unless user asks for dark):**
 
 ```css
 /* Backgrounds — luminosity hierarchy through barely perceptible shifts */
-/* Ive principle: depth through light. Each layer is slightly different, */
-/* like sheets of paper at different distances from a light source. */
---bg-page:          #FAFAFA;      /* Page — the lightest gray. Not pure white */
-                                   /* (pure white is harsh on screens). */
---bg-card:          #FFFFFF;      /* Cards — pure white. The contrast between */
-                                   /* FAFAFA and FFFFFF creates the "floating" effect */
+/* Like sheets of material at different depths — aluminum, paper, glass. */
+--bg-page:          #FAFAFA;      /* Page — warm near-white, not harsh pure white */
+--bg-card:          #FFFFFF;      /* Cards — pure white for elevation contrast */
 --bg-subtle:        #F5F5F4;      /* Secondary areas — warm stone gray */
---bg-hover:         #F0EFEE;      /* Hover — one luminosity step down */
---bg-active:        #EAEAE8;      /* Active/pressed — another step down */
+--bg-hover:         #F0EFEE;      /* Hover — one step down */
+--bg-active:        #EAEAE8;      /* Active/pressed — another step */
 
-/* Text — a grayscale hierarchy with exactly 4 levels. Ive uses */
-/* near-black for primary (never pure #000), then descending opacity */
---text-primary:     #1C1C1C;      /* Headings, key data — near-black, not #000 */
---text-body:        #3C3C3C;      /* Body text — 76% contrast, very readable */
---text-secondary:   #787878;      /* Metadata, descriptions — recedes */
---text-tertiary:    #A0A0A0;      /* Placeholders, hints — nearly invisible scaffold */
+/* Text — exactly 4 hierarchy levels */
+--text-primary:     #1C1C1C;      /* Headings, key data — near-black */
+--text-body:        #3C3C3C;      /* Body text — dark gray, readable */
+--text-secondary:   #787878;      /* Metadata, descriptions */
+--text-tertiary:    #A0A0A0;      /* Placeholders, hints — light scaffold */
 
-/* Accent — Ive's supreme discipline: ONE color, used on <5% of pixels */
-/* This is Apple's system blue. It appears ONLY on: */
-/* 1. The one primary CTA button  2. Text links  3. Focus rings */
-/* 4. Active tab thin indicator  5. Progress bar fill — NOTHING else */
---accent:           #0A84FF;      /* Apple system blue */
---accent-hover:     #0070E0;      /* Slightly darker — the only state change */
---accent-bg:        #F0F7FF;      /* Barely perceptible blue tint */
+/* Accent — ONE color, used on <5% of pixels. Choose any hue that fits the */
+/* brand — the discipline is in the restraint, not the specific color. */
+--accent:           #0A84FF;      /* A confident blue — or pick your brand color */
+--accent-hover:     #0070E0;      /* Slightly darker on hover */
+--accent-bg:        #F0F7FF;      /* 2% tint for selected states */
 
-/* Semantic — iOS system colors, muted to near-invisible backgrounds */
---success:          #34C759;      /* iOS green */
---success-bg:       #F0FBF4;      /* 2% green wash */
---warning:          #FF9500;      /* iOS amber */
---warning-bg:       #FFFBF0;      /* 2% amber wash */
---error:            #FF3B30;      /* iOS red */
---error-bg:         #FFF5F5;      /* 2% red wash */
+/* Semantic — muted versions, barely-there backgrounds */
+--success:          #34C759;
+--success-bg:       #F0FBF4;
+--warning:          #FF9500;
+--warning-bg:       #FFFBF0;
+--error:            #FF3B30;
+--error-bg:         #FFF5F5;
 
-/* Borders — this is where most designs fail. Ive would say: */
-/* "If you can see the border, it's too heavy." */
+/* Borders — "if you can see the border, it's too heavy" */
 --border:           #E8E8E8;      /* Structure without assertion */
---border-hover:     #D4D4D4;      /* Slightly more definition on hover */
---border-focus:     #0A84FF;      /* Focus — the accent earns its place here */
+--border-hover:     #D4D4D4;      /* More definition on hover */
+--border-focus:     var(--accent); /* Focus rings earn the accent */
 ```
 
 **Rules (STRICTLY FOLLOW — these are the most common mistakes):**
@@ -625,6 +631,56 @@ use a 1px border or background contrast instead.
   
 - **Don't mix accent colors.** If the primary button is blue, the secondary/completion 
   button is also blue — not orange, not green. ONE color.
+
+#### Sidebar Navigation — The Ive Pattern
+```css
+/* Sidebar: shadow edge, not border */
+.sidebar {
+  background: var(--bg-card);
+  border-right: none;                         /* NO hard border line */
+  box-shadow: 1px 0 0 rgba(0,0,0,0.04);      /* Barely-there shadow edge */
+}
+
+/* Nav items: zero chrome. Just text. */
+.nav-item {
+  color: var(--text-secondary);
+  font-weight: 400;
+  background: transparent;
+  padding: 9px 12px;
+  transition: color 0.15s ease;
+}
+.nav-item:hover {
+  background: transparent;                    /* NO background on hover */
+  color: var(--text-primary);                 /* Just darken the text */
+}
+.nav-item.active {
+  background: transparent;                    /* NO background fill */
+  color: var(--text-primary);
+  font-weight: 500;                           /* Slightly heavier — that's all */
+}
+
+/* Section labels */
+.nav-section-label {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 20px 12px 6px;
+}
+
+/* Logo: light weight, not bold */
+.logo {
+  font-weight: 300;
+  letter-spacing: -0.02em;
+}
+```
+
+**Ive sidebar rules:**
+- **No border-right**. Use `box-shadow: 1px 0 0 rgba(0,0,0,0.04)` — invisible edge.
+- **No background on hover or active**. Text color + weight change only.
+- **Section labels at 10px**, not 11px. More tracking (0.08em). Tiny scaffolding.
+- **Logo at weight 300** — light, confident, not shouting.
 
 #### Cards and Containers
 ```css
