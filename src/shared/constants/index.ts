@@ -62,3 +62,36 @@ export const CONTAINERS = {
   EVENTS: "events",
   RULES: "rules",
 } as const;
+
+// ─── Default GL Account Codes (Latvian chart of accounts) ─────
+// These defaults are used when company-specific settings are not configured.
+// Multi-country support: override per company via company.settings.accountCodes
+export const DEFAULT_GL_ACCOUNTS = {
+  /** Accounts Receivable (trade debtors) */
+  ACCOUNTS_RECEIVABLE: "2210",
+  /** Accounts Payable (trade creditors) */
+  ACCOUNTS_PAYABLE: "4220",
+  /** Cash and Bank */
+  BANK: "2420",
+  /** VAT Output (collected) */
+  VAT_OUTPUT: "4230",
+  /** VAT Input (paid) */
+  VAT_INPUT: "2310",
+  /** Unrealized FX Gain */
+  FX_GAIN_UNREALIZED: "8190",
+  /** Unrealized FX Loss */
+  FX_LOSS_UNREALIZED: "8290",
+  /** Retained Earnings */
+  RETAINED_EARNINGS: "3100",
+  /** Income Summary (year-end close) */
+  INCOME_SUMMARY: "3190",
+} as const;
+
+// ─── Account Code Ranges (for report classification) ──────────
+export const ACCOUNT_RANGES = {
+  ASSETS: { from: "1000", to: "2999" },
+  LIABILITIES: { from: "4000", to: "4999" },
+  EQUITY: { from: "3000", to: "3999" },
+  REVENUE: { from: "5000", to: "5999" },
+  EXPENSES: { from: "6000", to: "8999" },
+} as const;

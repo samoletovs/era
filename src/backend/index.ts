@@ -1,6 +1,15 @@
 import { config } from "dotenv";
 config(); // Load .env file
 
+// Fail fast on missing required configuration
+const REQUIRED_ENV = ["COSMOS_ENDPOINT"];
+for (const key of REQUIRED_ENV) {
+  if (!process.env[key]) {
+    console.error(`FATAL: Missing required environment variable: ${key}`);
+    process.exit(1);
+  }
+}
+
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";

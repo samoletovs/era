@@ -22,9 +22,28 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
       ...options?.headers,
     },
   });
-  const json = await res.json();
-  if (json.error) throw new Error(json.error.message);
-  return json.data;
+
+  // Handle HTTP-level errors
+  if (res.status === 401) {
+    clearAuthToken();
+    // Don't redirect — let context handle re-auth
+    throw new Error("Session expired. Please sign in again.");
+  }
+
+  if (res.status === 429) {
+    throw new Error("Too many requests. Please wait a moment and try again.");
+  }
+
+  // Parse response body
+  let json: any;
+  try {
+    json = await res.json();
+  } catch {
+    throw new Error(res.ok ? "Unexpected response format" : `Server error (${res.status})`);
+  }
+
+  if (json.error) throw new Error(json.error.message || "An error occurred");
+  return json.data !== undefined ? json.data : json;
 }
 
 export const api = {

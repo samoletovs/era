@@ -181,22 +181,24 @@ function AppShell() {
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <main className="app-main">
         <Suspense fallback={<PageLoader />}>
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/chat" element={<Chat />} />
-            <Route path="/accounts" element={<Accounts />} />
-            <Route path="/invoices" element={<Invoices />} />
-            <Route path="/contacts" element={<Contacts />} />
-            <Route path="/items" element={<Items />} />
-            <Route path="/reports" element={<Reports />} />
-            <Route path="/fixed-assets" element={<FixedAssets />} />
-            <Route path="/bank" element={<BankRecon />} />
-            <Route path="/journal" element={<JournalEntries />} />
-            <Route path="/events" element={<EventLog />} />
-            <Route path="/accounting" element={<Accounting />} />
-            <Route path="/onboarding" element={<Onboarding />} />
-            <Route path="/settings" element={<Settings />} />
-          </Routes>
+          <ErrorBoundary>
+            <Routes>
+              <Route path="/" element={<ErrorBoundary><Dashboard /></ErrorBoundary>} />
+              <Route path="/chat" element={<ErrorBoundary><Chat /></ErrorBoundary>} />
+              <Route path="/accounts" element={<ErrorBoundary><Accounts /></ErrorBoundary>} />
+              <Route path="/invoices" element={<ErrorBoundary><Invoices /></ErrorBoundary>} />
+              <Route path="/contacts" element={<ErrorBoundary><Contacts /></ErrorBoundary>} />
+              <Route path="/items" element={<ErrorBoundary><Items /></ErrorBoundary>} />
+              <Route path="/reports" element={<ErrorBoundary><Reports /></ErrorBoundary>} />
+              <Route path="/fixed-assets" element={<ErrorBoundary><FixedAssets /></ErrorBoundary>} />
+              <Route path="/bank" element={<ErrorBoundary><BankRecon /></ErrorBoundary>} />
+              <Route path="/journal" element={<ErrorBoundary><JournalEntries /></ErrorBoundary>} />
+              <Route path="/events" element={<ErrorBoundary><EventLog /></ErrorBoundary>} />
+              <Route path="/accounting" element={<ErrorBoundary><Accounting /></ErrorBoundary>} />
+              <Route path="/onboarding" element={<ErrorBoundary><Onboarding /></ErrorBoundary>} />
+              <Route path="/settings" element={<ErrorBoundary><Settings /></ErrorBoundary>} />
+            </Routes>
+          </ErrorBoundary>
         </Suspense>
       </main>
       <FeedbackButton />

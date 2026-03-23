@@ -24,6 +24,7 @@ import { runMonthEnd, runYearEnd, checkCompanyHealth, listCloseRuns, getCloseRun
 import { saveExchangeRate, getExchangeRate, importEcbRates, runForeignCurrencyRevaluation } from "../services/currency-revaluation.js";
 import { containers } from "../services/cosmos.js";
 import { parsePagination, paginationClause, paginatedResponse } from "../middleware/pagination.js";
+import { safeError } from "../middleware/error-handler.js";
 import type { ApiResponse, Account, Company, Feedback, PostingRule, BusinessEvent } from "@shared/types";
 
 export const router = Router();
@@ -52,7 +53,7 @@ router.get("/register/search", async (req, res) => {
       : await searchCompanyByName(q);
     res.json({ data: result } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "SEARCH_FAILED", message: String(err) } });
+    { const e = safeError(err, "SEARCH_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -85,7 +86,7 @@ router.get("/companies", async (req, res) => {
     }
     res.json({ data: resources } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
+    { const e = safeError(err, "QUERY_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -99,7 +100,7 @@ router.post("/companies", validate(CreateCompanySchema), async (req, res) => {
     const response: ApiResponse = { data: company };
     res.status(201).json(response);
   } catch (err) {
-    res.status(500).json({ error: { code: "CREATE_FAILED", message: String(err) } });
+    { const e = safeError(err, "CREATE_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -122,7 +123,7 @@ router.patch("/companies/:id", validate(UpdateCompanySchema), async (req, res) =
     }
     res.json({ data: company } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "UPDATE_FAILED", message: String(err) } });
+    { const e = safeError(err, "UPDATE_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -131,7 +132,7 @@ router.get("/companies/:id/stats", async (req, res) => {
     const stats = await getCompanyStats(req.params.id);
     res.json({ data: stats } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "SYS-001", message: String(err) } });
+    { const e = safeError(err, "SYS-001"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -188,7 +189,7 @@ router.get("/companies/:companyId/accounts", async (req, res) => {
     const response: ApiResponse = { data: accounts };
     res.json(response);
   } catch (err) {
-    res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
+    { const e = safeError(err, "QUERY_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -258,7 +259,7 @@ router.get("/companies/:companyId/accounts/:accountCode/transactions", async (re
       meta: { limit: pg.limit, offset: pg.offset, count: paged.length, total: allTransactions.length },
     });
   } catch (err) {
-    res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
+    { const e = safeError(err, "QUERY_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -274,7 +275,7 @@ router.get("/companies/:companyId/journal-entries", async (req, res) => {
       .fetchAll();
     res.json(paginatedResponse(resources, pg));
   } catch (err) {
-    res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
+    { const e = safeError(err, "QUERY_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -297,7 +298,7 @@ router.get("/companies/:companyId/invoices", async (req, res) => {
       .fetchAll();
     res.json(paginatedResponse(resources, pg));
   } catch (err) {
-    res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
+    { const e = safeError(err, "QUERY_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -313,7 +314,7 @@ router.get("/companies/:companyId/contacts", async (req, res) => {
       .fetchAll();
     res.json(paginatedResponse(resources, pg));
   } catch (err) {
-    res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
+    { const e = safeError(err, "QUERY_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -326,7 +327,7 @@ router.patch("/companies/:companyId/contacts/:contactId", async (req, res) => {
     }
     res.json({ data: contact } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "UPDATE_FAILED", message: String(err) } });
+    { const e = safeError(err, "UPDATE_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -342,7 +343,7 @@ router.get("/companies/:companyId/items", async (req, res) => {
       .fetchAll();
     res.json(paginatedResponse(resources, pg));
   } catch (err) {
-    res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
+    { const e = safeError(err, "QUERY_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -367,7 +368,7 @@ router.get("/companies/:companyId/items/:itemCode/transactions", async (req, res
     }
     res.json({ data: result } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
+    { const e = safeError(err, "QUERY_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -383,7 +384,7 @@ router.get("/companies/:companyId/chat", async (req, res) => {
     const response: ApiResponse = { data: resources.reverse() };
     res.json(response);
   } catch (err) {
-    res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
+    { const e = safeError(err, "QUERY_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -393,7 +394,7 @@ function handleGLError(err: unknown, res: import("express").Response) {
   if (err instanceof GLError) {
     res.status(400).json({ error: { code: err.code, message: err.message } });
   } else {
-    res.status(500).json({ error: { code: "INTERNAL", message: String(err) } });
+    { const e = safeError(err, "SYS-001"); res.status(e.status).json(e.body); }
   }
 }
 
@@ -430,7 +431,7 @@ router.get("/companies/:companyId/trial-balance", async (req, res) => {
     const result = await getTrialBalance(req.params.companyId, from, to);
     res.json({ data: result } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
+    { const e = safeError(err, "QUERY_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -545,7 +546,7 @@ router.post("/companies/:companyId/invoices/upload", async (req, res) => {
       },
     } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "UPLOAD_FAILED", message: String(err) } });
+    { const e = safeError(err, "UPLOAD_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -605,7 +606,7 @@ router.get("/companies/:companyId/invoices/:invoiceId/postings", async (req, res
     const postings = await getInvoicePostings(req.params.companyId, req.params.invoiceId);
     res.json({ data: postings } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
+    { const e = safeError(err, "QUERY_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -630,7 +631,7 @@ router.get("/companies/:companyId/payments", async (req, res) => {
     const payments = await listPayments(req.params.companyId, type);
     res.json({ data: payments } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
+    { const e = safeError(err, "QUERY_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -647,7 +648,7 @@ router.get("/companies/:companyId/contacts/find", async (req, res) => {
     const contact = await findContactByName(req.params.companyId, name, regNumber);
     res.json({ data: contact } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
+    { const e = safeError(err, "QUERY_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -660,7 +661,7 @@ router.post("/companies/:companyId/contacts", validate(CreateContactSchema), asy
     });
     res.status(201).json({ data: contact } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "CREATE_FAILED", message: String(err) } });
+    { const e = safeError(err, "CREATE_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -711,7 +712,7 @@ router.get("/companies/:companyId/contacts/:contactId/transactions", async (req,
       data: { invoices, payments, totalInvoiced, totalPaid, balance },
     } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
+    { const e = safeError(err, "QUERY_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -726,7 +727,7 @@ router.post("/companies/:companyId/items", validate(CreateItemSchema), async (re
     });
     res.status(201).json({ data: item } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "CREATE_FAILED", message: String(err) } });
+    { const e = safeError(err, "CREATE_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -752,7 +753,7 @@ router.get("/companies/:companyId/contacts/duplicates", async (req, res) => {
     const groups = await findDuplicateContacts(req.params.companyId);
     res.json({ data: groups } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
+    { const e = safeError(err, "QUERY_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -780,7 +781,7 @@ router.post("/companies/:companyId/contacts/:contactId/apply-register", async (r
     }
     res.json({ data: updated } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "SYS-001", message: String(err) } });
+    { const e = safeError(err, "SYS-001"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -794,7 +795,7 @@ router.post("/companies/:companyId/contacts/parse-description", async (req, res)
     const fields = await parseContactDescription(description.trim());
     res.json({ data: fields } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "PARSE_FAILED", message: String(err) } });
+    { const e = safeError(err, "PARSE_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -808,7 +809,7 @@ router.post("/companies/:companyId/items/parse-description", async (req, res) =>
     const fields = await parseItemDescription(description.trim());
     res.json({ data: fields } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "PARSE_FAILED", message: String(err) } });
+    { const e = safeError(err, "PARSE_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -822,7 +823,7 @@ router.post("/companies/:companyId/invoices/parse-description", async (req, res)
     const fields = await parseInvoiceDescription(description.trim());
     res.json({ data: fields } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "PARSE_FAILED", message: String(err) } });
+    { const e = safeError(err, "PARSE_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -836,7 +837,7 @@ router.post("/companies/:companyId/fixed-assets/parse-description", async (req, 
     const fields = await parseAssetDescription(description.trim());
     res.json({ data: fields } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "PARSE_FAILED", message: String(err) } });
+    { const e = safeError(err, "PARSE_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -847,7 +848,7 @@ router.get("/companies/:companyId/reports/balance-sheet", async (req, res) => {
     const report = await getBalanceSheet(req.params.companyId);
     res.json({ data: report } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "REPORT_FAILED", message: String(err) } });
+    { const e = safeError(err, "REPORT_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -858,7 +859,7 @@ router.get("/companies/:companyId/reports/profit-loss", async (req, res) => {
     const report = await getProfitAndLoss(req.params.companyId, from, to);
     res.json({ data: report } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "REPORT_FAILED", message: String(err) } });
+    { const e = safeError(err, "REPORT_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -873,7 +874,7 @@ router.post("/companies/:companyId/vat-returns", async (req, res) => {
     );
     res.status(201).json({ data: vatReturn } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "VAT_FAILED", message: String(err) } });
+    { const e = safeError(err, "VAT_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -917,7 +918,7 @@ router.get("/companies/:companyId/dashboard", async (req, res) => {
       },
     } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "DASHBOARD_FAILED", message: String(err) } });
+    { const e = safeError(err, "DASHBOARD_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -967,7 +968,7 @@ router.post("/migrate/short-names", async (req, res) => {
 
     res.json({ data: { updated } } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "MIGRATION_FAILED", message: String(err) } });
+    { const e = safeError(err, "MIGRATION_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -1010,7 +1011,7 @@ router.post("/chat", async (req, res) => {
 
     res.json({ data: { response } } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "AGENT_ERROR", message: String(err) } });
+    { const e = safeError(err, "AGENT_ERROR"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -1036,7 +1037,7 @@ router.post("/feedback", validate(SubmitFeedbackSchema), async (req, res) => {
     await containers.feedback().items.create(item);
     res.status(201).json({ data: item } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "CREATE_FAILED", message: String(err) } });
+    { const e = safeError(err, "CREATE_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -1053,7 +1054,7 @@ router.get("/feedback", async (req, res) => {
       .fetchAll();
     res.json(paginatedResponse(resources, pg));
   } catch (err) {
-    res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
+    { const e = safeError(err, "QUERY_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -1078,7 +1079,7 @@ router.patch("/feedback/:id", async (req, res) => {
     await containers.feedback().item(req.params.id, req.params.id).replace(updated);
     res.json({ data: updated } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "UPDATE_FAILED", message: String(err) } });
+    { const e = safeError(err, "UPDATE_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -1095,7 +1096,7 @@ router.get("/rules", async (req, res) => {
       .fetchAll();
     res.json({ data: resources } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
+    { const e = safeError(err, "QUERY_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -1106,7 +1107,7 @@ router.post("/rules/seed", async (req, res) => {
     const count = await seedRules(LV_POSTING_RULES);
     res.json({ data: { seeded: count, total: LV_POSTING_RULES.length } } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "SEED_FAILED", message: String(err) } });
+    { const e = safeError(err, "SEED_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -1129,7 +1130,7 @@ router.get("/companies/:companyId/events", async (req, res) => {
       .fetchAll();
     res.json({ data: resources } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
+    { const e = safeError(err, "QUERY_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -1169,7 +1170,7 @@ router.post("/exchange-rates", async (req, res) => {
     });
     res.status(201).json({ data: saved } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "SYS-001", message: String(err) } });
+    { const e = safeError(err, "SYS-001"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -1263,7 +1264,7 @@ router.get("/companies/:companyId/invoices/:invoiceId/pdf", async (req, res) => 
     res.setHeader("Content-Disposition", `inline; filename="invoice-${req.params.invoiceId}.pdf"`);
     res.send(pdf);
   } catch (err) {
-    res.status(500).json({ error: { code: "PDF_FAILED", message: String(err) } });
+    { const e = safeError(err, "PDF_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -1276,7 +1277,7 @@ router.get("/companies/:companyId/reports/vat-declaration", async (req, res) => 
     const declaration = await generateVatDeclaration(req.params.companyId, year, month);
     res.json({ data: declaration } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "VAT_FAILED", message: String(err) } });
+    { const e = safeError(err, "VAT_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -1288,7 +1289,7 @@ router.get("/companies/:companyId/reports/annual", async (req, res) => {
     const report = await generateAnnualReport(req.params.companyId, year);
     res.json({ data: report } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "REPORT_FAILED", message: String(err) } });
+    { const e = safeError(err, "REPORT_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -1299,7 +1300,7 @@ router.get("/companies/:companyId/reports/ar-aging", async (req, res) => {
     const report = await getAgingReport(req.params.companyId, "ar");
     res.json({ data: report } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "REPORT_FAILED", message: String(err) } });
+    { const e = safeError(err, "REPORT_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -1308,7 +1309,7 @@ router.get("/companies/:companyId/reports/ap-aging", async (req, res) => {
     const report = await getAgingReport(req.params.companyId, "ap");
     res.json({ data: report } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "REPORT_FAILED", message: String(err) } });
+    { const e = safeError(err, "REPORT_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -1319,7 +1320,7 @@ router.post("/companies/:companyId/invoices/mark-overdue", async (req, res) => {
     const count = await markOverdueInvoices(req.params.companyId);
     res.json({ data: { updated: count } } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "UPDATE_FAILED", message: String(err) } });
+    { const e = safeError(err, "UPDATE_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -1339,7 +1340,7 @@ router.get("/companies/:companyId/bank-reconciliations", async (req, res) => {
     const list = await listReconciliations(req.params.companyId);
     res.json({ data: list } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
+    { const e = safeError(err, "QUERY_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -1348,7 +1349,7 @@ router.get("/companies/:companyId/bank-reconciliations/open-invoices", async (re
     const invoices = await getOpenInvoices(req.params.companyId);
     res.json({ data: invoices } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
+    { const e = safeError(err, "QUERY_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -1415,7 +1416,7 @@ router.post("/companies/:companyId/bank-reconciliations/:reconId/suggest-account
     const suggestion = suggestLedgerAccount(req.body.description || "");
     res.json({ data: suggestion } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "SUGGEST_FAILED", message: String(err) } });
+    { const e = safeError(err, "SUGGEST_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -1435,7 +1436,7 @@ router.get("/companies/:companyId/recurring-templates", async (req, res) => {
     const list = await listRecurringTemplates(req.params.companyId);
     res.json({ data: list } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
+    { const e = safeError(err, "QUERY_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -1444,7 +1445,7 @@ router.post("/companies/:companyId/recurring-templates", async (req, res) => {
     const template = await createRecurringTemplate({ ...req.body, companyId: req.params.companyId, createdBy: req.user!.id });
     res.status(201).json({ data: template } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "CREATE_FAILED", message: String(err) } });
+    { const e = safeError(err, "CREATE_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -1465,7 +1466,7 @@ router.get("/companies/:companyId/fixed-assets", async (req, res) => {
     const assets = await listFixedAssets(req.params.companyId);
     res.json({ data: assets } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
+    { const e = safeError(err, "QUERY_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -1534,7 +1535,7 @@ router.get("/companies/:companyId/fixed-assets/:assetId/transactions", async (re
 
     res.json({ data: filtered } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
+    { const e = safeError(err, "QUERY_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -1565,7 +1566,7 @@ router.post("/companies/:companyId/budgets", async (req, res) => {
     const count = await setBudget({ companyId, fiscalYear, entries: expandedEntries, createdBy: req.user!.id });
     res.json({ data: { entriesCreated: count } } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "CREATE_FAILED", message: String(err) } });
+    { const e = safeError(err, "CREATE_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -1575,7 +1576,7 @@ router.get("/companies/:companyId/reports/budget-vs-actual", async (req, res) =>
     const report = await getBudgetVsActual(req.params.companyId, year);
     res.json({ data: report } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "REPORT_FAILED", message: String(err) } });
+    { const e = safeError(err, "REPORT_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -1590,7 +1591,7 @@ router.post("/companies/:companyId/run-month-end", async (req, res) => {
     const result = await runMonthEnd(req.params.companyId, period, req.user!.id);
     res.json({ data: result } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "MONTH_END_FAILED", message: String(err) } });
+    { const e = safeError(err, "MONTH_END_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -1600,7 +1601,7 @@ router.post("/companies/:companyId/run-year-end", async (req, res) => {
     const result = await runYearEnd(req.params.companyId, fiscalYear, req.user!.id);
     res.json({ data: result } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "YEAR_END_FAILED", message: String(err) } });
+    { const e = safeError(err, "YEAR_END_FAILED"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -1608,8 +1609,8 @@ router.get("/companies/:companyId/health", async (req, res) => {
   try {
     const health = await checkCompanyHealth(req.params.companyId);
     res.json({ data: health } as ApiResponse);
-  } catch (err) {
-    res.status(500).json({ error: { code: "HEALTH_CHECK_FAILED", message: String(err) } });
+  } catch (_err) {
+    res.status(500).json({ error: { code: "HEALTH_CHECK_FAILED", message: "Health check failed" } });
   }
 });
 
@@ -1618,7 +1619,7 @@ router.get("/companies/:companyId/close-runs", async (req, res) => {
     const runs = await listCloseRuns(req.params.companyId);
     res.json({ data: runs } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "SYS-001", message: String(err) } });
+    { const e = safeError(err, "SYS-001"); res.status(e.status).json(e.body); }
   }
 });
 
@@ -1628,6 +1629,6 @@ router.get("/companies/:companyId/close-runs/:runId", async (req, res) => {
     if (!run) return res.status(404).json({ error: { code: "SYS-002", message: "Close run not found" } });
     res.json({ data: run } as ApiResponse);
   } catch (err) {
-    res.status(500).json({ error: { code: "SYS-001", message: String(err) } });
+    { const e = safeError(err, "SYS-001"); res.status(e.status).json(e.body); }
   }
 });

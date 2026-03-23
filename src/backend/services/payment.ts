@@ -4,6 +4,7 @@ import { postJournalEntry, GLError } from "./ledger.js";
 import { emitEvent } from "./events.js";
 import { getActiveRule, evaluatePaymentRule } from "./posting-rules.js";
 import { getNextNumber } from "./sequences.js";
+import { DEFAULT_GL_ACCOUNTS } from "@shared/constants";
 import type { Payment, PaymentAllocation, Invoice, JournalLine } from "@shared/types";
 
 function roundCurrency(n: number): number {
@@ -118,7 +119,7 @@ function buildPaymentJournalLines(payment: Payment): JournalLine[] {
     // Customer payment received
     return [
       {
-        accountCode: "2420",       // Bank accounts
+        accountCode: DEFAULT_GL_ACCOUNTS.BANK,       // Bank accounts
         accountName: "Bank accounts",
         debit: payment.amount,
         credit: 0,
@@ -126,7 +127,7 @@ function buildPaymentJournalLines(payment: Payment): JournalLine[] {
         contactId: payment.contactId,
       },
       {
-        accountCode: "2210",       // Accounts receivable
+        accountCode: DEFAULT_GL_ACCOUNTS.ACCOUNTS_RECEIVABLE,       // Accounts receivable
         accountName: "Accounts receivable",
         debit: 0,
         credit: payment.amount,
@@ -138,7 +139,7 @@ function buildPaymentJournalLines(payment: Payment): JournalLine[] {
     // Vendor payment sent
     return [
       {
-        accountCode: "4220",       // Trade payables
+        accountCode: DEFAULT_GL_ACCOUNTS.ACCOUNTS_PAYABLE,       // Trade payables
         accountName: "Trade payables",
         debit: payment.amount,
         credit: 0,
@@ -146,7 +147,7 @@ function buildPaymentJournalLines(payment: Payment): JournalLine[] {
         contactId: payment.contactId,
       },
       {
-        accountCode: "2420",       // Bank accounts
+        accountCode: DEFAULT_GL_ACCOUNTS.BANK,       // Bank accounts
         accountName: "Bank accounts",
         debit: 0,
         credit: payment.amount,
