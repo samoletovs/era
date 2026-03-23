@@ -559,7 +559,14 @@ router.post("/companies/:companyId/invoices", validate(CreateInvoiceSchema), asy
       ...req.body,
       createdBy: req.user!.id,
     });
-    res.status(201).json({ data: invoice } as ApiResponse);
+    res.status(201).json({
+      data: invoice,
+      meta: {
+        operation: { operation: "create", entityType: "invoice", entityId: invoice.id, status: "success",
+          message: `Invoice ${invoice.invoiceNumber} created`,
+          suggestedActions: ["post", "edit", "attach-document"] },
+      },
+    } as ApiResponse);
   } catch (err) {
     handleGLError(err, res);
   }
@@ -619,7 +626,15 @@ router.post("/companies/:companyId/payments", validate(CreatePaymentSchema), asy
       ...req.body,
       createdBy: req.user!.id,
     });
-    res.status(201).json({ data: payment } as ApiResponse);
+    res.status(201).json({
+      data: payment,
+      meta: {
+        operation: { operation: "create", entityType: "payment", entityId: payment.id, status: "success",
+          message: `Payment ${payment.paymentNumber} recorded`,
+          relatedEntities: (req.body.invoiceAllocations || []).map((a: any) => ({ type: "invoice", id: a.invoiceId })),
+          suggestedActions: ["view-journal-entry", "reconcile-bank"] },
+      },
+    } as ApiResponse);
   } catch (err) {
     handleGLError(err, res);
   }

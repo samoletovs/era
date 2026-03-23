@@ -537,5 +537,41 @@ export interface ApiResponse<T = unknown> {
 export interface ApiError {
   code: string;
   message: string;
-  details?: Record<string, string>;
+  details?: Record<string, string>[];
+}
+
+// ─── Agent-Ready Operation Results ──────────────────────────
+// Structured response types that agents can parse unambiguously.
+// Every mutating operation should return an OperationResult so agents know:
+// 1. What was done (operation)
+// 2. What entity was affected (entityType + entityId)
+// 3. What state it's in (status)
+// 4. What to do next (suggestedActions)
+
+export interface OperationResult {
+  operation: "create" | "update" | "delete" | "post" | "reverse" | "close" | "match" | "execute";
+  entityType: "company" | "invoice" | "payment" | "contact" | "item" | "journal-entry" | "fixed-asset" | "bank-reconciliation" | "recurring-template" | "period" | "vat-return";
+  entityId: string;
+  status: "success" | "partial" | "failed";
+  message: string;
+  /** IDs of related entities affected by this operation */
+  relatedEntities?: { type: string; id: string; description?: string }[];
+  /** Next actions the agent can take on this entity */
+  suggestedActions?: string[];
+}
+
+// ─── Agent Task Definition ──────────────────────────────────
+// Structure for defining agent-executable tasks.
+
+export interface AgentTask {
+  id: string;
+  type: "invoice" | "payment" | "journal-entry" | "period-close" | "report" | "reconciliation";
+  intent: string;           // Natural language description of what to do
+  parameters: Record<string, unknown>;  // Structured parameters for the operation
+  priority: "low" | "normal" | "high" | "critical";
+  status: "pending" | "in-progress" | "completed" | "failed" | "requires-approval";
+  createdAt: string;
+  completedAt?: string;
+  result?: OperationResult;
+  companyId: string;
 }
