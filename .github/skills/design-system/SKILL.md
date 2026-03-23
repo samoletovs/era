@@ -104,6 +104,13 @@ everything is in the right place, nothing is superfluous.
   antialiased;` — precision in every pixel.
 - **Always deploy with API**: When deploying to SWA or similar, include the API 
   backend (`--api-location api`). Frontend-only deploys can overwrite the API.
+- **Toast notifications, never alert()**: Use a toast/notification system for all 
+  error messages — never `window.alert()` or `window.confirm()`. Place toasts at 
+  top-right on desktop, bottom-center on mobile. Auto-dismiss after 4s. Use inline
+  confirmation dialogs for destructive actions, not `window.confirm()`.
+- **Mobile chat pages**: Hide floating action buttons (like feedback FABs) that 
+  overlap with chat input areas. Use `.chat-active` class on the app container 
+  and hide the FAB via CSS `display: none`.
 
 ## Step-by-Step: How to Redesign a UI
 

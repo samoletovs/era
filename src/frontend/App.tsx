@@ -13,7 +13,7 @@ import { Onboarding } from "./pages/Onboarding";
 import { Settings } from "./pages/Settings";
 import { FixedAssets } from "./pages/FixedAssets";
 import { BankRecon } from "./pages/BankRecon";
-import { RecurringEntries } from "./pages/RecurringEntries";
+import { JournalEntries } from "./pages/JournalEntries";
 import { EventLog } from "./pages/EventLog";
 import { Accounting } from "./pages/Accounting";
 
@@ -67,7 +67,7 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
         <div className="nav-section-label">Finance</div>
         <NavLink to="/invoices">Invoices</NavLink>
         <NavLink to="/bank">Bank</NavLink>
-        <NavLink to="/recurring">Recurring</NavLink>
+        <NavLink to="/journal">Journal</NavLink>
         <NavLink to="/accounting">Accounting</NavLink>
 
         <div className="nav-section-label">Master data</div>
@@ -147,40 +147,56 @@ function FeedbackButton() {
 }
 
 export function App() {
-  const [sidebarOpen, setSidebarOpen] = React.useState(false);
-
   return (
     <AppProvider>
       <BrowserRouter>
-        <div className="app">
-          <div className="mobile-header">
-            <button className="hamburger-btn" onClick={() => setSidebarOpen(true)} aria-label="Open menu">
-              <span /><span /><span />
-            </button>
-            <div className="mobile-logo">ERA</div>
-          </div>
-          <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-          <main className="app-main">
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/chat" element={<Chat />} />
-              <Route path="/accounts" element={<Accounts />} />
-              <Route path="/invoices" element={<Invoices />} />
-              <Route path="/contacts" element={<Contacts />} />
-              <Route path="/items" element={<Items />} />
-              <Route path="/reports" element={<Reports />} />
-              <Route path="/fixed-assets" element={<FixedAssets />} />
-              <Route path="/bank" element={<BankRecon />} />
-              <Route path="/recurring" element={<RecurringEntries />} />
-              <Route path="/events" element={<EventLog />} />
-              <Route path="/accounting" element={<Accounting />} />
-              <Route path="/onboarding" element={<Onboarding />} />
-              <Route path="/settings" element={<Settings />} />
-            </Routes>
-          </main>
-          <FeedbackButton />
-        </div>
+        <AppShell />
       </BrowserRouter>
     </AppProvider>
+  );
+}
+
+function AppShell() {
+  const [sidebarOpen, setSidebarOpen] = React.useState(false);
+  const location = useLocation();
+  const { toasts } = useApp();
+
+  return (
+    <div className={`app${location.pathname === '/chat' ? ' chat-active' : ''}`}>
+      <div className="mobile-header">
+        <button className="hamburger-btn" onClick={() => setSidebarOpen(true)} aria-label="Open menu">
+          <span /><span /><span />
+        </button>
+        <div className="mobile-logo">ERA</div>
+      </div>
+      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <main className="app-main">
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/chat" element={<Chat />} />
+          <Route path="/accounts" element={<Accounts />} />
+          <Route path="/invoices" element={<Invoices />} />
+          <Route path="/contacts" element={<Contacts />} />
+          <Route path="/items" element={<Items />} />
+          <Route path="/reports" element={<Reports />} />
+          <Route path="/fixed-assets" element={<FixedAssets />} />
+          <Route path="/bank" element={<BankRecon />} />
+          <Route path="/journal" element={<JournalEntries />} />
+          <Route path="/events" element={<EventLog />} />
+          <Route path="/accounting" element={<Accounting />} />
+          <Route path="/onboarding" element={<Onboarding />} />
+          <Route path="/settings" element={<Settings />} />
+        </Routes>
+      </main>
+      <FeedbackButton />
+      {/* Toast notifications */}
+      {toasts.length > 0 && (
+        <div className="toast-container">
+          {toasts.map(t => (
+            <div key={t.id} className={`toast toast-${t.type}`}>{t.message}</div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

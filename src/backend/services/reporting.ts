@@ -83,6 +83,26 @@ export async function generateVatReturn(
   };
 
   await containers.documents().items.create(vatReturn);
+
+  // Record close run for history
+  const closeRun = {
+    id: uuidv4(),
+    companyId,
+    docType: "period-close-run" as const,
+    type: "vat-return" as const,
+    period,
+    steps: [{
+      name: "Generate VAT return",
+      status: "completed" as const,
+      detail: `Output: ${outputVat}, Input: ${inputVat}, Payable: ${roundCurrency(outputVat - inputVat)}`,
+    }],
+    status: "completed" as const,
+    startedBy: createdBy,
+    startedAt: now,
+    completedAt: now,
+  };
+  try { await containers.ledger().items.create(closeRun); } catch { /* best-effort */ }
+
   return vatReturn;
 }
 

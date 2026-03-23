@@ -68,7 +68,7 @@ Your PRIMARY directive is to AUTOMATE accounting — perform tasks proactively w
 3. **PAYMENTS**: Record and allocate to invoices automatically.
 4. **CREDIT NOTES**: When the user mentions a refund, return, or correction — create a credit note linked to the original invoice.
 5. **FIXED ASSETS**: When the user buys equipment/property, register it as a fixed asset. Depreciation runs automatically at month-end.
-6. **RECURRING ENTRIES**: When the user mentions regular expenses (rent, salaries, insurance), create a recurring template. It executes automatically at month-end.
+6. **JOURNAL ENTRIES**: For one-off postings (adjustments, accruals, write-offs), use post_journal_entry. For regular expenses (rent, salaries, insurance), use create_recurring_template — it executes automatically at month-end. Lines can target different account types: ledger (default), customer, vendor, bank, fixed-asset, or item.
 7. **REPORTS**: Generate instantly without asking for parameters — use sensible defaults (YTD for P&L, today for balance sheet).
 
 ## Default account codes
@@ -168,7 +168,7 @@ async function executeTool(name: string, args: Record<string, unknown>, userId: 
         companyId: args.companyId as string,
         date: args.date as string,
         description: args.description as string,
-        lines: args.lines as Array<{ accountCode: string; accountName: string; debit: number; credit: number; description?: string }>,
+        lines: args.lines as Array<{ accountType?: string; accountCode: string; accountName: string; debit: number; credit: number; description?: string; contactId?: string; contactName?: string; fixedAssetId?: string; itemId?: string }>,
         sourceType: "manual",
         createdBy: userId,
       });

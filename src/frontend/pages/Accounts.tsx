@@ -152,7 +152,9 @@ export function Accounts() {
         </div>
       </div>
       {loading ? <p style={{ color: "#A0A0A0" }}>Loading...</p> : (
-        <table className="data-table coa-table">
+        <>
+        {/* Desktop table */}
+        <table className="data-table coa-table desktop-only-table">
           <thead>
             <tr><th>Code</th><th>Name</th><th className="hide-mobile">Type</th><th>Balance</th></tr>
           </thead>
@@ -207,6 +209,36 @@ export function Accounts() {
             })}
           </tbody>
         </table>
+
+        {/* Mobile card view */}
+        <div className="coa-mobile-list">
+          {visibleAccounts.map((a: any) => {
+            const balance = totals.get(a.code) ?? 0;
+            const hasChildren = !a.isPostable && accounts.some((c: any) => c.parentCode === a.code);
+            const isCollapsed = collapsed.has(a.code);
+            const isSelected = selectedAccount?.code === a.code;
+
+            return (
+              <div
+                key={a.id}
+                className={`coa-mobile-item level-${a.level}${isSelected ? " coa-account-selected" : ""}`}
+                onClick={() => {
+                  if (hasChildren) toggleCollapse(a.code);
+                  else if (a.isPostable) openTransactions(a.code, a.name);
+                }}
+                aria-label={a.isPostable ? `View transactions for ${a.code} ${a.name}` : `Toggle ${a.name}`}
+              >
+                {hasChildren && <span className="coa-toggle">{isCollapsed ? "▸" : "▾"}</span>}
+                <div className="coa-mobile-info">
+                  <div className="coa-mobile-name">{a.name}</div>
+                  <div className="coa-mobile-code">{a.code}</div>
+                </div>
+                <div className="coa-mobile-balance">{formatMoney(balance, fmt)}</div>
+              </div>
+            );
+          })}
+        </div>
+        </>
       )}
 
       {/* Transaction drawer */}
@@ -226,7 +258,9 @@ export function Accounts() {
               ) : transactions.length === 0 ? (
                 <p style={{ color: "var(--text-tertiary)", padding: 16 }}>No transactions found</p>
               ) : (
-                <table className="data-table coa-tx-table">
+                <>
+                {/* Desktop table */}
+                <table className="data-table coa-tx-table desktop-only-table">
                   <thead>
                     <tr>
                       <th>Date</th>
@@ -248,6 +282,23 @@ export function Accounts() {
                     ))}
                   </tbody>
                 </table>
+
+                {/* Mobile card view */}
+                <div className="tx-mobile-list">
+                  {transactions.map((tx, i) => (
+                    <div key={`${tx.entryId}-${i}`} className="tx-mobile-item">
+                      <div className="tx-mobile-left">
+                        <div className="tx-mobile-date">{tx.date}</div>
+                        <div className="tx-mobile-desc">{tx.description || tx.entryNumber}</div>
+                      </div>
+                      <div className="tx-mobile-amounts">
+                        {tx.debit > 0 && <div className="tx-mobile-debit">{formatMoney(tx.debit, fmt)}</div>}
+                        {tx.credit > 0 && <div className="tx-mobile-credit">({formatMoney(tx.credit, fmt)})</div>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                </>
               )}
             </div>
           </div>

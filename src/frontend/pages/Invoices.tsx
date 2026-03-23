@@ -11,6 +11,9 @@ type SortDir = "asc" | "desc";
 
 const TOKEN = "dev-bypass";
 
+// Cancel confirmation state type
+type CancelConfirm = { inv: any } | null;
+
 // ─── PDF rendering helpers (from UploadInvoice) ─────────────
 
 async function pdfToImage(file: File): Promise<{ base64: string; dataUrl: string }> {
@@ -58,7 +61,7 @@ const labelStyle: React.CSSProperties = {
 };
 
 export function Invoices() {
-  const { companyId, numberFormat: fmt } = useApp();
+  const { companyId, numberFormat: fmt, toast } = useApp();
   const location = useLocation();
   const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,6 +95,7 @@ export function Invoices() {
   const [payDate, setPayDate] = useState(new Date().toISOString().slice(0, 10));
   const [payReference, setPayReference] = useState("");
   const [paying, setPaying] = useState(false);
+  const [cancelConfirm, setCancelConfirm] = useState<CancelConfirm>(null);
 
   useEffect(() => {
     if (!companyId) { setLoading(false); return; }
@@ -172,12 +176,18 @@ export function Invoices() {
   }
 
   async function handleCancel(inv: any) {
-    if (!confirm(`Cancel invoice ${inv.invoiceNumber}? This will reverse the GL entries.`)) return;
+    setCancelConfirm({ inv });
+  }
+
+  async function confirmCancel() {
+    if (!cancelConfirm) return;
+    const inv = cancelConfirm.inv;
+    setCancelConfirm(null);
     try {
       await api.cancelInvoice(companyId, inv.id, "Cancelled by user");
       loadInvoices();
       setSelected(null);
-    } catch (e: any) { console.error(e.message); }
+    } catch (e: any) { toast(e.message || "Failed to cancel"); }
   }
 
   // Credit note state
@@ -222,7 +232,7 @@ export function Invoices() {
       loadInvoices();
       setSelected(null);
       setCreditNoteInv(null);
-    } catch (e: any) { alert(e.message); }
+    } catch (e: any) { toast(e.message || "Failed to create credit note"); }
     finally { setCreditProcessing(false); }
   }
 
@@ -288,7 +298,7 @@ export function Invoices() {
       setParsedInvoice(null);
       loadInvoices();
     } catch (err: any) {
-      alert(err.message || "Failed to create invoice");
+      toast(err.message || "Failed to create invoice");
     } finally {
       setCreating(false);
     }
@@ -375,7 +385,7 @@ export function Invoices() {
       setPayInvoice(null);
       loadInvoices();
     } catch (err: any) {
-      alert(err.message || "Failed to record payment");
+      toast(err.message || "Failed to record payment");
     } finally {
       setPaying(false);
     }
@@ -429,6 +439,26 @@ export function Invoices() {
                   <button className="btn-secondary" style={{ color: "#FF3B30" }} onClick={() => handleCancel(selected)}>Cancel invoice</button>
                 )}
               </div>
+
+              {/* Cancel confirmation */}
+              {cancelConfirm && cancelConfirm.inv.id === selected.id && (
+                <div style={{
+                  marginTop: 12, padding: "12px 14px",
+                  background: "var(--error-bg)", border: "1px solid #FEE2E2",
+                  borderRadius: "var(--radius-sm)", fontSize: "var(--text-sm)",
+                }}>
+                  <div style={{ fontWeight: 500, color: "#D1242F", marginBottom: 6 }}>
+                    Cancel invoice {cancelConfirm.inv.invoiceNumber}?
+                  </div>
+                  <div style={{ color: "var(--text-secondary)", marginBottom: 10 }}>
+                    This will reverse the GL entries.
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button className="btn-primary" style={{ background: "#FF3B30" }} onClick={confirmCancel}>Confirm cancel</button>
+                    <button className="btn-secondary" onClick={() => setCancelConfirm(null)}>Keep</button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -436,7 +466,8 @@ export function Invoices() {
             {selected.lines?.length > 0 && (
               <div className="settings-card">
                 <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Line items</h3>
-                <table className="data-table">
+                {/* Desktop table */}
+                <table className="data-table invoice-lines-table desktop-only-table">
                   <thead><tr><th>Description</th><th>Qty</th><th>Price</th><th>VAT</th><th>Total</th></tr></thead>
                   <tbody>
                     {selected.lines.map((l: any, i: number) => (
@@ -450,6 +481,19 @@ export function Invoices() {
                     ))}
                   </tbody>
                 </table>
+                {/* Mobile card view */}
+                <div className="invoice-lines-mobile">
+                  {selected.lines.map((l: any, i: number) => (
+                    <div key={i} className="invoice-line-card">
+                      <div className="line-desc">{l.description}</div>
+                      <div className="line-details">
+                        <span>{l.quantity} × {formatMoney(l.unitPrice, fmt)}</span>
+                        <span>{l.vatRate}% VAT</span>
+                        <span className="line-total">{formatMoney(l.lineTotal, fmt)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 

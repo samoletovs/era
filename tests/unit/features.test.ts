@@ -318,9 +318,9 @@ describe("bank reconciliation logic", () => {
   });
 });
 
-// ─── Recurring Entries ──────────────────────────────────────
+// ─── Journal Entries (Recurring + One-off) ──────────────────
 
-describe("recurring entry templates", () => {
+describe("journal entry templates", () => {
   it("calculates next run date for monthly frequency", () => {
     const lastRun = new Date("2026-02-15");
     lastRun.setMonth(lastRun.getMonth() + 1);
@@ -347,6 +347,26 @@ describe("recurring entry templates", () => {
     const totalDebit = lines.reduce((s, l) => s + l.debit, 0);
     const totalCredit = lines.reduce((s, l) => s + l.credit, 0);
     expect(totalDebit).toBe(totalCredit);
+  });
+
+  it("supports multi-entity account types on lines", () => {
+    type AccountType = "ledger" | "customer" | "vendor" | "bank" | "fixed-asset" | "item";
+    const lines: Array<{ accountType: AccountType; accountCode: string; debit: number; credit: number; contactId?: string; fixedAssetId?: string; itemId?: string }> = [
+      { accountType: "vendor", accountCode: "5310", debit: 500, credit: 0, contactId: "vendor-1" },
+      { accountType: "bank", accountCode: "2420", debit: 0, credit: 500 },
+    ];
+    expect(lines[0].accountType).toBe("vendor");
+    expect(lines[0].contactId).toBe("vendor-1");
+    expect(lines[1].accountType).toBe("bank");
+    const totalDebit = lines.reduce((s, l) => s + l.debit, 0);
+    const totalCredit = lines.reduce((s, l) => s + l.credit, 0);
+    expect(totalDebit).toBe(totalCredit);
+  });
+
+  it("defaults accountType to ledger when not specified", () => {
+    const line = { accountCode: "6330", accountName: "Rent", debit: 1200, credit: 0 };
+    const accountType = (line as any).accountType || "ledger";
+    expect(accountType).toBe("ledger");
   });
 });
 
@@ -499,6 +519,141 @@ describe("business event log", () => {
       expect(type).toContain(".");
     }
     expect(eventTypes.length).toBeGreaterThan(10);
+  });
+});
+
+// ─── Multi-Currency (D365 F&O dual-currency model) ──────────
+
+describe("multi-currency architecture", () => {
+  it("exchange rate types are valid", () => {
+    const validTypes = ["daily", "monthly-average", "closing", "budget", "group"];
+    expect(validTypes).toHaveLength(5);
+    expect(validTypes).toContain("daily");
+    expect(validTypes).toContain("closing");
+  });
+
+  it("exchange rate sources are valid", () => {
+    const validSources = ["ecb", "latvian-bank", "manual"];
+    expect(validSources).toHaveLength(3);
+  });
+
+  it("converts transaction currency to accounting currency", () => {
+    const transactionAmount = 1000; // USD
+    const rate = 0.92; // 1 USD = 0.92 EUR
+    const accountingAmount = Math.round(transactionAmount * rate * 100) / 100;
+    expect(accountingAmount).toBe(920);
+  });
+
+  it("converts transaction currency to reporting currency independently", () => {
+    const transactionAmount = 1000; // USD
+    const reportingRate = 0.85; // 1 USD = 0.85 GBP (direct from USD, not via EUR)
+    const reportingAmount = Math.round(transactionAmount * reportingRate * 100) / 100;
+    expect(reportingAmount).toBe(850);
+  });
+
+  it("journal line carries both accounting and reporting amounts", () => {
+    const line = {
+      accountCode: "2420",
+      debit: 920,       // accounting currency (EUR)
+      credit: 0,
+      currencyCode: "USD",
+      exchangeRate: 0.92,
+      amountInCurrency: 1000,
+      reportingCurrencyAmount: 850,
+      reportingExchangeRate: 0.85,
+    };
+    expect(line.debit).toBe(Math.round(line.amountInCurrency! * line.exchangeRate! * 100) / 100);
+    expect(line.reportingCurrencyAmount).toBe(Math.round(line.amountInCurrency! * line.reportingExchangeRate! * 100) / 100);
+  });
+
+  it("reverse exchange rate lookup (1/rate)", () => {
+    const eurToUsd = 1.087;
+    const usdToEur = Math.round(1 / eurToUsd * 100) / 100;
+    expect(usdToEur).toBe(0.92);
+  });
+
+  it("same currency rate is 1", () => {
+    const rate = 1;
+    const amount = 500;
+    expect(amount * rate).toBe(amount);
+  });
+});
+
+describe("currency revaluation", () => {
+  it("calculates unrealized gain when rate increases", () => {
+    // Original: 1000 USD at 0.90 EUR/USD = 900 EUR
+    // Closing:  1000 USD at 0.95 EUR/USD = 950 EUR
+    const originalAmount = 900;
+    const revaluedAmount = 950;
+    const unrealizedGain = Math.round((revaluedAmount - originalAmount) * 100) / 100;
+    expect(unrealizedGain).toBe(50);
+    expect(unrealizedGain).toBeGreaterThan(0); // gain
+  });
+
+  it("calculates unrealized loss when rate decreases", () => {
+    const originalAmount = 900;
+    const revaluedAmount = 860;
+    const unrealizedLoss = Math.round((revaluedAmount - originalAmount) * 100) / 100;
+    expect(unrealizedLoss).toBe(-40);
+    expect(unrealizedLoss).toBeLessThan(0); // loss
+  });
+
+  it("revaluation entry is balanced", () => {
+    const unrealizedGain = 50;
+    const lines = [
+      { accountCode: "2420", debit: unrealizedGain, credit: 0, desc: "Bank (FX adjustment)" },
+      { accountCode: "8110", debit: 0, credit: unrealizedGain, desc: "Unrealized FX gain" },
+    ];
+    const totalDebit = lines.reduce((s, l) => s + l.debit, 0);
+    const totalCredit = lines.reduce((s, l) => s + l.credit, 0);
+    expect(totalDebit).toBe(totalCredit);
+  });
+
+  it("loss entry debits loss account, credits asset", () => {
+    const unrealizedLoss = 40;
+    const lines = [
+      { accountCode: "8120", debit: unrealizedLoss, credit: 0, desc: "Unrealized FX loss" },
+      { accountCode: "2420", debit: 0, credit: unrealizedLoss, desc: "Bank (FX adjustment)" },
+    ];
+    const totalDebit = lines.reduce((s, l) => s + l.debit, 0);
+    const totalCredit = lines.reduce((s, l) => s + l.credit, 0);
+    expect(totalDebit).toBe(totalCredit);
+  });
+
+  it("only revalues accounts flagged for FX revaluation", () => {
+    const accounts = [
+      { code: "2420", isForeignCurrencyRevaluation: true, currencyCode: "USD" },
+      { code: "2210", isForeignCurrencyRevaluation: true, currencyCode: "USD" },
+      { code: "5120", isForeignCurrencyRevaluation: false, currencyCode: undefined },
+      { code: "6350", isForeignCurrencyRevaluation: false, currencyCode: undefined },
+    ];
+    const toRevalue = accounts.filter(a => a.isForeignCurrencyRevaluation && a.currencyCode);
+    expect(toRevalue).toHaveLength(2);
+    expect(toRevalue.map(a => a.code)).toEqual(["2420", "2210"]);
+  });
+});
+
+describe("short name generation", () => {
+  function generateShortName(name: string): string {
+    const quotedMatch = name.match(/[""\u201C\u201D]([^""\u201C\u201D]+)[""\u201C\u201D]/);
+    if (quotedMatch) return quotedMatch[1].trim();
+    const cleaned = name
+      .replace(/^(SIA|AS|IK|ZS|PS|Sabiedr.ba\s+.*?atbild.bu)\s+/i, "")
+      .replace(/[""\u201C\u201D]/g, "")
+      .trim();
+    return cleaned || name;
+  }
+
+  it("extracts quoted name", () => {
+    expect(generateShortName('Sabiedrība ar ierobežotu atbildību "DAIS"')).toBe("DAIS");
+  });
+
+  it("strips SIA prefix", () => {
+    expect(generateShortName("SIA Latvijas Gāze")).toBe("Latvijas Gāze");
+  });
+
+  it("handles names without prefix", () => {
+    expect(generateShortName("Acme Corp")).toBe("Acme Corp");
   });
 });
 

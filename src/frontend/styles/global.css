@@ -1950,11 +1950,21 @@ select.settings-input {
     font-size: 16px;
   }
 
+  /* Hide feedback FAB when chat is visible (overlaps Send button) */
+  .chat-active .feedback-fab {
+    display: none;
+  }
+
   .feedback-popover {
     bottom: 64px;
     right: 12px;
     left: 12px;
     width: auto;
+  }
+
+  /* Hide redundant page title on chat (chat container has its own header) */
+  .chat-page-title {
+    display: none;
   }
 
   /* Search bar */
@@ -2385,4 +2395,64 @@ select.settings-input {
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
+}
+
+/* ─── Toast Notifications ────────────────────────────────── */
+
+.toast-container {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast {
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  font-family: var(--font-sans);
+  max-width: 380px;
+  pointer-events: auto;
+  animation: toast-in 0.2s var(--ease-out);
+  box-shadow: var(--shadow-md);
+}
+
+.toast-error {
+  background: var(--error-bg);
+  border: 1px solid #FEE2E2;
+  color: #D1242F;
+}
+
+.toast-success {
+  background: var(--success-bg);
+  border: 1px solid #D1FAE5;
+  color: #065F46;
+}
+
+.toast-info {
+  background: var(--accent-bg);
+  border: 1px solid #DBEAFE;
+  color: var(--accent);
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 768px) {
+  .toast-container {
+    top: auto;
+    bottom: 60px;
+    left: 16px;
+    right: 16px;
+  }
+
+  .toast {
+    max-width: 100%;
+  }
 }

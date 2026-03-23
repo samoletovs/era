@@ -145,7 +145,7 @@ export function Chat() {
 
   return (
     <div>
-      <h2 className="page-title">Agent chat</h2>
+      <h2 className="page-title chat-page-title">Agent chat</h2>
       {activeCompany && (
         <div style={{ fontSize: "12px", color: "#A0A0A0", marginBottom: 8 }}>
           {activeCompany.name}

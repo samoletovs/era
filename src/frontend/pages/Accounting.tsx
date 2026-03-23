@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { api } from "../utils/api";
 import { useApp } from "../utils/context";
 import { formatMoney } from "../utils/format";
+import { GlPostings } from "../components/GlPostings";
 import type { PeriodCloseRun, NumberFormat } from "@shared/types";
 
 export function Accounting() {
@@ -27,6 +28,8 @@ export function Accounting() {
   const [vatLoading, setVatLoading] = useState(false);
 
   const [running, setRunning] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+  const [yearEndConfirm, setYearEndConfirm] = useState(false);
 
   // Close run history
   const [closeRuns, setCloseRuns] = useState<PeriodCloseRun[]>([]);
@@ -41,25 +44,27 @@ export function Accounting() {
   async function handleMonthEnd() {
     setRunning("month");
     setMonthEndResult(null);
+    setErrorMsg("");
     try {
       const result = await api.runMonthEnd(companyId, monthEndPeriod);
       setMonthEndResult(result);
       api.companyHealth(companyId).then(setHealth).catch(() => {});
       api.closeRuns(companyId).then(setCloseRuns).catch(() => {});
-    } catch (e: any) { alert(e.message); }
+    } catch (e: any) { setErrorMsg(e.message || "Month-end failed"); }
     finally { setRunning(""); }
   }
 
   async function handleYearEnd() {
-    if (!confirm(`Run year-end close for FY${yearEndYear}? This will close all periods and transfer P&L to retained earnings.`)) return;
+    setYearEndConfirm(false);
     setRunning("year");
     setYearEndResult(null);
+    setErrorMsg("");
     try {
       const result = await api.runYearEnd(companyId, yearEndYear);
       setYearEndResult(result);
       api.companyHealth(companyId).then(setHealth).catch(() => {});
       api.closeRuns(companyId).then(setCloseRuns).catch(() => {});
-    } catch (e: any) { alert(e.message); }
+    } catch (e: any) { setErrorMsg(e.message || "Year-end failed"); }
     finally { setRunning(""); }
   }
 
@@ -67,11 +72,13 @@ export function Accounting() {
     if (!companyId) return;
     setVatLoading(true);
     setVatResult(null);
+    setErrorMsg("");
     try {
       const [year, month] = vatPeriod.split("-").map(Number);
-      const result = await api.vatDeclaration(companyId, year, month);
+      const result = await api.generateVatReturn(companyId, year, month);
       setVatResult(result);
-    } catch (e: any) { alert(e.message); }
+      api.closeRuns(companyId).then(setCloseRuns).catch(() => {});
+    } catch (e: any) { setErrorMsg(e.message || "VAT return failed"); }
     finally { setVatLoading(false); }
   }
 
@@ -80,6 +87,39 @@ export function Accounting() {
   return (
     <div>
       <h2 className="page-title">Accounting</h2>
+
+      {/* Error notification */}
+      {errorMsg && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 10,
+          padding: "10px 14px", marginBottom: 16,
+          background: "var(--error-bg)", border: "1px solid #FEE2E2",
+          borderRadius: "var(--radius-sm)", fontSize: "var(--text-sm)", color: "#D1242F",
+        }}>
+          <span style={{ flex: 1 }}>{errorMsg}</span>
+          <button onClick={() => setErrorMsg("")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, color: "#D1242F", padding: 2 }}>✕</button>
+        </div>
+      )}
+
+      {/* Year-end confirmation */}
+      {yearEndConfirm && (
+        <div style={{
+          padding: "14px 16px", marginBottom: 16,
+          background: "var(--warning-bg)", border: "1px solid #FDE68A",
+          borderRadius: "var(--radius-sm)", fontSize: "var(--text-sm)",
+        }}>
+          <div style={{ fontWeight: 500, marginBottom: 6, color: "var(--text-primary)" }}>
+            Run year-end close for FY{yearEndYear}?
+          </div>
+          <div style={{ color: "var(--text-secondary)", marginBottom: 10 }}>
+            This will close all periods and transfer P&L to retained earnings.
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button className="btn-primary" onClick={handleYearEnd}>Confirm</button>
+            <button className="btn-secondary" onClick={() => setYearEndConfirm(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
 
       {/* Health overview */}
       {health && (
@@ -157,7 +197,7 @@ export function Accounting() {
               <div className="detail-label">Fiscal year</div>
               <input type="number" value={yearEndYear} onChange={(e) => setYearEndYear(Number(e.target.value))} className="form-input" />
             </div>
-            <button className="btn-secondary" onClick={handleYearEnd} disabled={running === "year"}>
+            <button className="btn-secondary" onClick={() => setYearEndConfirm(true)} disabled={running === "year"}>
               {running === "year" ? "Running..." : "Run year-end close"}
             </button>
           </div>
@@ -230,7 +270,7 @@ export function Accounting() {
                       {expandedRunId === run.id ? "▾" : "▸"}
                     </td>
                     <td style={{ fontWeight: 500 }}>
-                      {run.type === "month-end" ? "Month-end" : "Year-end"}
+                      {run.type === "month-end" ? "Month-end" : run.type === "year-end" ? "Year-end" : "VAT return"}
                     </td>
                     <td className="mono">{run.period || `FY${run.fiscalYear}`}</td>
                     <td>
@@ -271,9 +311,31 @@ export function Accounting() {
 }
 
 function CloseRunDetail({ run, fmt }: { run: PeriodCloseRun; fmt: NumberFormat | undefined }) {
+  const { companyId } = useApp();
+  const [glEntries, setGlEntries] = useState<any[]>([]);
+  const [loadingGl, setLoadingGl] = useState(false);
+
+  // Collect all journal entry IDs from steps
+  useEffect(() => {
+    if (!companyId) return;
+    const allIds: string[] = [];
+    for (const step of run.steps) {
+      if (step.journalEntryIds) allIds.push(...step.journalEntryIds);
+    }
+    if (run.closingEntryId) allIds.push(run.closingEntryId);
+    if (allIds.length === 0) { setGlEntries([]); return; }
+
+    setLoadingGl(true);
+    api.journalEntries(companyId).then((entries: any) => {
+      const arr = Array.isArray(entries) ? entries : [];
+      const idSet = new Set(allIds);
+      setGlEntries(arr.filter((e: any) => idSet.has(e.id)));
+    }).catch(() => setGlEntries([])).finally(() => setLoadingGl(false));
+  }, [companyId, run]);
+
   return (
     <div style={{ padding: "12px 16px 16px 40px", background: "var(--bg-subtle)", borderBottom: "1px solid var(--border)" }}>
-      {run.type === "year-end" && run.netResult !== null && (
+      {run.type === "year-end" && run.netResult !== null && run.netResult !== undefined && (
         <div style={{ marginBottom: 12, fontSize: "var(--text-sm)" }}>
           Net result: <strong style={{ color: run.netResult >= 0 ? "#34C759" : "#FF3B30" }}>{formatMoney(run.netResult, fmt)}</strong> transferred to retained earnings
           {run.closingEntryId && (
@@ -307,6 +369,12 @@ function CloseRunDetail({ run, fmt }: { run: PeriodCloseRun; fmt: NumberFormat |
       <div style={{ marginTop: 8, fontSize: "var(--text-xs)", color: "var(--text-tertiary)" }}>
         Started by {run.startedBy} at {new Date(run.startedAt).toLocaleString()}
       </div>
+      {(glEntries.length > 0 || loadingGl) && (
+        <div style={{ marginTop: 12 }}>
+          <div style={{ fontSize: "var(--text-sm)", fontWeight: 500, marginBottom: 8 }}>Generated transactions</div>
+          <GlPostings entries={glEntries} loading={loadingGl} emptyMessage="No GL entries" formatMoney={formatMoney} fmt={fmt} />
+        </div>
+      )}
     </div>
   );
 }

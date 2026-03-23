@@ -336,7 +336,7 @@ function AnnualReport({ data }: { data: any }) {
 }
 
 function BudgetVsActual({ data, onRefresh }: { data: any; onRefresh?: () => void }) {
-  const { companyId, numberFormat: fmt } = useApp();
+  const { companyId, numberFormat: fmt, toast } = useApp();
   const items = Array.isArray(data) ? data : [];
   const [showAdd, setShowAdd] = useState(false);
   const [budgetAccountCode, setBudgetAccountCode] = useState("");
@@ -356,7 +356,7 @@ function BudgetVsActual({ data, onRefresh }: { data: any; onRefresh?: () => void
       setBudgetAmount("");
       setShowAdd(false);
       onRefresh?.();
-    } catch (err: any) { alert(err.message); }
+    } catch (err: any) { toast(err.message); }
     finally { setSaving(false); }
   }
 

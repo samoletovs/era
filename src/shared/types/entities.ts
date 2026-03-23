@@ -498,7 +498,7 @@ export interface PeriodCloseRun {
   id: string;
   companyId: string;
   docType: "period-close-run";
-  type: "month-end" | "year-end";
+  type: "month-end" | "year-end" | "vat-return";
   period?: string;              // "2026-03" for month-end
   fiscalYear?: number;          // 2025 for year-end
   steps: PeriodCloseStep[];

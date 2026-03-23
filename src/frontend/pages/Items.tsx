@@ -27,7 +27,7 @@ const EMPTY_FORM: ItemForm = {
 };
 
 export function Items() {
-  const { companyId, numberFormat: fmt } = useApp();
+  const { companyId, numberFormat: fmt, toast } = useApp();
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -140,7 +140,7 @@ export function Items() {
       setShowForm(false);
       loadItems();
     } catch (err: any) {
-      alert(err.message || "Failed to create item");
+      toast(err.message || "Failed to create item");
     } finally {
       setSaving(false);
     }

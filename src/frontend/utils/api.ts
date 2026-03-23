@@ -29,6 +29,10 @@ export const api = {
 
   // Journal entries
   journalEntries: (companyId: string) => apiFetch(`/companies/${companyId}/journal-entries`),
+  postJournalEntry: (companyId: string, body: Record<string, unknown>) =>
+    apiFetch(`/companies/${companyId}/journal-entries`, { method: "POST", body: JSON.stringify(body) }),
+  reverseJournalEntry: (companyId: string, entryId: string) =>
+    apiFetch(`/companies/${companyId}/journal-entries/${entryId}/reverse`, { method: "POST" }),
 
   // Invoices
   invoices: (companyId: string, type?: string) =>
@@ -131,6 +135,8 @@ export const api = {
   // VAT declaration
   vatDeclaration: (companyId: string, year: number, month: number) =>
     apiFetch(`/companies/${companyId}/reports/vat-declaration?year=${year}&month=${month}`),
+  generateVatReturn: (companyId: string, year: number, month: number) =>
+    apiFetch(`/companies/${companyId}/vat-returns`, { method: "POST", body: JSON.stringify({ year, month }) }),
 
   // Annual report
   annualReport: (companyId: string, year: number) =>

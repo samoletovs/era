@@ -490,8 +490,43 @@ export const AGENT_TOOLS: ChatCompletionTool[] = [
   {
     type: "function",
     function: {
+      name: "post_journal_entry",
+      description: "Post a one-off journal entry (GL posting). Use for adjustments, accruals, write-offs, or any manual entry. Each line can target different account types: ledger (default), customer, vendor, bank, fixed-asset, or item — the GL account is auto-resolved for non-ledger types.",
+      parameters: {
+        type: "object",
+        properties: {
+          companyId: { type: "string" },
+          date: { type: "string", description: "YYYY-MM-DD posting date" },
+          description: { type: "string", description: "Entry description" },
+          lines: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                accountType: { type: "string", enum: ["ledger", "customer", "vendor", "bank", "fixed-asset", "item"], description: "Type of account (default: ledger)" },
+                accountCode: { type: "string", description: "GL account code (4 digits)" },
+                accountName: { type: "string" },
+                debit: { type: "number" },
+                credit: { type: "number" },
+                description: { type: "string" },
+                contactId: { type: "string", description: "For customer/vendor lines" },
+                contactName: { type: "string" },
+                fixedAssetId: { type: "string", description: "For fixed-asset lines" },
+                itemId: { type: "string", description: "For item lines" },
+              },
+              required: ["accountCode", "accountName", "debit", "credit"],
+            },
+          },
+        },
+        required: ["companyId", "date", "description", "lines"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "create_recurring_template",
-      description: "Create a recurring journal entry template (e.g. monthly rent, insurance, loan payment). It will be automatically executed during month-end close.",
+      description: "Create a recurring journal entry that executes automatically during month-end close (e.g. monthly rent, insurance, loan payment). Use post_journal_entry for one-off entries instead. Lines can target ledger, customer, vendor, bank, fixed-asset, or item account types.",
       parameters: {
         type: "object",
         properties: {
@@ -504,11 +539,16 @@ export const AGENT_TOOLS: ChatCompletionTool[] = [
             items: {
               type: "object",
               properties: {
+                accountType: { type: "string", enum: ["ledger", "customer", "vendor", "bank", "fixed-asset", "item"], description: "Type of account (default: ledger)" },
                 accountCode: { type: "string" },
                 accountName: { type: "string" },
                 debit: { type: "number" },
                 credit: { type: "number" },
                 description: { type: "string" },
+                contactId: { type: "string", description: "For customer/vendor lines" },
+                contactName: { type: "string" },
+                fixedAssetId: { type: "string", description: "For fixed-asset lines" },
+                itemId: { type: "string", description: "For item lines" },
               },
               required: ["accountCode", "accountName", "debit", "credit"],
             },

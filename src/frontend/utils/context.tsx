@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import type { NumberFormat, DateFormat, DateTimeFormat } from "@shared/types";
 
 interface CompanyInfo {
@@ -11,6 +11,12 @@ interface CompanyInfo {
   dateTimeFormat?: DateTimeFormat;
 }
 
+interface ToastItem {
+  id: number;
+  message: string;
+  type: "error" | "success" | "info";
+}
+
 interface AppState {
   companyId: string;
   setCompanyId: (id: string) => void;
@@ -20,6 +26,8 @@ interface AppState {
   numberFormat: NumberFormat;
   dateFormat: DateFormat;
   dateTimeFormat: DateTimeFormat;
+  toast: (message: string, type?: "error" | "success" | "info") => void;
+  toasts: ToastItem[];
 }
 
 const AppContext = createContext<AppState>({
@@ -31,6 +39,8 @@ const AppContext = createContext<AppState>({
   numberFormat: "space_comma",
   dateFormat: "dd.MM.yyyy",
   dateTimeFormat: "24h",
+  toast: () => {},
+  toasts: [],
 });
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
@@ -38,6 +48,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     localStorage.getItem("era_companyId") || ""
   );
   const [companies, setCompanies] = useState<CompanyInfo[]>([]);
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const toastCounter = React.useRef(0);
+
+  const toast = useCallback((message: string, type: "error" | "success" | "info" = "error") => {
+    const id = ++toastCounter.current;
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
+  }, []);
 
   function setCompanyId(id: string) {
     setCompanyIdState(id);
@@ -72,7 +90,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const dateTimeFormat: DateTimeFormat = activeCompany?.dateTimeFormat || "24h";
 
   return (
-    <AppContext.Provider value={{ companyId, setCompanyId, companies, setCompanies, refreshCompanies, numberFormat, dateFormat, dateTimeFormat }}>
+    <AppContext.Provider value={{ companyId, setCompanyId, companies, setCompanies, refreshCompanies, numberFormat, dateFormat, dateTimeFormat, toast, toasts }}>
       {children}
     </AppContext.Provider>
   );

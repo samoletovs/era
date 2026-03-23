@@ -50,7 +50,7 @@ interface OpenInvoice {
 }
 
 export function BankRecon() {
-  const { companyId, numberFormat: fmt } = useApp();
+  const { companyId, numberFormat: fmt, toast } = useApp();
   const [recons, setRecons] = useState<Reconciliation[]>([]);
   const [selected, setSelected] = useState<Reconciliation | null>(null);
   const [loading, setLoading] = useState(true);
@@ -129,7 +129,7 @@ export function BankRecon() {
       setSelected(result);
       loadRecons();
       loadOpenInvoices();
-    } catch (err: any) { alert(err.message); }
+    } catch (err: any) { toast(err.message); }
     finally { setImporting(false); }
   }
 
@@ -163,7 +163,7 @@ export function BankRecon() {
       setTab("add");
       loadRecons();
       loadOpenInvoices();
-    } catch (err: any) { alert(err.message); }
+    } catch (err: any) { toast(err.message); }
     finally { setCreatingManual(false); }
   }
 
@@ -193,7 +193,7 @@ export function BankRecon() {
     const absAmount = Math.abs(matchingLine.amount);
     const diff = Math.round((absAmount - allocated) * 100) / 100;
     if (Math.abs(diff) > 0.005 && !diffAccountCode) {
-      alert("Please select a GL account for the over/underpayment difference.");
+      toast("Please select a GL account for the over/underpayment difference.");
       return;
     }
 
@@ -212,7 +212,7 @@ export function BankRecon() {
       setSelectedInvoice(null);
       setTab("lines");
       loadOpenInvoices();
-    } catch (err: any) { alert(err.message); }
+    } catch (err: any) { toast(err.message); }
     finally { setBusy(false); }
   }
 
@@ -236,7 +236,7 @@ export function BankRecon() {
       });
       refreshSelected();
       setPostingLine(null);
-    } catch (err: any) { alert(err.message); }
+    } catch (err: any) { toast(err.message); }
     finally { setBusy(false); }
   }
 
@@ -269,7 +269,7 @@ export function BankRecon() {
       setManualAmount("");
       setManualAccountCode("");
       setManualAccountName("");
-    } catch (err: any) { alert(err.message); }
+    } catch (err: any) { toast(err.message); }
     finally { setBusy(false); }
   }
 
@@ -282,7 +282,7 @@ export function BankRecon() {
       const result = await api.completeBankRecon(companyId, selected.id) as Reconciliation;
       setSelected(result);
       loadRecons();
-    } catch (err: any) { alert(err.message); }
+    } catch (err: any) { toast(err.message); }
     finally { setBusy(false); }
   }
 
