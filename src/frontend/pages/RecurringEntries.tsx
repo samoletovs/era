@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { api } from "../utils/api";
 import { useApp } from "../utils/context";
 import { formatMoney, formatDate } from "../utils/format";
@@ -161,33 +161,6 @@ export function RecurringEntries() {
   function selectCreditAccount(acc: AccountOption) {
     updateForm({ creditCode: acc.code, creditName: acc.name });
     setCreditSuggestions([]);
-  }
-
-  // Quick-fill: parse a description and auto-fill fields
-  function handleQuickFill() {
-    const text = form.quickText.trim();
-    if (!text) return;
-    const guess = guessAccounts(text, accounts);
-
-    // Try to extract amount from text
-    const amtMatch = text.match(/(\d[\d\s]*[.,]?\d*)\s*(eur|€)/i) || text.match(/(€|eur)\s*(\d[\d\s]*[.,]?\d*)/i);
-    let amount = form.amount;
-    if (amtMatch) {
-      const raw = (amtMatch[1] || amtMatch[2]).replace(/\s/g, "").replace(",", ".");
-      const parsed = parseFloat(raw);
-      if (!isNaN(parsed)) amount = String(parsed);
-    }
-
-    updateForm({
-      name: form.name || text.slice(0, 60),
-      description: form.description || text,
-      debitCode: guess.debitCode || form.debitCode,
-      debitName: guess.debitName || form.debitName,
-      creditCode: guess.creditCode || form.creditCode,
-      creditName: guess.creditName || form.creditName,
-      amount: amount || form.amount,
-      quickText: "",
-    });
   }
 
   async function handleCreate() {

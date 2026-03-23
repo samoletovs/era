@@ -197,7 +197,7 @@ export function Invoices() {
             `Corrected invoice for ${creditNoteInv.contactName}, originally ${creditNoteInv.invoiceNumber}. ${creditReason}`
           ) as any;
           if (fields?.lines?.length > 0) {
-            let contactId = creditNoteInv.contactId || "";
+            const contactId = creditNoteInv.contactId || "";
             const corrected = await api.createInvoice(companyId, {
               type: creditNoteInv.type,
               contactId,

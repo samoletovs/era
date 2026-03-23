@@ -122,7 +122,7 @@ export interface CurrencySettings {
   accountingCurrency: string;     // ISO 4217, default "EUR"
   reportingCurrency?: string;     // optional second reporting currency
   exchangeRateSource: "ecb" | "latvian-bank" | "manual" | "group";
-  autoImportRates: boolean;
+  isAutoImportRates: boolean;
 }
 
 export interface ExchangeRate {

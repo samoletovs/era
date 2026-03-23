@@ -1,8 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { api } from "../utils/api";
 import { useApp } from "../utils/context";
-import { formatMoney, formatMoneyOr } from "../utils/format";
-import { AiInput } from "../components/AiInput";
+import { formatMoney } from "../utils/format";
 
 export function Reports() {
   const { companyId, numberFormat: fmt } = useApp();

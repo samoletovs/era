@@ -14,6 +14,7 @@
     "test": "vitest",
     "test:e2e": "playwright test",
     "lint": "eslint src/",
+    "predeploy": "npm run lint && npm run test -- --run && npm run build",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\"",
     "infra:deploy": "az deployment group create --resource-group era-rg --template-file infrastructure/main.bicep",
     "dev-tasks": "tsx scripts/sync-dev-tasks.ts"

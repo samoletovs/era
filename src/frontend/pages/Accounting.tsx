@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { api } from "../utils/api";
 import { useApp } from "../utils/context";
-import { formatMoney, formatMoneyOr } from "../utils/format";
-import type { PeriodCloseRun, PeriodCloseStep, NumberFormat } from "@shared/types";
+import { formatMoney } from "../utils/format";
+import type { PeriodCloseRun, NumberFormat } from "@shared/types";
 
 export function Accounting() {
   const { companyId, numberFormat: fmt } = useApp();
