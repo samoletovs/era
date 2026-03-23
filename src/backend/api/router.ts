@@ -1,5 +1,8 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.js";
+import { validate } from "../middleware/validate.js";
+import { companyAccess } from "../middleware/company-access.js";
+import { CreateCompanySchema, UpdateCompanySchema, PostJournalEntrySchema, CreateInvoiceSchema, CreatePaymentSchema, CreateContactSchema, CreateItemSchema, SubmitFeedbackSchema } from "./schemas.js";
 import { createCompany, getCompany, updateCompany, deleteCompany, getCompanyStats, generateShortName } from "../services/company.js";
 import { postJournalEntry, reverseJournalEntry, getTrialBalance, GLError } from "../services/ledger.js";
 import { createInvoice, postInvoice, getInvoice, findDuplicateInvoice, cancelInvoice, getInvoicePostings, createCreditNote } from "../services/invoice.js";
@@ -20,6 +23,7 @@ import { setBudget, getBudgetVsActual } from "../services/budget.js";
 import { runMonthEnd, runYearEnd, checkCompanyHealth, listCloseRuns, getCloseRun } from "../services/autonomous-tasks.js";
 import { saveExchangeRate, getExchangeRate, importEcbRates, runForeignCurrencyRevaluation } from "../services/currency-revaluation.js";
 import { containers } from "../services/cosmos.js";
+import { parsePagination, paginationClause, paginatedResponse } from "../middleware/pagination.js";
 import type { ApiResponse, Account, Company, Feedback, PostingRule, BusinessEvent } from "@shared/types";
 
 export const router = Router();
@@ -56,6 +60,9 @@ router.get("/register/search", async (req, res) => {
 
 router.use(authMiddleware);
 
+// Company-level access control for all /companies/:companyId/* routes
+router.use("/companies/:companyId", companyAccess);
+
 // ─── Companies ──────────────────────────────────────────────
 
 router.get("/companies", async (req, res) => {
@@ -83,7 +90,7 @@ router.get("/companies", async (req, res) => {
 });
 
 // Company
-router.post("/companies", async (req, res) => {
+router.post("/companies", validate(CreateCompanySchema), async (req, res) => {
   try {
     const company = await createCompany({
       ...req.body,
@@ -106,7 +113,7 @@ router.get("/companies/:id", async (req, res) => {
   res.json(response);
 });
 
-router.patch("/companies/:id", async (req, res) => {
+router.patch("/companies/:id", validate(UpdateCompanySchema), async (req, res) => {
   try {
     const company = await updateCompany(req.params.id, req.body);
     if (!company) {
@@ -190,7 +197,10 @@ router.get("/companies/:companyId/accounts/:accountCode/transactions", async (re
   try {
     const { companyId, accountCode } = req.params;
     const asOf = req.query.asOf as string | undefined;
+    const pg = parsePagination(req);
 
+    // Use Cosmos UDF-free approach: filter entries that contain this account code in lines
+    // ARRAY_CONTAINS with partial match filters server-side, reducing data transfer
     let query = "SELECT * FROM c WHERE c.companyId = @cid AND (c.docType = 'journal-entry' OR IS_DEFINED(c.entryNumber)) AND c.status = 'posted'";
     const parameters: { name: string; value: string }[] = [
       { name: "@cid", value: companyId },
@@ -205,13 +215,6 @@ router.get("/companies/:companyId/accounts/:accountCode/transactions", async (re
       .query<any>({ query, parameters })
       .fetchAll();
 
-    // Filter to entries that touch this account and extract relevant lines
-    const transactions: { entryId: string; entryNumber: string; date: string; description: string; debit: number; credit: number; sourceType: string }[] = [];
-    let runningBalance = 0;
-
-    // Process in chronological order for running balance
-    const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date) || a.entryNumber.localeCompare(b.entryNumber));
-
     // Look up account to determine normal side
     const accountId = `${companyId}-acct-${accountCode}`;
     let normalSide: "debit" | "credit" = "debit";
@@ -220,6 +223,13 @@ router.get("/companies/:companyId/accounts/:accountCode/transactions", async (re
       if (resource) normalSide = resource.normalSide;
     } catch { /* use default */ }
 
+    // Build filtered + paginated transaction list
+    const allTransactions: { entryId: string; entryNumber: string; date: string; description: string; debit: number; credit: number; sourceType: string }[] = [];
+    let runningBalance = 0;
+
+    // Process in chronological order for running balance
+    const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date) || (a.entryNumber || "").localeCompare(b.entryNumber || ""));
+
     for (const entry of sorted) {
       for (const line of (entry.lines || [])) {
         if (line.accountCode !== accountCode) continue;
@@ -227,7 +237,7 @@ router.get("/companies/:companyId/accounts/:accountCode/transactions", async (re
           ? (line.credit || 0) - (line.debit || 0)
           : (line.debit || 0) - (line.credit || 0);
         runningBalance = Math.round((runningBalance + delta) * 100) / 100;
-        transactions.push({
+        allTransactions.push({
           entryId: entry.id,
           entryNumber: entry.entryNumber,
           date: entry.date,
@@ -239,10 +249,14 @@ router.get("/companies/:companyId/accounts/:accountCode/transactions", async (re
       }
     }
 
-    // Return in reverse chronological order
-    transactions.reverse();
+    // Reverse to show newest first, then paginate
+    allTransactions.reverse();
+    const paged = allTransactions.slice(pg.offset, pg.offset + pg.limit);
 
-    res.json({ data: { transactions, balance: runningBalance } } as ApiResponse);
+    res.json({
+      data: { transactions: paged, balance: runningBalance },
+      meta: { limit: pg.limit, offset: pg.offset, count: paged.length, total: allTransactions.length },
+    });
   } catch (err) {
     res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
   }
@@ -251,14 +265,14 @@ router.get("/companies/:companyId/accounts/:accountCode/transactions", async (re
 // Journal Entries
 router.get("/companies/:companyId/journal-entries", async (req, res) => {
   try {
+    const pg = parsePagination(req);
     const { resources } = await containers.ledger().items
       .query({
-        query: "SELECT * FROM c WHERE c.companyId = @companyId AND (c.docType = 'journal-entry' OR IS_DEFINED(c.entryNumber)) ORDER BY c.date DESC",
+        query: `SELECT * FROM c WHERE c.companyId = @companyId AND (c.docType = 'journal-entry' OR IS_DEFINED(c.entryNumber)) ORDER BY c.date DESC ${paginationClause(pg)}`,
         parameters: [{ name: "@companyId", value: req.params.companyId }],
       })
       .fetchAll();
-    const response: ApiResponse = { data: resources };
-    res.json(response);
+    res.json(paginatedResponse(resources, pg));
   } catch (err) {
     res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
   }
@@ -267,6 +281,7 @@ router.get("/companies/:companyId/journal-entries", async (req, res) => {
 // Invoices
 router.get("/companies/:companyId/invoices", async (req, res) => {
   try {
+    const pg = parsePagination(req);
     const typeFilter = req.query.type ? "AND c.type = @type" : "";
     const params: { name: string; value: string }[] = [
       { name: "@companyId", value: req.params.companyId },
@@ -276,12 +291,11 @@ router.get("/companies/:companyId/invoices", async (req, res) => {
     }
     const { resources } = await containers.documents().items
       .query({
-        query: `SELECT * FROM c WHERE c.companyId = @companyId AND (c.docType = 'invoice' OR IS_DEFINED(c.invoiceNumber)) ${typeFilter} ORDER BY c.date DESC`,
+        query: `SELECT * FROM c WHERE c.companyId = @companyId AND (c.docType = 'invoice' OR IS_DEFINED(c.invoiceNumber)) ${typeFilter} ORDER BY c.date DESC ${paginationClause(pg)}`,
         parameters: params,
       })
       .fetchAll();
-    const response: ApiResponse = { data: resources };
-    res.json(response);
+    res.json(paginatedResponse(resources, pg));
   } catch (err) {
     res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
   }
@@ -290,14 +304,14 @@ router.get("/companies/:companyId/invoices", async (req, res) => {
 // Contacts
 router.get("/companies/:companyId/contacts", async (req, res) => {
   try {
+    const pg = parsePagination(req);
     const { resources } = await containers.contacts().items
       .query({
-        query: "SELECT * FROM c WHERE c.companyId = @companyId ORDER BY c.name",
+        query: `SELECT * FROM c WHERE c.companyId = @companyId ORDER BY c.name ${paginationClause(pg)}`,
         parameters: [{ name: "@companyId", value: req.params.companyId }],
       })
       .fetchAll();
-    const response: ApiResponse = { data: resources };
-    res.json(response);
+    res.json(paginatedResponse(resources, pg));
   } catch (err) {
     res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
   }
@@ -319,14 +333,14 @@ router.patch("/companies/:companyId/contacts/:contactId", async (req, res) => {
 // Items
 router.get("/companies/:companyId/items", async (req, res) => {
   try {
+    const pg = parsePagination(req);
     const { resources } = await containers.inventory().items
       .query({
-        query: "SELECT * FROM c WHERE c.companyId = @companyId AND (c.docType = 'item' OR IS_DEFINED(c.sellingPrice)) ORDER BY c.name",
+        query: `SELECT * FROM c WHERE c.companyId = @companyId AND (c.docType = 'item' OR IS_DEFINED(c.sellingPrice)) ORDER BY c.name ${paginationClause(pg)}`,
         parameters: [{ name: "@companyId", value: req.params.companyId }],
       })
       .fetchAll();
-    const response: ApiResponse = { data: resources };
-    res.json(response);
+    res.json(paginatedResponse(resources, pg));
   } catch (err) {
     res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
   }
@@ -383,7 +397,7 @@ function handleGLError(err: unknown, res: import("express").Response) {
   }
 }
 
-router.post("/companies/:companyId/journal-entries", async (req, res) => {
+router.post("/companies/:companyId/journal-entries", validate(PostJournalEntrySchema), async (req, res) => {
   try {
     const entry = await postJournalEntry({
       companyId: req.params.companyId,
@@ -537,7 +551,7 @@ router.post("/companies/:companyId/invoices/upload", async (req, res) => {
 
 // ─── Finance: Invoices (CRUD + post) ────────────────────────
 
-router.post("/companies/:companyId/invoices", async (req, res) => {
+router.post("/companies/:companyId/invoices", validate(CreateInvoiceSchema), async (req, res) => {
   try {
     const invoice = await createInvoice({
       companyId: req.params.companyId,
@@ -597,7 +611,7 @@ router.get("/companies/:companyId/invoices/:invoiceId/postings", async (req, res
 
 // ─── Finance: Payments ──────────────────────────────────────
 
-router.post("/companies/:companyId/payments", async (req, res) => {
+router.post("/companies/:companyId/payments", validate(CreatePaymentSchema), async (req, res) => {
   try {
     const payment = await createAndPostPayment({
       companyId: req.params.companyId,
@@ -637,7 +651,7 @@ router.get("/companies/:companyId/contacts/find", async (req, res) => {
   }
 });
 
-router.post("/companies/:companyId/contacts", async (req, res) => {
+router.post("/companies/:companyId/contacts", validate(CreateContactSchema), async (req, res) => {
   try {
     const contact = await createContact({
       companyId: req.params.companyId,
@@ -703,7 +717,7 @@ router.get("/companies/:companyId/contacts/:contactId/transactions", async (req,
 
 // ─── Inventory ──────────────────────────────────────────────
 
-router.post("/companies/:companyId/items", async (req, res) => {
+router.post("/companies/:companyId/items", validate(CreateItemSchema), async (req, res) => {
   try {
     const item = await createItem({
       companyId: req.params.companyId,
@@ -1002,7 +1016,7 @@ router.post("/chat", async (req, res) => {
 
 // ─── Feedback / Dev Tasks ───────────────────────────────────
 
-router.post("/feedback", async (req, res) => {
+router.post("/feedback", validate(SubmitFeedbackSchema), async (req, res) => {
   try {
     const { page, message, companyId } = req.body;
     if (!message || typeof message !== "string" || message.trim().length === 0) {
@@ -1028,15 +1042,16 @@ router.post("/feedback", async (req, res) => {
 
 router.get("/feedback", async (req, res) => {
   try {
+    const pg = parsePagination(req);
     const statusFilter = req.query.status ? " WHERE c.status = @status" : "";
     const params = req.query.status ? [{ name: "@status", value: req.query.status as string }] : [];
     const { resources } = await containers.feedback().items
       .query<Feedback>({
-        query: `SELECT * FROM c${statusFilter} ORDER BY c.submittedAt DESC`, // eslint-disable-line era/no-cross-partition-query
+        query: `SELECT * FROM c${statusFilter} ORDER BY c.submittedAt DESC ${paginationClause(pg)}`, // eslint-disable-line era/no-cross-partition-query
         parameters: params,
       })
       .fetchAll();
-    res.json({ data: resources } as ApiResponse);
+    res.json(paginatedResponse(resources, pg));
   } catch (err) {
     res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
   }

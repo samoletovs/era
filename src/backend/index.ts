@@ -49,13 +49,25 @@ app.use(rateLimit({
 
 app.use(express.json({ limit: "10mb" }));
 
-// Request logging
+// Request ID + structured logging
 app.use((req, _res, next) => {
+  const requestId = req.headers["x-request-id"] as string || crypto.randomUUID();
+  (req as any).requestId = requestId;
+  _res.setHeader("x-request-id", requestId);
+
   const start = Date.now();
   _res.on("finish", () => {
     const duration = Date.now() - start;
     if (req.path !== "/health") {
-      console.warn(`${req.method} ${req.path} ${_res.statusCode} ${duration}ms`);
+      const log = {
+        method: req.method,
+        path: req.path,
+        status: _res.statusCode,
+        duration,
+        requestId,
+        userId: (req as any).user?.id,
+      };
+      console.warn(JSON.stringify(log));
     }
   });
   next();

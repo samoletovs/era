@@ -67,22 +67,37 @@ resource cosmosDb 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2024-05-15
 }
 
 // Containers — partitioned per Cosmos DB best practices
-var containers = [
-  { name: 'companies', partitionKey: '/id' }
-  { name: 'users', partitionKey: '/id' }
-  { name: 'ledger', partitionKey: '/companyId' }
-  { name: 'documents', partitionKey: '/companyId' }
-  { name: 'contacts', partitionKey: '/companyId' }
-  { name: 'inventory', partitionKey: '/companyId' }
-  { name: 'agent-state', partitionKey: '/companyId' }
-  { name: 'chat', partitionKey: '/companyId' }
-  { name: 'feedback', partitionKey: '/id' }
-  { name: 'events', partitionKey: '/companyId' }
-  { name: 'rules', partitionKey: '/country' }
+// Composite indexes defined for hot query patterns (ORDER BY with multiple fields)
+var containerDefs = [
+  { name: 'companies', partitionKey: '/id', compositeIndexes: [] }
+  { name: 'users', partitionKey: '/id', compositeIndexes: [] }
+  { name: 'ledger', partitionKey: '/companyId', compositeIndexes: [
+    // Journal entries: ORDER BY date DESC, entryNumber DESC
+    [{ path: '/date', order: 'descending' }, { path: '/entryNumber', order: 'descending' }]
+    // Account code lookups
+    [{ path: '/docType', order: 'ascending' }, { path: '/code', order: 'ascending' }]
+  ] }
+  { name: 'documents', partitionKey: '/companyId', compositeIndexes: [
+    // Invoices: ORDER BY date DESC
+    [{ path: '/docType', order: 'ascending' }, { path: '/date', order: 'descending' }]
+  ] }
+  { name: 'contacts', partitionKey: '/companyId', compositeIndexes: [
+    [{ path: '/name', order: 'ascending' }]
+  ] }
+  { name: 'inventory', partitionKey: '/companyId', compositeIndexes: [
+    [{ path: '/docType', order: 'ascending' }, { path: '/name', order: 'ascending' }]
+  ] }
+  { name: 'agent-state', partitionKey: '/companyId', compositeIndexes: [] }
+  { name: 'chat', partitionKey: '/companyId', compositeIndexes: [] }
+  { name: 'feedback', partitionKey: '/id', compositeIndexes: [] }
+  { name: 'events', partitionKey: '/companyId', compositeIndexes: [
+    [{ path: '/timestamp', order: 'descending' }]
+  ] }
+  { name: 'rules', partitionKey: '/country', compositeIndexes: [] }
 ]
 
 resource cosmosContainers 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-05-15' = [
-  for c in containers: {
+  for c in containerDefs: {
     parent: cosmosDb
     name: c.name
     properties: {
@@ -102,6 +117,7 @@ resource cosmosContainers 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/co
           excludedPaths: [
             { path: '/"_etag"/?' }
           ]
+          compositeIndexes: empty(c.compositeIndexes) ? [] : c.compositeIndexes
         }
         defaultTtl: -1
       }

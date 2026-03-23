@@ -8,6 +8,7 @@ import { v4 as uuidv4 } from "uuid";
 import { containers } from "./cosmos.js";
 import { postJournalEntry, GLError } from "./ledger.js";
 import { emitEvent } from "./events.js";
+import { cacheGet, cacheSet, CACHE_KEYS, CACHE_TTL } from "./cache.js";
 import type { Account, Company, ExchangeRate, ExchangeRateType, JournalLine } from "@shared/types";
 
 function roundCurrency(n: number): number {
@@ -29,6 +30,11 @@ export async function getExchangeRate(
 ): Promise<number> {
   if (fromCurrency === toCurrency) return 1;
 
+  // Check cache first
+  const cacheKey = CACHE_KEYS.exchangeRate(fromCurrency, toCurrency, effectiveDate);
+  const cached = cacheGet<number>(cacheKey);
+  if (cached !== undefined) return cached;
+
   const { resources } = await containers.ledger().items
     .query<ExchangeRate>({
       query: `SELECT TOP 1 * FROM c
@@ -47,7 +53,10 @@ export async function getExchangeRate(
     })
     .fetchAll();
 
-  if (resources.length > 0) return resources[0].rate;
+  if (resources.length > 0) {
+    cacheSet(cacheKey, resources[0].rate, CACHE_TTL.EXCHANGE_RATE);
+    return resources[0].rate;
+  }
 
   // Fallback: try the reverse direction
   const { resources: reverse } = await containers.ledger().items
@@ -68,7 +77,11 @@ export async function getExchangeRate(
     })
     .fetchAll();
 
-  if (reverse.length > 0) return roundCurrency(1 / reverse[0].rate);
+  if (reverse.length > 0) {
+    const rate = roundCurrency(1 / reverse[0].rate);
+    cacheSet(cacheKey, rate, CACHE_TTL.EXCHANGE_RATE);
+    return rate;
+  }
 
   // Fallback: try "daily" rate type if requested type not found
   if (rateType !== "daily") {
