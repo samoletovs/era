@@ -40,7 +40,7 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
         <div className="company-switcher">
           <button className="switcher-btn" onClick={() => setSwitcherOpen(!switcherOpen)}>
             <span className="switcher-code">{activeCompany?.code || "—"}</span>
-            <span className="switcher-name">{activeCompany?.name || "Select company"}</span>
+            <span className="switcher-name">{activeCompany?.shortName || activeCompany?.name || "Select company"}</span>
             <span className="switcher-arrow">{switcherOpen ? "▴" : "▾"}</span>
           </button>
           {switcherOpen && (
@@ -52,7 +52,7 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
                   onClick={() => { setCompanyId(c.id); setSwitcherOpen(false); }}
                 >
                   <span className="switcher-code">{c.code}</span>
-                  <span className="switcher-name">{c.name}</span>
+                  <span className="switcher-name">{c.shortName || c.name}</span>
                 </button>
               ))}
             </div>

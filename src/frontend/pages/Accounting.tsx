@@ -19,6 +19,13 @@ export function Accounting() {
   const [yearEndYear, setYearEndYear] = useState(new Date().getFullYear() - 1);
   const [yearEndResult, setYearEndResult] = useState<any>(null);
 
+  const [vatPeriod, setVatPeriod] = useState(() => {
+    const d = new Date(); d.setMonth(d.getMonth() - 1);
+    return d.toISOString().slice(0, 7);
+  });
+  const [vatResult, setVatResult] = useState<any>(null);
+  const [vatLoading, setVatLoading] = useState(false);
+
   const [running, setRunning] = useState("");
 
   // Close run history
@@ -54,6 +61,18 @@ export function Accounting() {
       api.closeRuns(companyId).then(setCloseRuns).catch(() => {});
     } catch (e: any) { alert(e.message); }
     finally { setRunning(""); }
+  }
+
+  async function handleVatReturn() {
+    if (!companyId) return;
+    setVatLoading(true);
+    setVatResult(null);
+    try {
+      const [year, month] = vatPeriod.split("-").map(Number);
+      const result = await api.vatDeclaration(companyId, year, month);
+      setVatResult(result);
+    } catch (e: any) { alert(e.message); }
+    finally { setVatLoading(false); }
   }
 
   if (!companyId) return <div className="empty-state"><div className="icon">🏢</div><h3>No company selected</h3></div>;
@@ -154,6 +173,33 @@ export function Accounting() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* VAT return */}
+      <div className="metric-card" style={{ marginTop: 24, marginBottom: 24 }}>
+        <div className="label" style={{ marginBottom: 16 }}>VAT return (PVN deklarācija)</div>
+        <p style={{ fontSize: "var(--text-sm)", color: "var(--text-secondary)", marginBottom: 16 }}>
+          Generate the VAT return for a given month. Shows output VAT, input VAT, and amount payable to VID.
+        </p>
+        <div className="form-inline-row">
+          <div>
+            <div className="detail-label">Period</div>
+            <input type="month" value={vatPeriod} onChange={(e) => setVatPeriod(e.target.value)} className="form-input" />
+          </div>
+          <button className="btn-secondary" onClick={handleVatReturn} disabled={vatLoading}>
+            {vatLoading ? "Generating..." : "Generate VAT return"}
+          </button>
+        </div>
+        {vatResult && (
+          <div style={{ marginTop: 16, padding: 14, background: "var(--bg-page)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)" }}>
+            <div style={{ fontWeight: 500, marginBottom: 8 }}>VAT return — {vatResult.period}</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, fontSize: "var(--text-sm)" }}>
+              <div><span style={{ color: "var(--text-secondary)" }}>Output VAT</span><br /><strong>{formatMoney(vatResult.totalOutputVat, fmt)}</strong></div>
+              <div><span style={{ color: "var(--text-secondary)" }}>Input VAT</span><br /><strong>{formatMoney(vatResult.totalInputVat, fmt)}</strong></div>
+              <div><span style={{ color: "var(--text-secondary)" }}>VAT payable</span><br /><strong style={{ color: (vatResult.vatPayable ?? 0) >= 0 ? "#FF3B30" : "#34C759" }}>{formatMoney(vatResult.vatPayable, fmt)}</strong></div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Close run history */}

@@ -19,6 +19,7 @@ export interface Company {
   id: string;
   code: string;                   // Short code, max 5 chars (e.g. "DAIS", "ERATC")
   name: string;
+  shortName?: string;            // Display name / "known as" (e.g. "Dais" instead of 'Sabiedrība "DAIS"')
   registrationNumber: string;   // Latvian reg number (e.g. 40003XXXXXX)
   vatNumber?: string;           // LV + 11 digits
   legalAddress: Address;

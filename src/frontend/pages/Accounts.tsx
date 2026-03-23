@@ -154,7 +154,7 @@ export function Accounts() {
       {loading ? <p style={{ color: "#A0A0A0" }}>Loading...</p> : (
         <table className="data-table coa-table">
           <thead>
-            <tr><th>Code</th><th>Name</th><th>Type</th><th>Balance</th></tr>
+            <tr><th>Code</th><th>Name</th><th className="hide-mobile">Type</th><th>Balance</th></tr>
           </thead>
           <tbody>
             {visibleAccounts.map((a: any) => {
@@ -171,7 +171,7 @@ export function Accounts() {
                       {hasChildren && <span className="coa-toggle">{isCollapsed ? "▸" : "▾"}</span>}
                       {a.name}
                     </td>
-                    <td><span className="badge">{a.type}</span></td>
+                    <td className="hide-mobile"><span className="badge">{a.type}</span></td>
                     <td className="num">{formatMoney(balance, fmt)}</td>
                   </tr>
                 );
@@ -185,7 +185,7 @@ export function Accounts() {
                       {hasChildren && <span className="coa-toggle">{isCollapsed ? "▸" : "▾"}</span>}
                       {a.name}
                     </td>
-                    <td></td>
+                    <td className="hide-mobile"></td>
                     <td className="num">{formatMoney(balance, fmt)}</td>
                   </tr>
                 );
@@ -200,7 +200,7 @@ export function Accounts() {
                 >
                   <td className="mono">{a.code}</td>
                   <td>{a.name}</td>
-                  <td></td>
+                  <td className="hide-mobile"></td>
                   <td className="num">{formatMoney(balance, fmt)}</td>
                 </tr>
               );

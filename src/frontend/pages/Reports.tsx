@@ -9,10 +9,11 @@ export function Reports() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
-  // Period controls
+  // Period controls — default to this month
   const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth(); // 0-indexed
   const today = new Date().toISOString().slice(0, 10);
-  const [dateFrom, setDateFrom] = useState(`${currentYear}-01-01`);
+  const [dateFrom, setDateFrom] = useState(`${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-01`);
   const [dateTo, setDateTo] = useState(today);
 
   // Quick period presets

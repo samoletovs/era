@@ -42,6 +42,9 @@ export function Items() {
   const [listening, setListening] = useState(false);
   const recognitionRef = useRef<any>(null);
 
+  // Detail view
+  const [selected, setSelected] = useState<any>(null);
+
   useEffect(() => {
     if (!companyId) { setLoading(false); return; }
     loadItems();
@@ -355,7 +358,9 @@ export function Items() {
           </div>
         )
       ) : (
-        <table className="data-table">
+        <>
+        {/* Desktop table */}
+        <table className="data-table desktop-only-table">
           <thead>
             <tr>
               {([
@@ -382,7 +387,7 @@ export function Items() {
           </thead>
           <tbody>
             {filteredItems.map((item: any) => (
-              <tr key={item.id}>
+              <tr key={item.id} onClick={() => setSelected(item)} style={{ cursor: "pointer" }}>
                 <td className="mono">{item.code}</td>
                 <td>{item.name}</td>
                 <td><span className="badge">{item.type}</span></td>
@@ -393,6 +398,45 @@ export function Items() {
             ))}
           </tbody>
         </table>
+
+        {/* Mobile card view */}
+        <div className="mobile-card-list">
+          {filteredItems.map((item: any) => (
+            <div key={item.id} className="mobile-card" onClick={() => setSelected(item)}>
+              <div className="mobile-card-header">
+                <span className="mobile-card-title">{item.name}</span>
+                <span className="mobile-card-amount">{formatMoney(item.sellingPrice, fmt)}</span>
+              </div>
+              <div className="mobile-card-meta">
+                <span className="mono">{item.code}</span>
+                <span className="badge">{item.type}</span>
+                <span>{item.vatRate}%</span>
+                {item.type !== "service" && <span>Qty: {item.quantityOnHand}</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+        </>
+      )}
+
+      {/* Item detail panel */}
+      {selected && (
+        <div className="settings-card" style={{ marginTop: 16 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
+            <h3 style={{ fontSize: 14, fontWeight: 600 }}>{selected.name}</h3>
+            <button className="btn-secondary" style={{ fontSize: "var(--text-sm)", padding: "2px 10px" }} onClick={() => setSelected(null)}>✕</button>
+          </div>
+          <div className="onboarding-details">
+            <div className="detail-row"><span className="detail-label">Code</span><span className="mono">{selected.code}</span></div>
+            <div className="detail-row"><span className="detail-label">Type</span><span className="badge">{selected.type}</span></div>
+            {selected.description && <div className="detail-row"><span className="detail-label">Description</span><span>{selected.description}</span></div>}
+            <div className="detail-row"><span className="detail-label">Unit</span><span>{selected.unitOfMeasure}</span></div>
+            <div className="detail-row"><span className="detail-label">Cost price</span><span>{formatMoney(selected.costPrice, fmt)}</span></div>
+            <div className="detail-row"><span className="detail-label">Selling price</span><span>{formatMoney(selected.sellingPrice, fmt)}</span></div>
+            <div className="detail-row"><span className="detail-label">VAT rate</span><span>{selected.vatRate}%</span></div>
+            {selected.type !== "service" && <div className="detail-row"><span className="detail-label">On hand</span><span>{selected.quantityOnHand}</span></div>}
+          </div>
+        </div>
       )}
     </div>
   );

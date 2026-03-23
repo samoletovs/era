@@ -281,16 +281,16 @@ export function FixedAssets() {
           {filteredAssets.length === 0 ? (
             <div className="empty-state"><div className="icon">🔍</div><h3>No matching assets</h3><p>Try adjusting your search or filters.</p></div>
           ) : (
-            <table className="data-table">
+            <>
+            {/* Desktop table */}
+            <table className="data-table desktop-only-table">
               <thead>
                 <tr>
                   {([
                     ["code", "Code"],
                     ["name", "Name"],
-                    ["assetAccountCode", "Account"],
                     ["acquisitionCost", "Cost"],
-                    ["accumulatedDepreciation", "Accum. depr."],
-                    ["netBookValue", "Net book value"],
+                    ["netBookValue", "NBV"],
                     ["status", "Status"],
                   ] as [SortKey, string][]).map(([key, label]) => (
                     <th
@@ -313,9 +313,7 @@ export function FixedAssets() {
                   <tr key={a.id} onClick={() => handleSelect(a)} style={{ cursor: "pointer" }}>
                     <td className="mono">{a.code}</td>
                     <td>{a.name}</td>
-                    <td className="mono">{a.assetAccountCode}</td>
                     <td className="num">{formatMoney(a.acquisitionCost, fmt)}</td>
-                    <td className="num">{formatMoney(a.accumulatedDepreciation, fmt)}</td>
                     <td className="num" style={{ fontWeight: 500 }}>{formatMoney(a.netBookValue, fmt)}</td>
                     <td><span className={`badge ${a.status === "active" ? "badge-posted" : a.status === "disposed" ? "badge-cancelled" : "badge-paid"}`}>{a.status}</span></td>
                     <td onClick={e => e.stopPropagation()}>{a.status === "active" && <button className="btn-secondary" style={{ padding: "2px 8px", fontSize: 12 }} onClick={() => startDispose(a)}>Dispose</button>}</td>
@@ -323,6 +321,24 @@ export function FixedAssets() {
                 ))}
               </tbody>
             </table>
+
+            {/* Mobile card view */}
+            <div className="mobile-card-list">
+              {filteredAssets.map((a: any) => (
+                <div key={a.id} className="mobile-card" onClick={() => handleSelect(a)}>
+                  <div className="mobile-card-header">
+                    <span className="mobile-card-title">{a.name}</span>
+                    <span className="mobile-card-amount">{formatMoney(a.netBookValue, fmt)}</span>
+                  </div>
+                  <div className="mobile-card-meta">
+                    <span className="mono">{a.code}</span>
+                    <span>Cost: {formatMoney(a.acquisitionCost, fmt)}</span>
+                    <span className={`badge ${a.status === "active" ? "badge-posted" : a.status === "disposed" ? "badge-cancelled" : "badge-paid"}`}>{a.status}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            </>
           )}
         </>
       )}

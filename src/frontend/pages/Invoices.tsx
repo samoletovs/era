@@ -487,15 +487,12 @@ export function Invoices() {
     <div>
       <div className="page-header-bar">
         <h2 className="page-title" style={{ marginBottom: 0 }}>Invoices</h2>
-        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <div className="action-buttons" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           <button className={`btn-primary ${activePanel === "create" ? "active" : ""}`} onClick={() => togglePanel("create")}>
             {activePanel === "create" ? "Cancel" : "+ Create invoice"}
           </button>
           <button className={`btn-secondary ${activePanel === "upload" ? "active" : ""}`} onClick={() => togglePanel("upload")}>
-            {activePanel === "upload" ? "Cancel" : "📄 Upload invoice"}
-          </button>
-          <button className={`btn-secondary ${activePanel === "pay" ? "active" : ""}`} onClick={() => togglePanel("pay")}>
-            {activePanel === "pay" ? "Cancel" : "💳 Pay invoice"}
+            {activePanel === "upload" ? "Cancel" : "📄 Upload"}
           </button>
         </div>
       </div>
@@ -505,15 +502,15 @@ export function Invoices() {
         <div className="settings-card" style={{ marginBottom: 20 }}>
           <div style={{ marginBottom: 16 }}>
             <label style={labelStyle}>Describe the invoice you want to create</label>
-            <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "stretch", flexWrap: "wrap" }}>
               <input
                 type="text"
                 value={aiPrompt}
                 onChange={e => setAiPrompt(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter") handleAiDescribe(); }}
-                placeholder='e.g. "Sales invoice for SIA Klient, consulting 10 hours at €120/h"'
+                placeholder='e.g. "Sales invoice for SIA Klient, consulting 10h at €120/h"'
                 className="form-input"
-                style={{ flex: 1 }}
+                style={{ flex: 1, minWidth: 0, fontSize: 16 }}
                 aria-label="Describe invoice"
               />
               <button className="btn-primary" onClick={() => handleAiDescribe()} disabled={aiLoading || !aiPrompt.trim()} style={{ whiteSpace: "nowrap" }}>
@@ -664,52 +661,6 @@ export function Invoices() {
         </div>
       )}
 
-      {/* ─── Pay Invoice Panel ────────────────────────────── */}
-      {activePanel === "pay" && !payInvoice && (
-        <div className="settings-card" style={{ marginBottom: 20 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>Select an invoice to pay</h3>
-          <p style={{ fontSize: "var(--text-sm)", color: "var(--text-secondary)", margin: 0 }}>
-            Click on any posted or overdue invoice below to record a payment.
-          </p>
-        </div>
-      )}
-
-      {activePanel === "pay" && payInvoice && (
-        <div className="settings-card" style={{ marginBottom: 20 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>
-            Pay {payInvoice.invoiceNumber} — {payInvoice.contactName}
-          </h3>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
-            <div>
-              <label style={labelStyle}>Invoice total</label>
-              <div style={{ fontWeight: 500, fontSize: "var(--text-base)" }}>{formatMoney(payInvoice.total, fmt)}</div>
-            </div>
-            <div>
-              <label style={labelStyle}>Already paid</label>
-              <div style={{ fontWeight: 500, fontSize: "var(--text-base)" }}>{formatMoney(payInvoice.amountPaid || 0, fmt)}</div>
-            </div>
-            <div>
-              <label style={labelStyle}>Amount to pay</label>
-              <input type="number" step="0.01" value={payAmount} onChange={e => setPayAmount(e.target.value)} className="form-input" style={{ width: "100%" }} aria-label="Payment amount" />
-            </div>
-            <div>
-              <label style={labelStyle}>Payment date</label>
-              <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)} className="form-input" style={{ width: "100%" }} aria-label="Payment date" />
-            </div>
-            <div style={{ gridColumn: "span 2" }}>
-              <label style={labelStyle}>Reference</label>
-              <input type="text" value={payReference} onChange={e => setPayReference(e.target.value)} placeholder="Bank reference or note" className="form-input" style={{ width: "100%" }} aria-label="Payment reference" />
-            </div>
-          </div>
-          <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
-            <button className="btn-primary" onClick={handlePayInvoice} disabled={paying || !payAmount}>
-              {paying ? "Processing..." : "Record payment"}
-            </button>
-            <button className="btn-secondary" onClick={() => setPayInvoice(null)}>Cancel</button>
-          </div>
-        </div>
-      )}
-
       {/* ─── Type Filter ─────────────────────────────────── */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <div className="coa-level-controls">
@@ -763,17 +714,16 @@ export function Invoices() {
           </div>
         )
       ) : (
-        <table className="data-table">
+        <>
+        {/* Desktop table */}
+        <table className="data-table desktop-only-table">
           <thead>
             <tr>
               {([
                 ["invoiceNumber", "Number"],
-                ["vendorInvoiceNumber", "Vendor inv #"],
                 ["type", "Type"],
                 ["contactName", "Contact"],
                 ["date", "Date"],
-                ["subtotal", "Net"],
-                ["vatAmount", "VAT"],
                 ["total", "Total"],
                 ["status", "Status"],
               ] as [SortKey, string][]).map(([key, label]) => (
@@ -794,14 +744,11 @@ export function Invoices() {
           </thead>
           <tbody>
             {filteredInvoices.map((inv: any) => (
-              <tr key={inv.id} onClick={() => activePanel === "pay" && !payInvoice && (inv.status === "posted" || inv.status === "overdue") ? startPay(inv) : handleSelect(inv)} style={{ cursor: "pointer" }}>
+              <tr key={inv.id} onClick={() => handleSelect(inv)} style={{ cursor: "pointer" }}>
                 <td className="mono">{inv.invoiceNumber}</td>
-                <td className="mono" style={{ color: "#787878" }}>{inv.vendorInvoiceNumber || "—"}</td>
                 <td><span className="badge">{inv.type}</span></td>
                 <td>{inv.contactName}</td>
                 <td>{inv.date}</td>
-                <td className="num">{formatMoney(inv.subtotal, fmt)}</td>
-                <td className="num">{formatMoney(inv.vatAmount, fmt)}</td>
                 <td className="num" style={{ fontWeight: 500 }}>{formatMoney(inv.total, fmt)}</td>
                 <td><span className={`badge badge-${inv.status}`}>{inv.status}</span></td>
                 <td>
@@ -815,6 +762,25 @@ export function Invoices() {
             ))}
           </tbody>
         </table>
+
+        {/* Mobile card view */}
+        <div className="mobile-card-list">
+          {filteredInvoices.map((inv: any) => (
+            <div key={inv.id} className="mobile-card" onClick={() => handleSelect(inv)}>
+              <div className="mobile-card-header">
+                <span className="mobile-card-title">{inv.contactName || inv.invoiceNumber}</span>
+                <span className="mobile-card-amount">{formatMoney(inv.total, fmt)}</span>
+              </div>
+              <div className="mobile-card-meta">
+                <span className="mono">{inv.invoiceNumber}</span>
+                <span className="badge">{inv.type}</span>
+                <span>{inv.date}</span>
+                <span className={`badge badge-${inv.status}`}>{inv.status}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+        </>
       )}
     </div>
   );
