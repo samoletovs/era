@@ -1,7 +1,9 @@
-import React, { useEffect, useMemo, useState, useRef } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { api } from "../utils/api";
 import { useApp } from "../utils/context";
 import { formatMoney } from "../utils/format";
+import { GlPostings } from "../components/GlPostings";
+import { AiInput } from "../components/AiInput";
 
 type ItemSortKey = "code" | "name" | "type" | "sellingPrice" | "vatRate" | "quantityOnHand";
 type SortDir = "asc" | "desc";
@@ -36,14 +38,21 @@ export function Items() {
   // Add form
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<ItemForm>(EMPTY_FORM);
-  const [aiPrompt, setAiPrompt] = useState("");
-  const [aiLoading, setAiLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [listening, setListening] = useState(false);
-  const recognitionRef = useRef<any>(null);
 
   // Detail view
   const [selected, setSelected] = useState<any>(null);
+  const [itemEntries, setItemEntries] = useState<any[]>([]);
+  const [loadingEntries, setLoadingEntries] = useState(false);
+
+  useEffect(() => {
+    if (!selected || !companyId) { setItemEntries([]); return; }
+    setLoadingEntries(true);
+    api.itemTransactions(companyId, selected.code)
+      .then((res: any) => setItemEntries(Array.isArray(res) ? res : []))
+      .catch(() => setItemEntries([]))
+      .finally(() => setLoadingEntries(false));
+  }, [selected, companyId]);
 
   useEffect(() => {
     if (!companyId) { setLoading(false); return; }
@@ -93,68 +102,20 @@ export function Items() {
 
   // ─── AI Describe ──────────────────────────────────────────
 
-  async function handleAiDescribe(text?: string) {
-    const desc = text || aiPrompt;
-    if (!desc.trim() || !companyId) return;
-    setAiLoading(true);
-    try {
-      const fields = await api.parseItemDescription(companyId, desc) as any;
-      setForm({
-        name: fields.name || "",
-        description: fields.description || "",
-        type: fields.type || "product",
-        unitOfMeasure: fields.unitOfMeasure || "pcs",
-        costPrice: String(fields.costPrice ?? 0),
-        sellingPrice: String(fields.sellingPrice ?? 0),
-        vatRate: String(fields.vatRate ?? 21),
-        purchaseAccountCode: fields.purchaseAccountCode || "6110",
-        salesAccountCode: fields.salesAccountCode || "5110",
-      });
-    } catch (err: any) {
-      alert(err.message || "Failed to parse description");
-    } finally {
-      setAiLoading(false);
-    }
-  }
-
-  // ─── Voice Input ──────────────────────────────────────────
-
-  function toggleVoice() {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert("Speech recognition is not supported in this browser. Please use Chrome or Edge.");
-      return;
-    }
-
-    if (listening && recognitionRef.current) {
-      recognitionRef.current.stop();
-      setListening(false);
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = "en-US";
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setAiPrompt(transcript);
-      setListening(false);
-      handleAiDescribe(transcript);
-    };
-
-    recognition.onerror = () => {
-      setListening(false);
-    };
-
-    recognition.onend = () => {
-      setListening(false);
-    };
-
-    recognitionRef.current = recognition;
-    recognition.start();
-    setListening(true);
+  async function handleAiDescribe(desc: string) {
+    if (!companyId) return;
+    const fields = await api.parseItemDescription(companyId, desc) as any;
+    setForm({
+      name: fields.name || "",
+      description: fields.description || "",
+      type: fields.type || "product",
+      unitOfMeasure: fields.unitOfMeasure || "pcs",
+      costPrice: String(fields.costPrice ?? 0),
+      sellingPrice: String(fields.sellingPrice ?? 0),
+      vatRate: String(fields.vatRate ?? 21),
+      purchaseAccountCode: fields.purchaseAccountCode || "6110",
+      salesAccountCode: fields.salesAccountCode || "5110",
+    });
   }
 
   // ─── Save Item ────────────────────────────────────────────
@@ -176,7 +137,6 @@ export function Items() {
         salesAccountCode: form.salesAccountCode,
       });
       setForm(EMPTY_FORM);
-      setAiPrompt("");
       setShowForm(false);
       loadItems();
     } catch (err: any) {
@@ -215,46 +175,12 @@ export function Items() {
         <div className="settings-card" style={{ marginBottom: 20 }}>
           {/* AI description bar */}
           <div style={{ marginBottom: 16 }}>
-            <label style={labelStyle}>Describe the item you want to add</label>
-            <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
-              <input
-                type="text"
-                value={aiPrompt}
-                onChange={e => setAiPrompt(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter") handleAiDescribe(); }}
-                placeholder="e.g. Consulting service, €120/hour, for IT services"
-                className="form-input"
-                style={{ flex: 1 }}
-                aria-label="Describe item"
-              />
-              <button
-                className="btn-primary"
-                onClick={() => handleAiDescribe()}
-                disabled={aiLoading || !aiPrompt.trim()}
-                style={{ whiteSpace: "nowrap" }}
-              >
-                {aiLoading ? "Thinking..." : "✨ Fill fields"}
-              </button>
-              <button
-                className={listening ? "btn-primary" : "btn-secondary"}
-                onClick={toggleVoice}
-                title={listening ? "Stop listening" : "Voice input"}
-                aria-label={listening ? "Stop voice input" : "Start voice input"}
-                style={{
-                  width: 40, minWidth: 40, padding: 0,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 18,
-                  ...(listening ? { animation: "pulse 1.5s ease-in-out infinite" } : {}),
-                }}
-              >
-                🎙
-              </button>
-            </div>
-            {listening && (
-              <p style={{ fontSize: "var(--text-sm)", color: "var(--accent)", marginTop: 4, marginBottom: 0 }}>
-                Listening... speak now
-              </p>
-            )}
+            <AiInput
+              label="Describe the item you want to add"
+              placeholder="e.g. Consulting service, €120/hour, for IT services"
+              onSubmit={handleAiDescribe}
+              disabled={!companyId}
+            />
           </div>
 
           {/* Form fields */}
@@ -309,7 +235,7 @@ export function Items() {
             <button className="btn-primary" onClick={handleSave} disabled={saving || !form.name.trim()}>
               {saving ? "Saving..." : "Save item"}
             </button>
-            <button className="btn-secondary" onClick={() => { setShowForm(false); setForm(EMPTY_FORM); setAiPrompt(""); }}>
+            <button className="btn-secondary" onClick={() => { setShowForm(false); setForm(EMPTY_FORM); }}>
               Cancel
             </button>
           </div>
@@ -436,6 +362,7 @@ export function Items() {
             <div className="detail-row"><span className="detail-label">VAT rate</span><span>{selected.vatRate}%</span></div>
             {selected.type !== "service" && <div className="detail-row"><span className="detail-label">On hand</span><span>{selected.quantityOnHand}</span></div>}
           </div>
+          <GlPostings entries={itemEntries} loading={loadingEntries} emptyMessage="No transactions for this item" formatMoney={formatMoney} fmt={fmt} />
         </div>
       )}
     </div>

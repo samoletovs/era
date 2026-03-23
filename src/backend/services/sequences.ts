@@ -5,13 +5,13 @@ import { DEFAULT_SEQUENCES } from "@shared/types";
 
 /**
  * Format a number using a sequence config.
- * Example: { prefix: "INV", nextNumber: 42, padding: 6, separator: "-" } → "INV-000042"
+ * Uses natural numbers without zero-padding:
+ * INV-1, INV-2, ..., INV-10, ..., INV-100, INV-1000, etc.
  */
 export function formatSequenceNumber(seq: NumberSequence, num: number): string {
   const sep = seq.separator ?? "-";
-  const padded = String(num).padStart(seq.padding, "0");
   const suffix = seq.suffix ? `${sep}${seq.suffix}` : "";
-  return `${seq.prefix}${sep}${padded}${suffix}`;
+  return `${seq.prefix}${sep}${num}${suffix}`;
 }
 
 /**

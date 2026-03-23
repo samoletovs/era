@@ -101,6 +101,11 @@ export async function createCompany(input: CreateCompanyInput): Promise<Company>
     defaultPaymentTermsDays: 30,
     invoiceNumberPrefix: "INV",
     nextInvoiceNumber: 1,
+    currency: {
+      accountingCurrency: "EUR",
+      accountingRateType: "daily",
+      exchangeRateSource: "ecb",
+    },
   };
 
   const company: Company = {
@@ -159,6 +164,9 @@ export async function updateCompany(
   if (!company) return null;
 
   Object.assign(company, updates, { updatedAt: new Date().toISOString() });
+  if (updates.name) {
+    company.shortName = generateShortName(updates.name);
+  }
   const { resource } = await containers.companies().item(id, id).replace(company);
   return resource ?? null;
 }

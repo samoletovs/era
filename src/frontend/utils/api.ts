@@ -144,6 +144,8 @@ export const api = {
   fixedAssets: (companyId: string) => apiFetch(`/companies/${companyId}/fixed-assets`),
   acquireAsset: (companyId: string, body: Record<string, unknown>) =>
     apiFetch(`/companies/${companyId}/fixed-assets`, { method: "POST", body: JSON.stringify(body) }),
+  parseAssetDescription: (companyId: string, description: string) =>
+    apiFetch(`/companies/${companyId}/fixed-assets/parse-description`, { method: "POST", body: JSON.stringify({ description }) }),
   depreciate: (companyId: string, period: string) =>
     apiFetch(`/companies/${companyId}/fixed-assets/depreciate`, { method: "POST", body: JSON.stringify({ period }) }),
   disposeAsset: (companyId: string, assetId: string, amount: number) =>

@@ -44,8 +44,9 @@ export async function setBudget(input: {
   let count = 0;
   for (const e of input.entries) {
     const id = `${input.companyId}-budget-${input.fiscalYear}-${e.period}-${e.accountCode}`;
-    const entry: BudgetEntry = {
+    const entry = {
       id,
+      docType: "budget" as const,
       companyId: input.companyId,
       fiscalYear: input.fiscalYear,
       period: e.period,

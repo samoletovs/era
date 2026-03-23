@@ -40,9 +40,8 @@ export function formatMoneyOr(value: number | null | undefined, format: NumberFo
 /** Preview a number sequence format, e.g. "INV-000001" */
 export function formatSequencePreview(seq: NumberSequence): string {
   const sep = seq.separator ?? "-";
-  const padded = String(seq.nextNumber).padStart(seq.padding, "0");
   const suffix = seq.suffix ? `${sep}${seq.suffix}` : "";
-  return `${seq.prefix}${sep}${padded}${suffix}`;
+  return `${seq.prefix}${sep}${seq.nextNumber}${suffix}`;
 }
 
 // ─── Date Formatting ────────────────────────────────────────

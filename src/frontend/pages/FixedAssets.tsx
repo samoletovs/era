@@ -3,6 +3,7 @@ import { api } from "../utils/api";
 import { useApp } from "../utils/context";
 import { formatMoney } from "../utils/format";
 import { GlPostings } from "../components/GlPostings";
+import { AiInput } from "../components/AiInput";
 
 type SortKey = "code" | "name" | "assetAccountCode" | "acquisitionCost" | "accumulatedDepreciation" | "netBookValue" | "status";
 type SortDir = "asc" | "desc";
@@ -38,6 +39,20 @@ export function FixedAssets() {
 
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  async function handleAiDescribe(desc: string) {
+    if (!companyId) return;
+    const fields = await api.parseAssetDescription(companyId, desc) as any;
+    setForm({
+      code: fields.code || "",
+      name: fields.name || "",
+      assetAccountCode: fields.assetAccountCode || "1220",
+      acquisitionDate: fields.acquisitionDate || new Date().toISOString().slice(0, 10),
+      acquisitionCost: String(fields.acquisitionCost ?? ""),
+      residualValue: String(fields.residualValue ?? "0"),
+      usefulLifeMonths: String(fields.usefulLifeMonths ?? "60"),
+    });
+  }
 
   function handleSort(key: SortKey) {
     if (sortKey === key) {
@@ -209,6 +224,14 @@ export function FixedAssets() {
       {showForm && (
         <div className="settings-card" style={{ marginBottom: 20, maxWidth: 720 }}>
           <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>Acquire new asset</h3>
+          <div style={{ marginBottom: 16 }}>
+            <AiInput
+              label="Describe the asset you want to acquire"
+              placeholder="e.g. MacBook Pro laptop, €2500, 3 years useful life"
+              onSubmit={handleAiDescribe}
+              disabled={!companyId}
+            />
+          </div>
           <div className="form-hint"><span className="required-dot">*</span> Fill in code, name, and cost. Other fields have sensible defaults you can adjust.</div>
           <div className="form-grid-3">
             <div><div className="detail-label required">Code</div><input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="e.g. FA-001" className="settings-input" /></div>

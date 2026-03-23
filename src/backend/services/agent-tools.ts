@@ -349,7 +349,7 @@ export const AGENT_TOOLS: ChatCompletionTool[] = [
     type: "function",
     function: {
       name: "run_month_end",
-      description: "Run the FULL month-end close process autonomously: marks overdue invoices, executes recurring entries (rent, salaries, etc.), runs fixed asset depreciation, and closes the period. Call this at the start of each new month for the previous month, or when the user mentions month-end, period close, or closing the books.",
+      description: "Run the FULL month-end close process autonomously: marks overdue invoices, executes recurring entries (rent, salaries, etc.), runs fixed asset depreciation, runs foreign currency revaluation, and closes the period. Call this at the start of each new month for the previous month, or when the user mentions month-end, period close, or closing the books.",
       parameters: {
         type: "object",
         properties: {

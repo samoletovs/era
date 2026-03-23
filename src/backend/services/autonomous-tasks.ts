@@ -8,6 +8,7 @@ import { markOverdueInvoices } from "./reporting.js";
 import { runDepreciation } from "./fixed-assets.js";
 import { executeRecurringTemplate, listRecurringTemplates } from "./recurring-entries.js";
 import { closePeriod } from "./period-close.js";
+import { runForeignCurrencyRevaluation } from "./currency-revaluation.js";
 import type { Company, PeriodCloseRun, PeriodCloseStep } from "@shared/types";
 import { v4 as uuidv4 } from "uuid";
 
@@ -93,7 +94,26 @@ export async function runMonthEnd(
     closeSteps.push({ name: "Monthly depreciation", status: "failed", detail: "Failed", error: String(err) });
   }
 
-  // 4. Close the period
+  // 4. Foreign currency revaluation (D365 F&O model)
+  try {
+    const result = await runForeignCurrencyRevaluation(companyId, period, actor);
+    if (result.accountsRevalued > 0) {
+      const gainLoss = [];
+      if (result.totalUnrealizedGain > 0) gainLoss.push(`gain ${result.totalUnrealizedGain.toFixed(2)}`);
+      if (result.totalUnrealizedLoss > 0) gainLoss.push(`loss ${result.totalUnrealizedLoss.toFixed(2)}`);
+      const detail = `${result.accountsRevalued} accounts revalued${gainLoss.length > 0 ? `: ${gainLoss.join(", ")}` : ""}`;
+      steps.push({ name: "Currency revaluation", status: "completed", detail });
+      closeSteps.push({ name: "Currency revaluation", status: "completed", detail, journalEntryIds: result.journalEntryId ? [result.journalEntryId] : undefined });
+    } else {
+      steps.push({ name: "Currency revaluation", status: "skipped", detail: "No foreign currency accounts to revalue" });
+      closeSteps.push({ name: "Currency revaluation", status: "skipped", detail: "No foreign currency accounts to revalue" });
+    }
+  } catch (err) {
+    steps.push({ name: "Currency revaluation", status: "failed", detail: "Failed", error: String(err) });
+    closeSteps.push({ name: "Currency revaluation", status: "failed", detail: "Failed", error: String(err) });
+  }
+
+  // 5. Close the period
   try {
     await closePeriod(companyId, period, actor);
     steps.push({ name: "Close period", status: "completed", detail: `Period ${period} closed` });

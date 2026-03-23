@@ -9,7 +9,7 @@ import { createItem } from "../services/inventory.js";
 import { generateVatReturn, getBalanceSheet, getProfitAndLoss, generateVatDeclaration, generateAnnualReport, getAgingReport, markOverdueInvoices } from "../services/reporting.js";
 import { searchCompanyByName, searchCompanyByRegNumber } from "../services/company-lookup.js";
 import { recognizeInvoice } from "../services/invoice-recognition.js";
-import { handleChat, parseItemDescription, parseInvoiceDescription, parseContactDescription } from "../services/agent.js";
+import { handleChat, parseItemDescription, parseInvoiceDescription, parseContactDescription, parseAssetDescription } from "../services/agent.js";
 import { seedRules } from "../services/posting-rules.js";
 import { closePeriod, reopenPeriod, yearEndClose, getPeriodStatus } from "../services/period-close.js";
 import { generateInvoicePdf } from "../services/invoice-pdf.js";
@@ -18,6 +18,7 @@ import { createRecurringTemplate, listRecurringTemplates, executeRecurringTempla
 import { acquireAsset, runDepreciation, disposeAsset, listFixedAssets } from "../services/fixed-assets.js";
 import { setBudget, getBudgetVsActual } from "../services/budget.js";
 import { runMonthEnd, runYearEnd, checkCompanyHealth, listCloseRuns, getCloseRun } from "../services/autonomous-tasks.js";
+import { saveExchangeRate, getExchangeRate, importEcbRates, runForeignCurrencyRevaluation } from "../services/currency-revaluation.js";
 import { containers } from "../services/cosmos.js";
 import type { ApiResponse, Account, Company, Feedback, PostingRule, BusinessEvent } from "@shared/types";
 
@@ -741,6 +742,20 @@ router.post("/companies/:companyId/invoices/parse-description", async (req, res)
   }
 });
 
+router.post("/companies/:companyId/fixed-assets/parse-description", async (req, res) => {
+  try {
+    const description = req.body.description as string;
+    if (!description?.trim()) {
+      res.status(400).json({ error: { code: "VAL-001", message: "Description is required" } });
+      return;
+    }
+    const fields = await parseAssetDescription(description.trim());
+    res.json({ data: fields } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "PARSE_FAILED", message: String(err) } });
+  }
+});
+
 // ─── Reporting ──────────────────────────────────────────────
 
 router.get("/companies/:companyId/reports/balance-sheet", async (req, res) => {
@@ -1030,6 +1045,71 @@ router.get("/companies/:companyId/events", async (req, res) => {
     res.json({ data: resources } as ApiResponse);
   } catch (err) {
     res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
+  }
+});
+
+// ─── Exchange Rates & Currency Revaluation ──────────────────
+
+router.get("/exchange-rates", async (req, res) => {
+  try {
+    const { from, to, rateType, date } = req.query;
+    if (!from || !to) {
+      res.status(400).json({ error: { code: "VAL-001", message: "from and to currency codes are required" } });
+      return;
+    }
+    const rate = await getExchangeRate(
+      from as string,
+      to as string,
+      (rateType as any) || "daily",
+      (date as string) || new Date().toISOString().slice(0, 10)
+    );
+    res.json({ data: { from, to, rateType: rateType || "daily", rate } } as ApiResponse);
+  } catch (err) {
+    handleGLError(err, res);
+  }
+});
+
+router.post("/exchange-rates", async (req, res) => {
+  try {
+    const { fromCurrency, toCurrency, rateType, rate, effectiveDate, source } = req.body;
+    if (!fromCurrency || !toCurrency || !rate || !effectiveDate) {
+      res.status(400).json({ error: { code: "VAL-001", message: "fromCurrency, toCurrency, rate, and effectiveDate are required" } });
+      return;
+    }
+    const saved = await saveExchangeRate({
+      fromCurrency, toCurrency,
+      rateType: rateType || "daily",
+      rate, effectiveDate,
+      source: source || "manual",
+    });
+    res.status(201).json({ data: saved } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "SYS-001", message: String(err) } });
+  }
+});
+
+router.post("/exchange-rates/import-ecb", async (req, res) => {
+  try {
+    const date = req.body.date || new Date().toISOString().slice(0, 10);
+    const rateType = req.body.rateType || "daily";
+    const result = await importEcbRates(date, rateType);
+    res.json({ data: result } as ApiResponse);
+  } catch (err) {
+    handleGLError(err, res);
+  }
+});
+
+router.post("/companies/:companyId/currency-revaluation", async (req, res) => {
+  try {
+    const { period } = req.body;
+    if (!period) {
+      res.status(400).json({ error: { code: "VAL-001", message: "period is required (YYYY-MM)" } });
+      return;
+    }
+    const result = await runForeignCurrencyRevaluation(req.params.companyId, period, req.user!.id);
+    res.json({ data: result } as ApiResponse);
+  } catch (err) {
+    handleGLError(err, res);
   }
 });
 

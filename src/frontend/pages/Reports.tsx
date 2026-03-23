@@ -10,11 +10,12 @@ export function Reports() {
   const [loading, setLoading] = useState(false);
 
   // Period controls — default to this month
-  const currentYear = new Date().getFullYear();
-  const currentMonth = new Date().getMonth(); // 0-indexed
   const today = new Date().toISOString().slice(0, 10);
-  const [dateFrom, setDateFrom] = useState(`${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-01`);
-  const [dateTo, setDateTo] = useState(today);
+  const [dateFrom, setDateFrom] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+  });
+  const [dateTo, setDateTo] = useState(() => new Date().toISOString().slice(0, 10));
 
   // Quick period presets
   function setPreset(preset: string) {
@@ -45,6 +46,7 @@ export function Reports() {
   }
 
   const fetchIdRef = useRef(0);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     if (!companyId) return;
@@ -65,7 +67,7 @@ export function Reports() {
       .then(result => { if (id === fetchIdRef.current) setData(result); })
       .catch(() => { if (id === fetchIdRef.current) setData(null); })
       .finally(() => { if (id === fetchIdRef.current) setLoading(false); });
-  }, [companyId, view, dateFrom, dateTo]);
+  }, [companyId, view, dateFrom, dateTo, refreshKey]);
 
   if (!companyId) return (
     <div className="empty-state">
@@ -90,7 +92,7 @@ export function Reports() {
 
       <div className="report-period-bar">
         <div className="period-dates">
-          {view === "bs" ? (
+          {view === "bs" || view === "ar-aging" || view === "ap-aging" ? (
             <>
               <label>As of</label>
               <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
@@ -124,7 +126,7 @@ export function Reports() {
         : view === "ar-aging" || view === "ap-aging" ? <AgingReport data={data} />
         : view === "vat" ? <VatDeclaration data={data} />
         : view === "annual" ? <AnnualReport data={data} />
-        : view === "budget" ? <BudgetVsActual data={data} />
+        : view === "budget" ? <BudgetVsActual data={data} onRefresh={() => setRefreshKey(k => k + 1)} />
         : null}
     </div>
   );
@@ -333,7 +335,7 @@ function AnnualReport({ data }: { data: any }) {
   );
 }
 
-function BudgetVsActual({ data }: { data: any }) {
+function BudgetVsActual({ data, onRefresh }: { data: any; onRefresh?: () => void }) {
   const { companyId, numberFormat: fmt } = useApp();
   const items = Array.isArray(data) ? data : [];
   const [showAdd, setShowAdd] = useState(false);
@@ -353,8 +355,7 @@ function BudgetVsActual({ data }: { data: any }) {
       setBudgetAccountCode("");
       setBudgetAmount("");
       setShowAdd(false);
-      // Trigger re-fetch by brief reload
-      window.location.reload();
+      onRefresh?.();
     } catch (err: any) { alert(err.message); }
     finally { setSaving(false); }
   }

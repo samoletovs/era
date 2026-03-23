@@ -28,7 +28,7 @@ export const MoneyAmount = z.number();
 export const Percentage = z.number().min(0).max(100);
 
 /** Exchange rate to base currency — positive, up to 6 decimal places */
-export const ExchangeRate = z.number().positive();
+export const ExchangeRateValue = z.number().positive();
 
 // ─── Date & Time ────────────────────────────────────────────
 

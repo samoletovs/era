@@ -4,7 +4,7 @@ import { api } from "../utils/api";
 import { useApp } from "../utils/context";
 import { FORMAT_LABELS, formatSequencePreview, DATE_FORMAT_LABELS, DATETIME_FORMAT_LABELS } from "../utils/format";
 import { CollapsibleSection } from "../components/CollapsibleSection";
-import type { NumberFormat, SequenceType, NumberSequence, DateFormat, DateTimeFormat } from "@shared/types";
+import type { NumberFormat, SequenceType, NumberSequence, DateFormat, DateTimeFormat, ExchangeRateType, ExchangeRateSource, CurrencySettings } from "@shared/types";
 import { DEFAULT_SEQUENCES, SEQUENCE_LABELS } from "@shared/types";
 
 export function Settings() {
@@ -28,6 +28,17 @@ export function Settings() {
   const [dateTimeFormat, setDateTimeFormat] = useState<DateTimeFormat>("24h");
   const [sequences, setSequences] = useState<Record<string, NumberSequence>>({});
 
+  // Currency settings state
+  const [accountingCurrency, setAccountingCurrency] = useState("EUR");
+  const [reportingCurrency, setReportingCurrency] = useState("");
+  const [accountingRateType, setAccountingRateType] = useState<ExchangeRateType>("daily");
+  const [reportingRateType, setReportingRateType] = useState<ExchangeRateType>("monthly-average");
+  const [exchangeRateSource, setExchangeRateSource] = useState<ExchangeRateSource>("ecb");
+  const [unrealizedGainAccount, setUnrealizedGainAccount] = useState("");
+  const [unrealizedLossAccount, setUnrealizedLossAccount] = useState("");
+  const [realizedGainAccount, setRealizedGainAccount] = useState("");
+  const [realizedLossAccount, setRealizedLossAccount] = useState("");
+
   useEffect(() => {
     if (!companyId) return;
     api.company(companyId).then((data: any) => {
@@ -47,6 +58,20 @@ export function Settings() {
         merged[key] = saved[key] || { ...DEFAULT_SEQUENCES[key as SequenceType] };
       }
       setSequences(merged);
+
+      // Load currency settings
+      const cs = data.settings?.currency;
+      if (cs) {
+        setAccountingCurrency(cs.accountingCurrency || "EUR");
+        setReportingCurrency(cs.reportingCurrency || "");
+        setAccountingRateType(cs.accountingRateType || "daily");
+        setReportingRateType(cs.reportingRateType || "monthly-average");
+        setExchangeRateSource(cs.exchangeRateSource || "ecb");
+        setUnrealizedGainAccount(cs.unrealizedGainAccount || "");
+        setUnrealizedLossAccount(cs.unrealizedLossAccount || "");
+        setRealizedGainAccount(cs.realizedGainAccount || "");
+        setRealizedLossAccount(cs.realizedLossAccount || "");
+      }
     });
   }, [companyId]);
 
@@ -67,6 +92,17 @@ export function Settings() {
           dateFormat,
           dateTimeFormat,
           sequences,
+          currency: {
+            accountingCurrency,
+            reportingCurrency: reportingCurrency || undefined,
+            accountingRateType,
+            reportingRateType: reportingCurrency ? reportingRateType : undefined,
+            exchangeRateSource,
+            unrealizedGainAccount: unrealizedGainAccount || undefined,
+            unrealizedLossAccount: unrealizedLossAccount || undefined,
+            realizedGainAccount: realizedGainAccount || undefined,
+            realizedLossAccount: realizedLossAccount || undefined,
+          } as CurrencySettings,
         },
       });
       setCompany(updated);
@@ -162,12 +198,14 @@ export function Settings() {
         {/* Block 2: Currency settings — collapsed by default */}
         <CollapsibleSection title="Currency settings">
           <p style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 16 }}>
-            Configure transaction, accounting, and reporting currencies. Exchange rates can be imported automatically from ECB or Latvian Central Bank.
+            Configure accounting and reporting currencies. Transaction currency is set per document (invoice, payment) and can be any currency.
+            Exchange rates can be imported automatically from ECB or Bank of Latvia.
           </p>
+
           <div className="settings-grid">
             <div className="settings-field">
-              <label>Transaction currency</label>
-              <select defaultValue="EUR" className="settings-input">
+              <label>Accounting currency</label>
+              <select value={accountingCurrency} onChange={(e) => setAccountingCurrency(e.target.value)} className="settings-input">
                 <option value="EUR">EUR — Euro</option>
                 <option value="USD">USD — US Dollar</option>
                 <option value="GBP">GBP — British Pound</option>
@@ -178,36 +216,108 @@ export function Settings() {
                 <option value="CZK">CZK — Czech Koruna</option>
                 <option value="CHF">CHF — Swiss Franc</option>
               </select>
-            </div>
-            <div className="settings-field">
-              <label>Accounting currency</label>
-              <select defaultValue="EUR" className="settings-input">
-                <option value="EUR">EUR — Euro</option>
-                <option value="USD">USD — US Dollar</option>
-                <option value="GBP">GBP — British Pound</option>
-              </select>
+              <span className="field-hint">Local statutory currency for GL and authority reporting. Set once at company creation.</span>
             </div>
             <div className="settings-field">
               <label>Reporting currency (optional)</label>
-              <select defaultValue="" className="settings-input">
-                <option value="">Same as accounting</option>
-                <option value="USD">USD — US Dollar</option>
+              <select value={reportingCurrency} onChange={(e) => setReportingCurrency(e.target.value)} className="settings-input">
+                <option value="">None</option>
                 <option value="EUR">EUR — Euro</option>
+                <option value="USD">USD — US Dollar</option>
                 <option value="GBP">GBP — British Pound</option>
+                <option value="PLN">PLN — Polish Zloty</option>
+                <option value="SEK">SEK — Swedish Krona</option>
+                <option value="CHF">CHF — Swiss Franc</option>
               </select>
+              <span className="field-hint">Group consolidation currency. Converted independently from transaction currency (not via accounting currency).</span>
             </div>
+          </div>
+
+          <h3 className="section-title" style={{ marginTop: 20, marginBottom: 12 }}>Exchange rate types</h3>
+          <p style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 12 }}>
+            Different rate types allow daily rates for accounting and monthly averages for reporting — like D365 F&O exchange rate types.
+          </p>
+          <div className="settings-grid">
+            <div className="settings-field">
+              <label>Accounting rate type</label>
+              <select value={accountingRateType} onChange={(e) => setAccountingRateType(e.target.value as ExchangeRateType)} className="settings-input">
+                <option value="daily">Daily (spot rate)</option>
+                <option value="monthly-average">Monthly average</option>
+                <option value="closing">Closing rate</option>
+                <option value="group">Group rate</option>
+              </select>
+              <span className="field-hint">Rate type used when converting transaction currency to accounting currency</span>
+            </div>
+            {reportingCurrency && (
+              <div className="settings-field">
+                <label>Reporting rate type</label>
+                <select value={reportingRateType} onChange={(e) => setReportingRateType(e.target.value as ExchangeRateType)} className="settings-input">
+                  <option value="daily">Daily (spot rate)</option>
+                  <option value="monthly-average">Monthly average</option>
+                  <option value="closing">Closing rate</option>
+                  <option value="group">Group rate</option>
+                </select>
+                <span className="field-hint">Rate type used when converting transaction currency to reporting currency</span>
+              </div>
+            )}
             <div className="settings-field">
               <label>Exchange rate source</label>
-              <select defaultValue="ecb" className="settings-input">
+              <select value={exchangeRateSource} onChange={(e) => setExchangeRateSource(e.target.value as ExchangeRateSource)} className="settings-input">
                 <option value="ecb">European Central Bank (ECB)</option>
                 <option value="latvian-bank">Bank of Latvia</option>
                 <option value="manual">Manual entry</option>
-                <option value="group">Group rates (shared)</option>
               </select>
             </div>
           </div>
-          <p style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 8 }}>
-            Currency revaluation runs automatically as part of the month-end close process.
+
+          <h3 className="section-title" style={{ marginTop: 20, marginBottom: 12 }}>Revaluation accounts</h3>
+          <p style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 12 }}>
+            GL accounts for foreign currency revaluation gain/loss entries. Required for month-end currency revaluation.
+          </p>
+          <div className="settings-grid">
+            <div className="settings-field">
+              <label>Unrealized gain account</label>
+              <input
+                value={unrealizedGainAccount}
+                onChange={(e) => setUnrealizedGainAccount(e.target.value.replace(/[^0-9]/g, "").slice(0, 4))}
+                placeholder="e.g. 8110"
+                className="settings-input"
+                style={{ maxWidth: 120 }}
+              />
+            </div>
+            <div className="settings-field">
+              <label>Unrealized loss account</label>
+              <input
+                value={unrealizedLossAccount}
+                onChange={(e) => setUnrealizedLossAccount(e.target.value.replace(/[^0-9]/g, "").slice(0, 4))}
+                placeholder="e.g. 8120"
+                className="settings-input"
+                style={{ maxWidth: 120 }}
+              />
+            </div>
+            <div className="settings-field">
+              <label>Realized gain account</label>
+              <input
+                value={realizedGainAccount}
+                onChange={(e) => setRealizedGainAccount(e.target.value.replace(/[^0-9]/g, "").slice(0, 4))}
+                placeholder="e.g. 8130"
+                className="settings-input"
+                style={{ maxWidth: 120 }}
+              />
+            </div>
+            <div className="settings-field">
+              <label>Realized loss account</label>
+              <input
+                value={realizedLossAccount}
+                onChange={(e) => setRealizedLossAccount(e.target.value.replace(/[^0-9]/g, "").slice(0, 4))}
+                placeholder="e.g. 8140"
+                className="settings-input"
+                style={{ maxWidth: 120 }}
+              />
+            </div>
+          </div>
+          <p style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 12 }}>
+            Foreign currency revaluation runs automatically as a step in the month-end close process. Accounts flagged for revaluation are adjusted using the closing exchange rate.
           </p>
         </CollapsibleSection>
 
@@ -295,7 +405,7 @@ export function Settings() {
         {/* Block 4: Number sequences — collapsed by default */}
         <CollapsibleSection title="Number sequences">
           <p style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 16 }}>
-            Configure how document and record numbers are generated. Each type has a prefix, counter, and zero-padding width.
+            Configure how document and record numbers are generated. Numbers grow naturally: 1, 2, ... 10, ... 100, etc.
           </p>
           <div className="sequences-table-wrap">
             <table className="data-table">
@@ -304,7 +414,6 @@ export function Settings() {
                   <th>Type</th>
                   <th>Prefix</th>
                   <th style={{ width: 50 }}>Sep.</th>
-                  <th style={{ width: 55 }}>Pad</th>
                   <th style={{ width: 65 }}>Next #</th>
                   <th>Suffix</th>
                   <th>Preview</th>
@@ -329,16 +438,6 @@ export function Settings() {
                           onChange={(e) => setSequences((prev) => ({ ...prev, [key]: { ...seq, separator: e.target.value } }))}
                           style={{ width: 36 }}
                           maxLength={2}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          value={seq.padding}
-                          onChange={(e) => setSequences((prev) => ({ ...prev, [key]: { ...seq, padding: Math.max(1, Math.min(12, Number(e.target.value))) } }))}
-                          style={{ width: 44 }}
-                          min={1}
-                          max={12}
                         />
                       </td>
                       <td>

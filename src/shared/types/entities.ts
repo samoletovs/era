@@ -59,21 +59,21 @@ export type SequenceType =
 export interface NumberSequence {
   prefix: string;           // e.g. "INV", "PAY", "FA"
   nextNumber: number;       // current counter, incremented on use
-  padding: number;          // zero-pad width (e.g. 6 → "000001", 8 → "00000001")
+  padding?: number;         // legacy — ignored, kept for backward compat
   suffix?: string;          // optional suffix after number, e.g. "-2026"
   separator?: string;       // between prefix and number, default "-"
 }
 
 // Default sequences applied when a company is created
 export const DEFAULT_SEQUENCES: Record<SequenceType, NumberSequence> = {
-  salesInvoice:    { prefix: "INV",  nextNumber: 1, padding: 6, separator: "-" },
-  purchaseInvoice: { prefix: "PINV", nextNumber: 1, padding: 6, separator: "-" },
-  creditNote:      { prefix: "CN",   nextNumber: 1, padding: 6, separator: "-" },
-  payment:         { prefix: "PAY",  nextNumber: 1, padding: 6, separator: "-" },
-  journalEntry:    { prefix: "JE",   nextNumber: 1, padding: 6, separator: "-" },
-  fixedAsset:      { prefix: "FA",   nextNumber: 1, padding: 6, separator: "-" },
-  item:            { prefix: "ITEM", nextNumber: 1, padding: 6, separator: "-" },
-  contact:         { prefix: "C",    nextNumber: 1, padding: 6, separator: "-" },
+  salesInvoice:    { prefix: "INV",  nextNumber: 1, separator: "-" },
+  purchaseInvoice: { prefix: "PINV", nextNumber: 1, separator: "-" },
+  creditNote:      { prefix: "CN",   nextNumber: 1, separator: "-" },
+  payment:         { prefix: "PAY",  nextNumber: 1, separator: "-" },
+  journalEntry:    { prefix: "JE",   nextNumber: 1, separator: "-" },
+  fixedAsset:      { prefix: "FA",   nextNumber: 1, separator: "-" },
+  item:            { prefix: "ITEM", nextNumber: 1, separator: "-" },
+  contact:         { prefix: "C",    nextNumber: 1, separator: "-" },
 };
 
 export const SEQUENCE_LABELS: Record<SequenceType, string> = {
@@ -115,25 +115,45 @@ export interface BankAccount {
   isDefault: boolean;
 }
 
-// ─── Multi-Currency ─────────────────────────────────────────
+// ─── Multi-Currency (D365 F&O dual-currency model) ──────────
+//
+// Transaction currency  — per-document (invoice, payment), any ISO 4217 code
+// Accounting currency   — company's statutory/local currency for GL & authority reporting
+// Reporting currency    — optional group/consolidation currency (independent conversion from transaction currency)
+//
+// Exchange rate types allow different rates for different purposes:
+//   daily          — spot/current rate (default for accounting)
+//   monthly-average — averaged over the month (common for reporting)
+//   closing        — period-end rate for balance sheet revaluation
+//   budget         — rates used in budget/forecast scenarios
+//   group          — intercompany rates set by parent
+
+export type ExchangeRateType = "daily" | "monthly-average" | "closing" | "budget" | "group";
 
 export interface CurrencySettings {
-  transactionCurrency: string;    // ISO 4217, default "EUR"
-  accountingCurrency: string;     // ISO 4217, default "EUR"
-  reportingCurrency?: string;     // optional second reporting currency
-  exchangeRateSource: "ecb" | "latvian-bank" | "manual" | "group";
-  isAutoImportRates: boolean;
+  accountingCurrency: string;              // ISO 4217, required — set at company creation
+  reportingCurrency?: string;              // ISO 4217, optional — for group consolidation
+  accountingRateType: ExchangeRateType;    // rate type used for transaction → accounting conversion
+  reportingRateType?: ExchangeRateType;    // rate type used for transaction → reporting conversion
+  exchangeRateSource: ExchangeRateSource;  // where rates are imported from
+  unrealizedGainAccount?: string;          // GL account code for unrealized FX gains (e.g. "8110")
+  unrealizedLossAccount?: string;          // GL account code for unrealized FX losses (e.g. "8120")
+  realizedGainAccount?: string;            // GL account code for realized FX gains (e.g. "8130")
+  realizedLossAccount?: string;            // GL account code for realized FX losses (e.g. "8140")
 }
+
+export type ExchangeRateSource = "ecb" | "latvian-bank" | "manual";
 
 export interface ExchangeRate {
   id: string;
+  docType?: "exchange-rate";      // Cosmos discriminator
   fromCurrency: string;          // ISO 4217
   toCurrency: string;            // ISO 4217
+  rateType: ExchangeRateType;    // which rate set this belongs to
   rate: number;                  // 1 fromCurrency = rate toCurrency
   effectiveDate: string;         // ISO date
-  source: "ecb" | "latvian-bank" | "manual" | "group";
+  source: ExchangeRateSource;
   companyId?: string;            // null = shared across companies
-  groupId?: string;              // for group-level shared rates
   createdAt: string;
 }
 
@@ -150,11 +170,24 @@ export interface Account extends BaseEntity {
   isPostable: boolean;          // only level 3-4 accounts accept journal entries
   balance: number;
   normalSide: "debit" | "credit";
+  // Foreign currency revaluation (D365 F&O: per-account flag)
+  currencyCode?: string;                // foreign currency if denominated (e.g., USD bank account)
+  isForeignCurrencyRevaluation?: boolean; // include in month-end FX revaluation
 }
 
 export type AccountType = "asset" | "liability" | "equity" | "revenue" | "expense";
 
 // ─── General Ledger ─────────────────────────────────────────
+
+// Account type on journal lines — determines which subledger entity the line targets
+// Inspired by D365 F&O general journal but simplified for agent-driven workflows:
+//   ledger      — direct GL account posting (default)
+//   customer    — AR subledger: contactId required, accountCode = AR control account
+//   vendor      — AP subledger: contactId required, accountCode = AP control account
+//   bank        — bank account posting: accountCode = bank GL account (e.g. 2420)
+//   fixed-asset — asset posting: fixedAssetId required, accountCode = asset GL account
+//   item        — inventory posting: itemId required, accountCode = inventory GL account
+export type JournalLineAccountType = "ledger" | "customer" | "vendor" | "bank" | "fixed-asset" | "item";
 
 export interface JournalEntry extends BaseEntity {
   docType: "journal-entry";
@@ -171,22 +204,30 @@ export interface JournalEntry extends BaseEntity {
 }
 
 export interface JournalLine {
+  accountType?: JournalLineAccountType; // default "ledger" for backward compat
   accountCode: string;
   accountName: string;
-  debit: number;
-  credit: number;
+  debit: number;                    // amount in accounting currency
+  credit: number;                   // amount in accounting currency
   description?: string;
   /** @deprecated Use taxCode instead */
   vatCode?: string;
   // Enriched dimensions — enables subledger-free AR/AP/tax/inventory reporting
   contactId?: string;
+  contactName?: string;             // display name for customer/vendor lines
   itemId?: string;
-  taxCode?: string;             // e.g. "LV-21", "LV-12", "LV-0"
+  itemCode?: string;                // display code for item lines
+  fixedAssetId?: string;            // reference for fixed-asset lines
+  fixedAssetCode?: string;          // display code for fixed-asset lines
+  taxCode?: string;                 // e.g. "LV-21", "LV-12", "LV-0"
   taxAmount?: number;
-  // Multi-currency (optional — defaults to company currency)
-  currencyCode?: string;        // ISO 4217
-  exchangeRate?: number;        // rate to company currency (1.0 if same)
-  amountInCurrency?: number;    // original amount in transaction currency
+  // Transaction currency (per D365 F&O dual-currency model)
+  currencyCode?: string;            // ISO 4217 transaction currency
+  exchangeRate?: number;            // transaction → accounting rate (1.0 if same)
+  amountInCurrency?: number;        // original amount in transaction currency
+  // Reporting currency (parallel conversion from transaction currency, not via accounting)
+  reportingCurrencyAmount?: number; // amount in reporting currency
+  reportingExchangeRate?: number;   // transaction → reporting rate
 }
 
 // ─── Contacts (Customers & Vendors) ─────────────────────────

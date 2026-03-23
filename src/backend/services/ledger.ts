@@ -70,10 +70,10 @@ async function nextEntryNumber(companyId: string, period: string): Promise<strin
     .fetchAll();
 
   if (resources.length === 0) {
-    return `${period}-0001`;
+    return `${period}-1`;
   }
   const lastNum = parseInt(resources[0].entryNumber.split("-").pop()!, 10);
-  return `${period}-${String(lastNum + 1).padStart(4, "0")}`;
+  return `${period}-${lastNum + 1}`;
 }
 
 // ─── Post journal entry ─────────────────────────────────────

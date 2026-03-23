@@ -83,6 +83,7 @@ export function BankRecon() {
   const [manualAccountName, setManualAccountName] = useState("");
 
   const [busy, setBusy] = useState(false);
+  const [creatingManual, setCreatingManual] = useState(false);
 
   useEffect(() => {
     if (!companyId) return;
@@ -145,6 +146,25 @@ export function BankRecon() {
     api.bankReconciliation(companyId, selected.id)
       .then((d: any) => setSelected(d as Reconciliation))
       .catch(() => {});
+  }
+
+  // ─── Create manual reconciliation ─────────────────────────
+
+  async function handleCreateManualRecon() {
+    setCreatingManual(true);
+    try {
+      const result = await api.importBankStatement(companyId, {
+        bankAccountCode: "2420",
+        statementDate: new Date().toISOString().slice(0, 10),
+        statementBalance: 0,
+        lines: [],
+      }) as Reconciliation;
+      setSelected(result);
+      setTab("add");
+      loadRecons();
+      loadOpenInvoices();
+    } catch (err: any) { alert(err.message); }
+    finally { setCreatingManual(false); }
   }
 
   // ─── Match to invoice ──────────────────────────────────────
@@ -760,9 +780,14 @@ export function BankRecon() {
           style={{ width: "100%", padding: 12, fontFamily: "ui-monospace, Consolas, monospace", fontSize: "var(--text-sm)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", resize: "vertical", background: "var(--bg-page)" }}
           aria-label="Bank statement CSV"
         />
-        <button className="btn-primary" style={{ marginTop: 8 }} onClick={handleImport} disabled={importing || !csvText.trim()}>
-          {importing ? "Importing..." : "Import & auto-match"}
-        </button>
+        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+          <button className="btn-primary" onClick={handleImport} disabled={importing || !csvText.trim()}>
+            {importing ? "Importing..." : "Import & auto-match"}
+          </button>
+          <button className="btn-secondary" onClick={handleCreateManualRecon} disabled={creatingManual}>
+            {creatingManual ? "Creating..." : "New manual reconciliation"}
+          </button>
+        </div>
       </div>
 
       {loading ? <p style={{ color: "var(--text-tertiary)" }}>Loading...</p> : recons.length === 0 ? (

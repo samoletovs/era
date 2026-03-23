@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import { api } from "../utils/api";
 import { useApp } from "../utils/context";
@@ -75,12 +75,9 @@ export function Invoices() {
   const [activePanel, setActivePanel] = useState<"" | "create" | "upload" | "pay">("");
 
   // Create invoice state
-  const [aiPrompt, setAiPrompt] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [parsedInvoice, setParsedInvoice] = useState<any>(null);
   const [creating, setCreating] = useState(false);
-  const [listening, setListening] = useState(false);
-  const recognitionRef = useRef<any>(null);
 
   // Upload invoice state
   const [dragging, setDragging] = useState(false);
@@ -236,7 +233,6 @@ export function Invoices() {
     // Reset states when closing
     if (activePanel === panel) return;
     setParsedInvoice(null);
-    setAiPrompt("");
     setUploadStatus("idle");
     setUploadResult(null);
     setUploadError("");
@@ -246,46 +242,15 @@ export function Invoices() {
 
   // ─── Create invoice via AI ────────────────────────────────
 
-  async function handleAiDescribe(text?: string) {
-    const desc = text || aiPrompt;
-    if (!desc.trim() || !companyId) return;
+  async function handleAiDescribe(desc: string) {
+    if (!companyId) return;
     setAiLoading(true);
     try {
       const fields = await api.parseInvoiceDescription(companyId, desc) as any;
       setParsedInvoice(fields);
-    } catch (err: any) {
-      alert(err.message || "Failed to parse description");
     } finally {
       setAiLoading(false);
     }
-  }
-
-  function toggleVoice() {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert("Speech recognition is not supported in this browser. Please use Chrome or Edge.");
-      return;
-    }
-    if (listening && recognitionRef.current) {
-      recognitionRef.current.stop();
-      setListening(false);
-      return;
-    }
-    const recognition = new SpeechRecognition();
-    recognition.lang = "en-US";
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setAiPrompt(transcript);
-      setListening(false);
-      handleAiDescribe(transcript);
-    };
-    recognition.onerror = () => setListening(false);
-    recognition.onend = () => setListening(false);
-    recognitionRef.current = recognition;
-    recognition.start();
-    setListening(true);
   }
 
   async function handleCreateInvoice() {
@@ -321,7 +286,6 @@ export function Invoices() {
       try { await api.postInvoice(companyId, invoice.id); } catch { /* draft is fine */ }
       setActivePanel("");
       setParsedInvoice(null);
-      setAiPrompt("");
       loadInvoices();
     } catch (err: any) {
       alert(err.message || "Failed to create invoice");
@@ -574,41 +538,14 @@ export function Invoices() {
       {activePanel === "create" && (
         <div className="settings-card" style={{ marginBottom: 20 }}>
           <div style={{ marginBottom: 16 }}>
-            <label style={labelStyle}>Describe the invoice you want to create</label>
-            <div style={{ display: "flex", gap: 8, alignItems: "stretch", flexWrap: "wrap" }}>
-              <input
-                type="text"
-                value={aiPrompt}
-                onChange={e => setAiPrompt(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter") handleAiDescribe(); }}
-                placeholder='e.g. "Sales invoice for SIA Klient, consulting 10h at €120/h"'
-                className="form-input"
-                style={{ flex: 1, minWidth: 0, fontSize: 16 }}
-                aria-label="Describe invoice"
-              />
-              <button className="btn-primary" onClick={() => handleAiDescribe()} disabled={aiLoading || !aiPrompt.trim()} style={{ whiteSpace: "nowrap" }}>
-                {aiLoading ? "Thinking..." : "✨ Generate"}
-              </button>
-              <button
-                className={listening ? "btn-primary" : "btn-secondary"}
-                onClick={toggleVoice}
-                title={listening ? "Stop listening" : "Voice input"}
-                aria-label={listening ? "Stop voice input" : "Start voice input"}
-                style={{
-                  width: 40, minWidth: 40, padding: 0,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 18,
-                  ...(listening ? { animation: "pulse 1.5s ease-in-out infinite" } : {}),
-                }}
-              >
-                🎙
-              </button>
-            </div>
-            {listening && (
-              <p style={{ fontSize: "var(--text-sm)", color: "var(--accent)", marginTop: 4, marginBottom: 0 }}>
-                Listening... speak now
-              </p>
-            )}
+            <AiInput
+              label="Describe the invoice you want to create"
+              placeholder='e.g. "Sales invoice for SIA Klient, consulting 10h at €120/h"'
+              buttonLabel="✨ Generate"
+              onSubmit={handleAiDescribe}
+              disabled={!companyId || aiLoading}
+              clearOnSubmit={false}
+            />
           </div>
 
           {parsedInvoice && (

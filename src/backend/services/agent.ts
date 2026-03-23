@@ -557,3 +557,61 @@ export async function parseContactDescription(description: string): Promise<Pars
     notes: String(parsed.notes || ""),
   };
 }
+
+// ─── AI: Parse Fixed Asset Description ──────────────────────
+
+export interface ParsedAssetFields {
+  code: string;
+  name: string;
+  assetAccountCode: string;
+  acquisitionDate: string;
+  acquisitionCost: number;
+  residualValue: number;
+  usefulLifeMonths: number;
+}
+
+const PARSE_ASSET_PROMPT = `You are an ERP fixed assets assistant for a Latvian SIA company. Given a free-text description of a fixed asset, extract structured asset fields.
+
+Return ONLY valid JSON with these fields:
+- code: short asset code (e.g. "FA-001", "EQ-003"), generate a reasonable one if not mentioned
+- name: descriptive asset name (max 80 chars)
+- assetAccountCode: GL account code — "1210" for land and buildings, "1220" for equipment and machinery, "1230" for other fixed assets
+- acquisitionDate: date in YYYY-MM-DD format (default to today if not mentioned)
+- acquisitionCost: purchase cost in EUR (number)
+- residualValue: expected residual value at end of useful life (number, default 0)
+- usefulLifeMonths: useful life in months (default 60 = 5 years; vehicles typically 84 = 7 years; buildings 240 = 20 years; IT equipment 36 = 3 years)
+
+Latvian fixed asset categories:
+- 1210: Land and buildings (useful life 120-240 months)
+- 1220: Equipment, machinery, vehicles, IT equipment (useful life 36-84 months)
+- 1230: Other fixed assets — furniture, intangibles (useful life 36-60 months)
+
+If no price is mentioned, use 0.
+Respond with the JSON object only, no markdown fences.`;
+
+export async function parseAssetDescription(description: string): Promise<ParsedAssetFields> {
+  const response = await getClient().chat.completions.create({
+    model: DEPLOYMENT,
+    messages: [
+      { role: "system", content: PARSE_ASSET_PROMPT },
+      { role: "user", content: description },
+    ],
+    temperature: 0.1,
+    max_tokens: 500,
+  });
+
+  const content = response.choices[0]?.message?.content || "{}";
+  const cleaned = content.replace(/```json?\n?/g, "").replace(/```/g, "").trim();
+  const parsed = JSON.parse(cleaned);
+
+  return {
+    code: String(parsed.code || "FA-001").slice(0, 20),
+    name: String(parsed.name || "").slice(0, 80),
+    assetAccountCode: ["1210", "1220", "1230"].includes(String(parsed.assetAccountCode))
+      ? String(parsed.assetAccountCode) : "1220",
+    acquisitionDate: String(parsed.acquisitionDate || new Date().toISOString().slice(0, 10)),
+    acquisitionCost: Number(parsed.acquisitionCost) || 0,
+    residualValue: Number(parsed.residualValue) || 0,
+    usefulLifeMonths: Number(parsed.usefulLifeMonths) || 60,
+  };
+}

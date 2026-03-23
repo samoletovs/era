@@ -2060,6 +2060,13 @@ select.settings-input {
   display: none;
 }
 
+/* Hidden by default on desktop, shown on mobile (768px) */
+.coa-mobile-list,
+.tx-mobile-list,
+.invoice-lines-mobile {
+  display: none;
+}
+
 @media (max-width: 768px) {
   /* Hide full tables, show card lists on mobile */
   .desktop-only-table {
@@ -2160,6 +2167,213 @@ select.settings-input {
     min-width: 0;
     font-size: var(--text-sm);
     padding: 6px 10px;
+  }
+
+  /* ─── COA mobile card view (#19) ─────────────────────── */
+
+  .coa-table.desktop-only-table {
+    display: none !important;
+  }
+
+  .coa-mobile-list {
+    display: flex !important;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .coa-mobile-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    gap: 10px;
+    transition: background var(--duration-fast) var(--ease-out);
+  }
+
+  .coa-mobile-item:active {
+    background: var(--bg-hover);
+  }
+
+  .coa-mobile-item.level-1 {
+    background: var(--bg-subtle);
+    font-weight: 600;
+  }
+
+  .coa-mobile-item.level-2 {
+    padding-left: 28px;
+    font-weight: 500;
+  }
+
+  .coa-mobile-item.level-3 {
+    padding-left: 42px;
+  }
+
+  .coa-mobile-item .coa-mobile-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .coa-mobile-item .coa-mobile-name {
+    font-size: var(--text-base);
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .coa-mobile-item .coa-mobile-code {
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+    font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+  }
+
+  .coa-mobile-item .coa-mobile-balance {
+    font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+    font-size: var(--text-sm);
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .coa-mobile-item .coa-toggle {
+    color: var(--text-tertiary);
+    font-size: 12px;
+    flex-shrink: 0;
+    width: 16px;
+  }
+
+  .coa-mobile-item.level-3 .coa-mobile-name {
+    font-weight: 400;
+  }
+
+  .coa-mobile-item.coa-account-selected {
+    background: var(--accent-bg);
+  }
+
+  /* ─── Transaction drawer mobile cards (#8) ───────────── */
+
+  .coa-tx-table.desktop-only-table {
+    display: none !important;
+  }
+
+  .tx-mobile-list {
+    display: flex !important;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .tx-mobile-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 10px 14px;
+    border-bottom: 1px solid #F5F5F5;
+    gap: 8px;
+  }
+
+  .tx-mobile-item .tx-mobile-left {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .tx-mobile-item .tx-mobile-date {
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+    font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+  }
+
+  .tx-mobile-item .tx-mobile-desc {
+    font-size: var(--text-sm);
+    color: var(--text-body);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .tx-mobile-item .tx-mobile-amounts {
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .tx-mobile-item .tx-mobile-debit {
+    font-size: var(--text-sm);
+    font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+    color: var(--text-primary);
+  }
+
+  .tx-mobile-item .tx-mobile-credit {
+    font-size: var(--text-sm);
+    font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+    color: var(--text-secondary);
+  }
+
+  /* ─── Invoice lines mobile cards (#14) ───────────────── */
+
+  .invoice-lines-table.desktop-only-table {
+    display: none !important;
+  }
+
+  .invoice-lines-mobile {
+    display: flex !important;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .invoice-line-card {
+    padding: 10px 0;
+    border-bottom: 1px solid #F5F5F5;
+  }
+
+  .invoice-line-card:last-child {
+    border-bottom: none;
+  }
+
+  .invoice-line-card .line-desc {
+    font-size: var(--text-base);
+    color: var(--text-primary);
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
+
+  .invoice-line-card .line-details {
+    display: flex;
+    gap: 12px;
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
+  }
+
+  .invoice-line-card .line-total {
+    margin-left: auto;
+    font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+    font-weight: 500;
+    color: var(--text-primary);
+    font-size: var(--text-sm);
+  }
+
+  /* ─── Feedback form mobile improvements (#21) ────────── */
+
+  .feedback-footer {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .feedback-footer .btn-primary {
+    width: 100%;
+    padding: 12px;
+    font-size: var(--text-base);
+  }
+
+  .feedback-header {
+    font-size: var(--text-md);
+  }
+
+  /* ─── COA drawer full-screen on mobile ───────────────── */
+
+  .coa-drawer {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 0;
+    height: 100%;
   }
 }
 
