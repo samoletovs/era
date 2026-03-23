@@ -45,6 +45,11 @@ export const api = {
   // Contacts
   contacts: (companyId: string) => apiFetch(`/companies/${companyId}/contacts`),
   contact: (companyId: string, id: string) => apiFetch(`/companies/${companyId}/contacts/${id}`),
+  findContact: (companyId: string, name: string, registrationNumber?: string) => {
+    const params = new URLSearchParams({ name });
+    if (registrationNumber) params.set("registrationNumber", registrationNumber);
+    return apiFetch(`/companies/${companyId}/contacts/find?${params}`);
+  },
   createContact: (companyId: string, body: Record<string, unknown>) =>
     apiFetch(`/companies/${companyId}/contacts`, { method: "POST", body: JSON.stringify(body) }),
   contactTransactions: (companyId: string, contactId: string) =>
@@ -56,6 +61,8 @@ export const api = {
   items: (companyId: string) => apiFetch(`/companies/${companyId}/items`),
   createItem: (companyId: string, body: Record<string, unknown>) =>
     apiFetch(`/companies/${companyId}/items`, { method: "POST", body: JSON.stringify(body) }),
+  itemTransactions: (companyId: string, itemCode: string) =>
+    apiFetch(`/companies/${companyId}/items/${itemCode}/transactions`),
   parseItemDescription: (companyId: string, description: string) =>
     apiFetch(`/companies/${companyId}/items/parse-description`, { method: "POST", body: JSON.stringify({ description }) }),
 

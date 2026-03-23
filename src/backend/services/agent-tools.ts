@@ -48,7 +48,7 @@ export const AGENT_TOOLS: ChatCompletionTool[] = [
     type: "function",
     function: {
       name: "create_contact",
-      description: "Create a customer or vendor contact",
+      description: "Create a customer or vendor contact. IMPORTANT: ALWAYS call find_contact first to check if the contact already exists before creating a new one. Only create a new contact if find_contact returns no match.",
       parameters: {
         type: "object",
         properties: {
@@ -71,6 +71,22 @@ export const AGENT_TOOLS: ChatCompletionTool[] = [
           },
         },
         required: ["companyId", "type", "name", "address"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "find_contact",
+      description: "Search for an existing contact by name or registration number. ALWAYS call this before create_contact to avoid duplicates. Returns the contact if found, or null if not found.",
+      parameters: {
+        type: "object",
+        properties: {
+          companyId: { type: "string" },
+          name: { type: "string", description: "Contact name to search for (case-insensitive)" },
+          registrationNumber: { type: "string", description: "Registration number to match (optional but more reliable)" },
+        },
+        required: ["companyId", "name"],
       },
     },
   },

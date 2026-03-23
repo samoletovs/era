@@ -65,6 +65,37 @@ export async function getContact(companyId: string, contactId: string): Promise<
   }
 }
 
+export async function findContactByName(companyId: string, name: string, registrationNumber?: string): Promise<Contact | null> {
+  // First try exact match on registration number (most reliable identifier)
+  if (registrationNumber) {
+    const { resources: byReg } = await containers.contacts().items
+      .query<Contact>({
+        query: "SELECT * FROM c WHERE c.companyId = @cid AND c.registrationNumber = @reg",
+        parameters: [
+          { name: "@cid", value: companyId },
+          { name: "@reg", value: registrationNumber },
+        ],
+      })
+      .fetchAll();
+    if (byReg.length > 0) return byReg[0];
+  }
+
+  // Then try case-insensitive name match
+  const nameLower = name.trim().toLowerCase();
+  const { resources: byName } = await containers.contacts().items
+    .query<Contact>({
+      query: "SELECT * FROM c WHERE c.companyId = @cid AND LOWER(c.name) = @name",
+      parameters: [
+        { name: "@cid", value: companyId },
+        { name: "@name", value: nameLower },
+      ],
+    })
+    .fetchAll();
+  if (byName.length > 0) return byName[0];
+
+  return null;
+}
+
 export async function listContacts(companyId: string, type?: Contact["type"]): Promise<Contact[]> {
   const typeFilter = type && type !== "both" ? "AND (c.type = @type OR c.type = 'both')" : "";
   const params: { name: string; value: string }[] = [

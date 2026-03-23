@@ -2,7 +2,7 @@ import { AzureOpenAI } from "openai";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { AGENT_TOOLS } from "./agent-tools.js";
 import { createCompany } from "./company.js";
-import { createContact, listContacts } from "./contact.js";
+import { createContact, listContacts, findContactByName } from "./contact.js";
 import { createInvoice, postInvoice, listInvoices, createCreditNote } from "./invoice.js";
 import { createAndPostPayment } from "./payment.js";
 import { postJournalEntry, getTrialBalance, getAccountBalance } from "./ledger.js";
@@ -64,7 +64,7 @@ Your PRIMARY directive is to AUTOMATE accounting — perform tasks proactively w
 
 ## How you work
 1. **COMPANY CREATION**: ALWAYS call lookup_company FIRST. If found, present and confirm. If the user already provided all details, create directly.
-2. **INVOICES**: Create AND post in one flow. Never leave invoices in draft unless explicitly asked.
+2. **INVOICES**: Before creating an invoice, ALWAYS call find_contact first to check if the contact already exists. If found, use the existing contact's ID. If NOT found, then call lookup_company to search the business register, create the contact, and only THEN create the invoice. NEVER create a contact without first checking if it exists. After creating, ALWAYS post the invoice immediately.
 3. **PAYMENTS**: Record and allocate to invoices automatically.
 4. **CREDIT NOTES**: When the user mentions a refund, return, or correction — create a credit note linked to the original invoice.
 5. **FIXED ASSETS**: When the user buys equipment/property, register it as a fixed asset. Depreciation runs automatically at month-end.
@@ -102,6 +102,15 @@ async function executeTool(name: string, args: Record<string, unknown>, userId: 
         legalAddress: args.address as { line1: string; city: string; postalCode: string; country: string },
         createdBy: userId,
       });
+
+    case "find_contact": {
+      const contact = await findContactByName(
+        args.companyId as string,
+        args.name as string,
+        args.registrationNumber as string | undefined
+      );
+      return contact || { found: false, message: `No contact found matching '${args.name}'. You need to create one first.` };
+    }
 
     case "create_contact":
       return createContact({

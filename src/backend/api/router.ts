@@ -4,7 +4,7 @@ import { createCompany, getCompany, updateCompany, deleteCompany, getCompanyStat
 import { postJournalEntry, reverseJournalEntry, getTrialBalance, GLError } from "../services/ledger.js";
 import { createInvoice, postInvoice, getInvoice, findDuplicateInvoice, cancelInvoice, getInvoicePostings, createCreditNote } from "../services/invoice.js";
 import { createAndPostPayment, listPayments } from "../services/payment.js";
-import { createContact, getContact } from "../services/contact.js";
+import { createContact, getContact, findContactByName } from "../services/contact.js";
 import { createItem } from "../services/inventory.js";
 import { generateVatReturn, getBalanceSheet, getProfitAndLoss, generateVatDeclaration, generateAnnualReport, getAgingReport, markOverdueInvoices } from "../services/reporting.js";
 import { searchCompanyByName, searchCompanyByRegNumber } from "../services/company-lookup.js";
@@ -65,6 +65,13 @@ router.get("/companies", async (req, res) => {
         parameters: [],
       })
       .fetchAll();
+    // Backfill shortName for companies created before the field existed
+    for (const c of resources) {
+      if (!c.shortName && c.name) {
+        c.shortName = generateShortName(c.name);
+        containers.companies().item(c.id, c.id).replace(c).catch(() => {});
+      }
+    }
     res.json({ data: resources } as ApiResponse);
   } catch (err) {
     res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
@@ -308,6 +315,31 @@ router.get("/companies/:companyId/items", async (req, res) => {
   }
 });
 
+// Item transactions (GL entries that reference this item)
+router.get("/companies/:companyId/items/:itemCode/transactions", async (req, res) => {
+  try {
+    const { companyId, itemCode } = req.params;
+    const { resources: entries } = await containers.ledger().items
+      .query<any>({
+        query: "SELECT * FROM c WHERE c.companyId = @cid AND (c.docType = 'journal-entry' OR IS_DEFINED(c.entryNumber)) AND c.status = 'posted' ORDER BY c.date DESC",
+        parameters: [{ name: "@cid", value: companyId }],
+      })
+      .fetchAll();
+
+    // Filter to entries that have lines referencing this item
+    const result: any[] = [];
+    for (const entry of entries) {
+      const matchingLines = (entry.lines || []).filter((l: any) => l.itemId === itemCode);
+      if (matchingLines.length > 0) {
+        result.push({ ...entry, lines: matchingLines });
+      }
+    }
+    res.json({ data: result } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
+  }
+});
+
 // Chat (Agent interaction)
 router.get("/companies/:companyId/chat", async (req, res) => {
   try {
@@ -389,18 +421,14 @@ router.post("/companies/:companyId/invoices/upload", async (req, res) => {
     const contactName = recognized.vendorName || "Unknown vendor";
 
     if (recognized.vendorName) {
-      const { resources: existing } = await containers.contacts().items
-        .query({
-          query: "SELECT * FROM c WHERE c.companyId = @cid AND c.name = @name",
-          parameters: [
-            { name: "@cid", value: req.params.companyId },
-            { name: "@name", value: recognized.vendorName },
-          ],
-        })
-        .fetchAll();
+      const existing = await findContactByName(
+        req.params.companyId,
+        recognized.vendorName,
+        recognized.vendorRegistrationNumber
+      );
 
-      if (existing.length > 0) {
-        contactId = existing[0].id;
+      if (existing) {
+        contactId = existing.id;
       } else {
         const newContact = await createContact({
           companyId: req.params.companyId,
@@ -576,6 +604,21 @@ router.get("/companies/:companyId/payments", async (req, res) => {
 });
 
 // ─── Contacts (CRUD) ────────────────────────────────────────
+
+router.get("/companies/:companyId/contacts/find", async (req, res) => {
+  try {
+    const name = (req.query.name as string) || "";
+    const regNumber = req.query.registrationNumber as string | undefined;
+    if (!name && !regNumber) {
+      res.json({ data: null } as ApiResponse);
+      return;
+    }
+    const contact = await findContactByName(req.params.companyId, name, regNumber);
+    res.json({ data: contact } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
+  }
+});
 
 router.post("/companies/:companyId/contacts", async (req, res) => {
   try {
@@ -1334,7 +1377,27 @@ router.get("/companies/:companyId/fixed-assets/:assetId/transactions", async (re
 
 router.post("/companies/:companyId/budgets", async (req, res) => {
   try {
-    const count = await setBudget({ ...req.body, companyId: req.params.companyId, createdBy: req.user!.id });
+    const { year, entries: rawEntries } = req.body;
+    const companyId = req.params.companyId;
+    const fiscalYear = year || new Date().getFullYear();
+
+    // Look up account names and expand monthly amounts into 12 periods
+    const { resources: accounts } = await containers.ledger().items
+      .query<Account>({ query: "SELECT c.code, c.name FROM c WHERE c.companyId = @cid AND c.docType = 'account' AND c.isPostable = true", parameters: [{ name: "@cid", value: companyId }] })
+      .fetchAll();
+    const acctMap = new Map(accounts.map(a => [a.code, a.name]));
+
+    const expandedEntries: Array<{ accountCode: string; accountName: string; period: string; amount: number }> = [];
+    for (const e of rawEntries || []) {
+      const accountCode = e.accountCode;
+      const accountName = acctMap.get(accountCode) || accountCode;
+      const monthlyAmount = e.monthlyAmount ?? e.amount ?? 0;
+      for (let m = 1; m <= 12; m++) {
+        expandedEntries.push({ accountCode, accountName, period: `${fiscalYear}-${String(m).padStart(2, "0")}`, amount: monthlyAmount });
+      }
+    }
+
+    const count = await setBudget({ companyId, fiscalYear, entries: expandedEntries, createdBy: req.user!.id });
     res.json({ data: { entriesCreated: count } } as ApiResponse);
   } catch (err) {
     res.status(500).json({ error: { code: "CREATE_FAILED", message: String(err) } });

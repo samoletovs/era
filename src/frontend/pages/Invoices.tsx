@@ -292,17 +292,22 @@ export function Invoices() {
     if (!parsedInvoice || !companyId) return;
     setCreating(true);
     try {
-      // Auto-create contact if contactName is provided
+      // Search for existing contact first to avoid duplicates
       let contactId = "";
       if (parsedInvoice.contactName) {
         try {
-          const contact = await api.createContact(companyId, {
-            type: parsedInvoice.type === "sales" ? "customer" : "vendor",
-            name: parsedInvoice.contactName,
-            address: { line1: "", city: "", postalCode: "", country: "LV" },
-          }) as any;
-          contactId = contact.id;
-        } catch { /* contact may already exist, proceed without id */ }
+          const existing = await api.findContact(companyId, parsedInvoice.contactName) as any;
+          if (existing) {
+            contactId = existing.id;
+          } else {
+            const contact = await api.createContact(companyId, {
+              type: parsedInvoice.type === "sales" ? "customer" : "vendor",
+              name: parsedInvoice.contactName,
+              address: { line1: "", city: "", postalCode: "", country: "LV" },
+            }) as any;
+            contactId = contact.id;
+          }
+        } catch { /* proceed without contact id */ }
       }
       const invoice = await api.createInvoice(companyId, {
         type: parsedInvoice.type,
