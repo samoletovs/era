@@ -745,7 +745,12 @@ export function BankRecon() {
       </div>
 
       <div className="settings-card" style={{ marginBottom: 20 }}>
-        <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>Import bank statement</h3>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, flexWrap: "wrap", gap: 8 }}>
+          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>Import bank statement</h3>
+          <span style={{ fontSize: "var(--text-xs)", color: "var(--text-tertiary)" }}>
+            Tip: click a reconciliation → "Add transaction" tab for manual entries
+          </span>
+        </div>
         <div className="form-hint">Paste semicolon-separated CSV with headers: date;description;reference;amount;counterparty</div>
         <textarea
           value={csvText}

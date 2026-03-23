@@ -3,6 +3,7 @@ import { api } from "../utils/api";
 import { useApp } from "../utils/context";
 import { formatMoney, formatMoneyOr } from "../utils/format";
 import { GlPostings } from "../components/GlPostings";
+import { AiInput } from "../components/AiInput";
 
 type SortKey = "invoiceNumber" | "vendorInvoiceNumber" | "type" | "contactName" | "date" | "subtotal" | "vatAmount" | "total" | "status";
 type SortDir = "asc" | "desc";
@@ -171,14 +172,50 @@ export function Invoices() {
     } catch (e: any) { console.error(e.message); }
   }
 
+  // Credit note state
+  const [creditNoteInv, setCreditNoteInv] = useState<any>(null);
+  const [creditReason, setCreditReason] = useState("");
+  const [creditCorrect, setCreditCorrect] = useState(false);
+  const [creditProcessing, setCreditProcessing] = useState(false);
+
   async function handleCreditNote(inv: any) {
-    const reason = prompt(`Reason for credit note on ${inv.invoiceNumber}?`);
-    if (!reason) return;
+    setCreditNoteInv(inv);
+    setCreditReason("");
+    setCreditCorrect(false);
+  }
+
+  async function submitCreditNote() {
+    if (!creditNoteInv || !creditReason.trim()) return;
+    setCreditProcessing(true);
     try {
-      await api.createCreditNote(companyId, inv.id, reason);
+      await api.createCreditNote(companyId, creditNoteInv.id, creditReason);
+
+      // If "create corrected invoice" is checked, create a new invoice with AI from the reason
+      if (creditCorrect) {
+        try {
+          const fields = await api.parseInvoiceDescription(companyId,
+            `Corrected invoice for ${creditNoteInv.contactName}, originally ${creditNoteInv.invoiceNumber}. ${creditReason}`
+          ) as any;
+          if (fields?.lines?.length > 0) {
+            let contactId = creditNoteInv.contactId || "";
+            const corrected = await api.createInvoice(companyId, {
+              type: creditNoteInv.type,
+              contactId,
+              contactName: fields.contactName || creditNoteInv.contactName,
+              date: new Date().toISOString().slice(0, 10),
+              dueDate: fields.dueDate,
+              lines: fields.lines,
+            }) as any;
+            try { await api.postInvoice(companyId, corrected.id); } catch { /* ok */ }
+          }
+        } catch { /* corrected invoice creation is best-effort */ }
+      }
+
       loadInvoices();
       setSelected(null);
+      setCreditNoteInv(null);
     } catch (e: any) { alert(e.message); }
+    finally { setCreditProcessing(false); }
   }
 
   // ─── Toggle panel ─────────────────────────────────────────
@@ -244,8 +281,21 @@ export function Invoices() {
     if (!parsedInvoice || !companyId) return;
     setCreating(true);
     try {
+      // Auto-create contact if contactName is provided
+      let contactId = "";
+      if (parsedInvoice.contactName) {
+        try {
+          const contact = await api.createContact(companyId, {
+            type: parsedInvoice.type === "sales" ? "customer" : "vendor",
+            name: parsedInvoice.contactName,
+            address: { line1: "", city: "", postalCode: "", country: "LV" },
+          }) as any;
+          contactId = contact.id;
+        } catch { /* contact may already exist, proceed without id */ }
+      }
       const invoice = await api.createInvoice(companyId, {
         type: parsedInvoice.type,
+        contactId,
         contactName: parsedInvoice.contactName,
         date: parsedInvoice.date,
         dueDate: parsedInvoice.dueDate,
@@ -451,6 +501,37 @@ export function Invoices() {
                     {paying ? "Processing..." : "Record payment"}
                   </button>
                   <button className="btn-secondary" onClick={() => { setActivePanel(""); setPayInvoice(null); }}>Cancel</button>
+                </div>
+              </div>
+            )}
+
+            {/* Credit note dialog */}
+            {creditNoteInv?.id === selected.id && (
+              <div className="settings-card" style={{ marginTop: 16 }}>
+                <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Credit note for {creditNoteInv.invoiceNumber}</h3>
+                <div style={{ marginBottom: 12 }}>
+                  <label style={labelStyle}>Reason for credit note</label>
+                  <AiInput
+                    placeholder="Describe the reason, e.g. 'Price was incorrect, should be €100 instead of €120'"
+                    buttonLabel="✨ Generate corrected"
+                    loadingLabel="Processing..."
+                    onSubmit={async (text) => { setCreditReason(text); }}
+                  />
+                  {creditReason && (
+                    <div style={{ marginTop: 8, padding: 10, background: "var(--bg-subtle)", borderRadius: "var(--radius-sm)", fontSize: "var(--text-sm)" }}>
+                      {creditReason}
+                    </div>
+                  )}
+                </div>
+                <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--text-sm)", marginBottom: 12 }}>
+                  <input type="checkbox" checked={creditCorrect} onChange={e => setCreditCorrect(e.target.checked)} />
+                  Also create a corrected invoice based on the description
+                </label>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button className="btn-primary" onClick={submitCreditNote} disabled={creditProcessing || !creditReason.trim()}>
+                    {creditProcessing ? "Processing..." : creditCorrect ? "Issue credit note + corrected invoice" : "Issue credit note"}
+                  </button>
+                  <button className="btn-secondary" onClick={() => setCreditNoteInv(null)}>Cancel</button>
                 </div>
               </div>
             )}

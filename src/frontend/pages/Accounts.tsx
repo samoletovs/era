@@ -230,8 +230,8 @@ export function Accounts() {
                   <thead>
                     <tr>
                       <th>Date</th>
-                      <th>Entry</th>
-                      <th>Description</th>
+                      <th className="hide-mobile">Entry</th>
+                      <th className="hide-mobile">Description</th>
                       <th>Debit</th>
                       <th>Credit</th>
                     </tr>
@@ -240,8 +240,8 @@ export function Accounts() {
                     {transactions.map((tx, i) => (
                       <tr key={`${tx.entryId}-${i}`}>
                         <td className="mono">{tx.date}</td>
-                        <td className="mono" style={{ fontSize: "var(--text-xs)" }}>{tx.entryNumber}</td>
-                        <td>{tx.description}</td>
+                        <td className="mono hide-mobile" style={{ fontSize: "var(--text-xs)" }}>{tx.entryNumber}</td>
+                        <td className="hide-mobile">{tx.description}</td>
                         <td className="num">{tx.debit > 0 ? formatMoney(tx.debit, fmt) : ""}</td>
                         <td className="num">{tx.credit > 0 ? formatMoney(tx.credit, fmt) : ""}</td>
                       </tr>

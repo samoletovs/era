@@ -310,6 +310,58 @@ export function Settings() {
           {saved && <span style={{ color: "#34C759", fontSize: 13 }}>✓ Saved</span>}
         </div>
 
+        <div className="settings-section" style={{ marginTop: 32 }}>
+          <h3 className="section-title">Currency settings</h3>
+          <p style={{ fontSize: 12, color: "var(--text-secondary, #787878)", marginBottom: 16 }}>
+            Configure transaction, accounting, and reporting currencies. Exchange rates can be imported automatically from ECB or Latvian Central Bank.
+          </p>
+          <div className="settings-grid">
+            <div className="settings-field">
+              <label>Transaction currency</label>
+              <select defaultValue="EUR" className="settings-input">
+                <option value="EUR">EUR — Euro</option>
+                <option value="USD">USD — US Dollar</option>
+                <option value="GBP">GBP — British Pound</option>
+                <option value="PLN">PLN — Polish Zloty</option>
+                <option value="SEK">SEK — Swedish Krona</option>
+                <option value="NOK">NOK — Norwegian Krone</option>
+                <option value="DKK">DKK — Danish Krone</option>
+                <option value="CZK">CZK — Czech Koruna</option>
+                <option value="CHF">CHF — Swiss Franc</option>
+              </select>
+            </div>
+            <div className="settings-field">
+              <label>Accounting currency</label>
+              <select defaultValue="EUR" className="settings-input">
+                <option value="EUR">EUR — Euro</option>
+                <option value="USD">USD — US Dollar</option>
+                <option value="GBP">GBP — British Pound</option>
+              </select>
+            </div>
+            <div className="settings-field">
+              <label>Reporting currency (optional)</label>
+              <select defaultValue="" className="settings-input">
+                <option value="">Same as accounting</option>
+                <option value="USD">USD — US Dollar</option>
+                <option value="EUR">EUR — Euro</option>
+                <option value="GBP">GBP — British Pound</option>
+              </select>
+            </div>
+            <div className="settings-field">
+              <label>Exchange rate source</label>
+              <select defaultValue="ecb" className="settings-input">
+                <option value="ecb">European Central Bank (ECB)</option>
+                <option value="latvian-bank">Bank of Latvia</option>
+                <option value="manual">Manual entry</option>
+                <option value="group">Group rates (shared)</option>
+              </select>
+            </div>
+          </div>
+          <p style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 8 }}>
+            Currency revaluation runs automatically as part of the month-end close process.
+          </p>
+        </div>
+
         <div className="settings-section" style={{ marginTop: 40, borderTop: "1px solid #FEE2E2", paddingTop: 24 }}>
           <h3 className="section-title" style={{ color: "#FF3B30" }}>Danger zone</h3>
           <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 16 }}>

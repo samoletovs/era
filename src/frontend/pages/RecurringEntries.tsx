@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { api } from "../utils/api";
 import { useApp } from "../utils/context";
 import { formatMoney, formatDate } from "../utils/format";
+import { AiInput } from "../components/AiInput";
 
 type RecSortKey = "name" | "frequency" | "amount" | "nextRunDate" | "lastRunDate";
 type SortDir = "asc" | "desc";
@@ -280,21 +281,37 @@ export function RecurringEntries() {
         <div className="settings-card" style={{ marginBottom: 20 }}>
           <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>New recurring template</h3>
 
-          {/* Quick fill */}
+          {/* Quick fill with AI + voice */}
           <div style={{ marginBottom: 16 }}>
-            <div className="detail-label">Quick fill</div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <input
-                value={form.quickText}
-                onChange={e => updateForm({ quickText: e.target.value })}
-                onKeyDown={e => e.key === "Enter" && handleQuickFill()}
-                placeholder="Describe the entry, e.g. 'Monthly office rent 500 EUR' or 'Quarterly insurance 1200 EUR'"
-                className="settings-input"
-                style={{ flex: 1 }}
-              />
-              <button className="btn-secondary" onClick={handleQuickFill} style={{ whiteSpace: "nowrap" }}>Auto-fill</button>
-            </div>
-            <span className="field-hint">Describe what you need and we will fill in the fields for you</span>
+            <div className="detail-label">Describe the entry</div>
+            <AiInput
+              placeholder="e.g. 'Monthly office rent 500 EUR' or 'Quarterly insurance 1200 EUR'"
+              buttonLabel="Auto-fill"
+              loadingLabel="Filling..."
+              onSubmit={async (text) => {
+                updateForm({ quickText: text });
+                // run quick-fill logic
+                const guess = guessAccounts(text, accounts);
+                const amtMatch = text.match(/(\d[\d\s]*[.,]?\d*)\s*(eur|€)/i) || text.match(/(€|eur)\s*(\d[\d\s]*[.,]?\d*)/i);
+                let amount = form.amount;
+                if (amtMatch) {
+                  const raw = (amtMatch[1] || amtMatch[2]).replace(/\s/g, "").replace(",", ".");
+                  const parsed = parseFloat(raw);
+                  if (!isNaN(parsed)) amount = String(parsed);
+                }
+                updateForm({
+                  name: form.name || text.slice(0, 60),
+                  description: form.description || text,
+                  debitCode: guess.debitCode || form.debitCode,
+                  debitName: guess.debitName || form.debitName,
+                  creditCode: guess.creditCode || form.creditCode,
+                  creditName: guess.creditName || form.creditName,
+                  amount: amount || form.amount,
+                  quickText: "",
+                });
+              }}
+            />
+            <span className="field-hint">Describe what you need — type or use voice. Fields will be filled automatically.</span>
           </div>
 
           <div style={{ borderTop: "1px solid #E8E8E8", paddingTop: 16 }}>

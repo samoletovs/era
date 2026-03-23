@@ -42,6 +42,7 @@ export interface CompanySettings {
   dateFormat?: DateFormat;
   dateTimeFormat?: DateTimeFormat;
   sequences?: Record<string, NumberSequence>;
+  currency?: CurrencySettings;
 }
 
 // Configurable number sequences for all document/record types
@@ -112,6 +113,28 @@ export interface BankAccount {
   swift: string;
   bankName: string;
   isDefault: boolean;
+}
+
+// ─── Multi-Currency ─────────────────────────────────────────
+
+export interface CurrencySettings {
+  transactionCurrency: string;    // ISO 4217, default "EUR"
+  accountingCurrency: string;     // ISO 4217, default "EUR"
+  reportingCurrency?: string;     // optional second reporting currency
+  exchangeRateSource: "ecb" | "latvian-bank" | "manual" | "group";
+  autoImportRates: boolean;
+}
+
+export interface ExchangeRate {
+  id: string;
+  fromCurrency: string;          // ISO 4217
+  toCurrency: string;            // ISO 4217
+  rate: number;                  // 1 fromCurrency = rate toCurrency
+  effectiveDate: string;         // ISO date
+  source: "ecb" | "latvian-bank" | "manual" | "group";
+  companyId?: string;            // null = shared across companies
+  groupId?: string;              // for group-level shared rates
+  createdAt: string;
 }
 
 // ─── Chart of Accounts ──────────────────────────────────────

@@ -45,6 +45,8 @@ export const api = {
   // Contacts
   contacts: (companyId: string) => apiFetch(`/companies/${companyId}/contacts`),
   contact: (companyId: string, id: string) => apiFetch(`/companies/${companyId}/contacts/${id}`),
+  createContact: (companyId: string, body: Record<string, unknown>) =>
+    apiFetch(`/companies/${companyId}/contacts`, { method: "POST", body: JSON.stringify(body) }),
   contactTransactions: (companyId: string, contactId: string) =>
     apiFetch(`/companies/${companyId}/contacts/${contactId}/transactions`),
 
@@ -167,6 +169,8 @@ export const api = {
   // Budget
   budgetVsActual: (companyId: string, year: number) =>
     apiFetch(`/companies/${companyId}/reports/budget-vs-actual?year=${year}`),
+  setBudget: (companyId: string, body: Record<string, unknown>) =>
+    apiFetch(`/companies/${companyId}/budgets`, { method: "POST", body: JSON.stringify(body) }),
 
   // Health check
   companyHealth: (companyId: string) => apiFetch(`/companies/${companyId}/health`),

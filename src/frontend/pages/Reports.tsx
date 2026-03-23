@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { api } from "../utils/api";
 import { useApp } from "../utils/context";
 import { formatMoney, formatMoneyOr } from "../utils/format";
+import { AiInput } from "../components/AiInput";
 
 export function Reports() {
   const { companyId, numberFormat: fmt } = useApp();
@@ -334,12 +335,63 @@ function AnnualReport({ data }: { data: any }) {
 }
 
 function BudgetVsActual({ data }: { data: any }) {
-  const { numberFormat: fmt } = useApp();
+  const { companyId, numberFormat: fmt } = useApp();
   const items = Array.isArray(data) ? data : [];
+  const [showAdd, setShowAdd] = useState(false);
+  const [budgetAccountCode, setBudgetAccountCode] = useState("");
+  const [budgetAmount, setBudgetAmount] = useState("");
+  const [budgetYear, setBudgetYear] = useState(new Date().getFullYear());
+  const [saving, setSaving] = useState(false);
+
+  async function handleAddBudget() {
+    if (!budgetAccountCode || !budgetAmount || !companyId) return;
+    setSaving(true);
+    try {
+      await api.setBudget(companyId, {
+        year: budgetYear,
+        entries: [{ accountCode: budgetAccountCode, monthlyAmount: parseFloat(budgetAmount) }],
+      });
+      setBudgetAccountCode("");
+      setBudgetAmount("");
+      setShowAdd(false);
+      // Trigger re-fetch by brief reload
+      window.location.reload();
+    } catch (err: any) { alert(err.message); }
+    finally { setSaving(false); }
+  }
+
   return (
     <div className="metric-card">
-      <h3 style={{ marginBottom: 16, fontSize: 16, fontWeight: 600 }}>Budget vs actual</h3>
-      {items.length === 0 ? <p style={{ color: "var(--text-tertiary)" }}>No budget data. Set budgets via the agent chat.</p> : (
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>Budget vs actual</h3>
+        <button className="btn-secondary" style={{ fontSize: "var(--text-sm)" }} onClick={() => setShowAdd(!showAdd)}>
+          {showAdd ? "Cancel" : "+ Add budget"}
+        </button>
+      </div>
+
+      {showAdd && (
+        <div style={{ marginBottom: 16, padding: 14, background: "var(--bg-page)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
+            <div>
+              <label style={{ display: "block", fontSize: 11, fontWeight: 500, color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.02em", marginBottom: 4 }}>Account code</label>
+              <input type="text" value={budgetAccountCode} onChange={e => setBudgetAccountCode(e.target.value)} placeholder="e.g. 6330" className="form-input" style={{ width: "100%" }} aria-label="Budget account code" />
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: 11, fontWeight: 500, color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.02em", marginBottom: 4 }}>Monthly amount (€)</label>
+              <input type="number" step="0.01" value={budgetAmount} onChange={e => setBudgetAmount(e.target.value)} placeholder="1200" className="form-input" style={{ width: "100%" }} aria-label="Monthly budget amount" />
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: 11, fontWeight: 500, color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.02em", marginBottom: 4 }}>Year</label>
+              <input type="number" value={budgetYear} onChange={e => setBudgetYear(Number(e.target.value))} className="form-input" style={{ width: "100%" }} aria-label="Budget year" />
+            </div>
+          </div>
+          <button className="btn-primary" style={{ marginTop: 10 }} onClick={handleAddBudget} disabled={saving || !budgetAccountCode || !budgetAmount}>
+            {saving ? "Saving..." : "Add budget entry"}
+          </button>
+        </div>
+      )}
+
+      {items.length === 0 ? <p style={{ color: "var(--text-tertiary)" }}>No budget data yet. Click "+ Add budget" to set monthly budgets for expense accounts.</p> : (
         <table className="data-table">
           <thead><tr><th>Code</th><th>Account</th><th style={{ textAlign: "right" }}>Budget</th><th style={{ textAlign: "right" }}>Actual</th><th style={{ textAlign: "right" }}>Variance</th><th style={{ textAlign: "right" }}>%</th></tr></thead>
           <tbody>
