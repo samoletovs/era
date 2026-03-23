@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { api } from "../utils/api";
 import { useApp } from "../utils/context";
-import { formatMoney, formatMoneyOr } from "../utils/format";
+import { formatMoney } from "../utils/format";
 import { GlPostings } from "../components/GlPostings";
 import { AiInput } from "../components/AiInput";
 
@@ -85,7 +85,7 @@ export function Invoices() {
   const [uploadStatus, setUploadStatus] = useState<"idle" | "processing" | "done" | "error">("idle");
   const [uploadResult, setUploadResult] = useState<any>(null);
   const [uploadError, setUploadError] = useState("");
-  const [uploadPreview, setUploadPreview] = useState<string | null>(null);
+  const [_uploadPreview, setUploadPreview] = useState<string | null>(null);
 
   // Pay invoice state
   const [payInvoice, setPayInvoice] = useState<any>(null);

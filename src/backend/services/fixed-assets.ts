@@ -118,7 +118,7 @@ export async function runDepreciation(
   companyId: string,
   period: string,
   createdBy: string
-): Promise<{ assetsDepreciated: number; totalAmount: number; journalEntryId?: string; skipped?: boolean }> {
+): Promise<{ assetsDepreciated: number; totalAmount: number; journalEntryId?: string; isSkipped?: boolean }> {
   const { resources: assets } = await containers.inventory().items
     .query<FixedAsset>({
       query: "SELECT * FROM c WHERE c.companyId = @cid AND c.docType = 'fixed-asset' AND c.status = 'active'",
@@ -168,7 +168,7 @@ export async function runDepreciation(
       existingEntries[0].lines?.reduce((s: number, l: any) => s + (l.debit || 0), 0) || 0
     );
     if (existingTotal === roundCurrency(totalAmount)) {
-      return { assetsDepreciated: assets.length, totalAmount: roundCurrency(totalAmount), journalEntryId: existingEntries[0].id, skipped: true };
+      return { assetsDepreciated: assets.length, totalAmount: roundCurrency(totalAmount), journalEntryId: existingEntries[0].id, isSkipped: true };
     }
 
     // Amounts differ - reverse the old entry and post a new one

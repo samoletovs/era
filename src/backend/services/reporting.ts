@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import { containers } from "./cosmos.js";
-import type { VatReturn, VatReturnLine, Invoice, Account, JournalEntry } from "@shared/types";
+import type { VatReturn, VatReturnLine, Invoice, Account } from "@shared/types";
 
 function roundCurrency(n: number): number {
   return Math.round(n * 100) / 100;

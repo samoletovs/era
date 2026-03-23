@@ -4,7 +4,7 @@ import { useApp } from "../utils/context";
 import { formatMoney } from "../utils/format";
 
 export function Reports() {
-  const { companyId, numberFormat: fmt } = useApp();
+  const { companyId } = useApp();
   const [view, setView] = useState<"pl" | "bs" | "tb" | "ar-aging" | "ap-aging" | "vat" | "annual" | "budget">("pl");
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);

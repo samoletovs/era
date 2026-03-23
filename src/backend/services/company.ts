@@ -115,7 +115,7 @@ export async function getCompanyStats(id: string): Promise<{ transactionCount: n
   return { transactionCount: txns[0] ?? 0 };
 }
 
-export async function deleteCompany(id: string): Promise<{ deleted: boolean }> {
+export async function deleteCompany(id: string): Promise<{ isDeleted: boolean }> {
   const company = await getCompany(id);
   if (!company) throw new Error("Company not found");
 
@@ -177,5 +177,5 @@ export async function deleteCompany(id: string): Promise<{ deleted: boolean }> {
   // Delete the company itself
   await containers.companies().item(id, id).delete();
 
-  return { deleted: true };
+  return { isDeleted: true };
 }

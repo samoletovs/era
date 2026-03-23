@@ -1,7 +1,6 @@
 // Period management & year-end close
 // Handles fiscal period locking and year-end closing journals
 
-import { v4 as uuidv4 } from "uuid";
 import { containers } from "./cosmos.js";
 import { postJournalEntry, GLError } from "./ledger.js";
 import { emitEvent } from "./events.js";
@@ -16,6 +15,7 @@ function roundCurrency(n: number): number {
 export interface FiscalPeriod {
   id: string;
   companyId: string;
+  docType: "fiscal-period";
   period: string;           // "2026-03"
   year: number;
   month: number;

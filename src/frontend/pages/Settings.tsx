@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../utils/api";
 import { useApp } from "../utils/context";
 import { FORMAT_LABELS, formatSequencePreview, DATE_FORMAT_LABELS, DATETIME_FORMAT_LABELS } from "../utils/format";
+import { CollapsibleSection } from "../components/CollapsibleSection";
 import type { NumberFormat, SequenceType, NumberSequence, DateFormat, DateTimeFormat } from "@shared/types";
 import { DEFAULT_SEQUENCES, SEQUENCE_LABELS } from "@shared/types";
 
@@ -89,230 +90,69 @@ export function Settings() {
     <div>
       <h2 className="page-title">Company settings</h2>
       <div className="settings-card">
-        <div className="settings-section">
-          <div className="settings-field">
-            <label>Company code</label>
-            <input
-              className="code-input-lg"
-              value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 5))}
-              maxLength={5}
-              placeholder="DAIS"
-            />
-            <span className="field-hint">Max 5 characters, shown in the company switcher</span>
-          </div>
 
-          <div className="settings-field">
-            <label>Company name</label>
-            <input value={name} onChange={(e) => setName(e.target.value)} />
-          </div>
-
-          <div className="settings-field">
-            <label>Registration number</label>
-            <input value={company.registrationNumber} disabled className="disabled" />
-            <span className="field-hint">Cannot be changed after creation</span>
-          </div>
-
-          <div className="settings-field">
-            <label>VAT number</label>
-            <input value={vatNumber} onChange={(e) => setVatNumber(e.target.value)} placeholder="LV40003290084" />
-          </div>
-        </div>
-
-        <div className="settings-section">
-          <h3 className="section-title">Number sequences</h3>
-          <p style={{ fontSize: 12, color: "var(--text-secondary, #787878)", marginBottom: 16 }}>
-            Configure how document and record numbers are generated. Each type has a prefix, counter, and zero-padding width.
-          </p>
-          <table className="data-table" style={{ fontSize: 13 }}>
-            <thead>
-              <tr>
-                <th>Type</th>
-                <th>Prefix</th>
-                <th style={{ width: 60 }}>Separator</th>
-                <th style={{ width: 70 }}>Padding</th>
-                <th style={{ width: 80 }}>Next #</th>
-                <th>Suffix</th>
-                <th>Preview</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(Object.keys(SEQUENCE_LABELS) as SequenceType[]).map((key) => {
-                const seq = sequences[key] || DEFAULT_SEQUENCES[key];
-                return (
-                  <tr key={key}>
-                    <td style={{ fontWeight: 500 }}>{SEQUENCE_LABELS[key]}</td>
-                    <td>
-                      <input
-                        value={seq.prefix}
-                        onChange={(e) => setSequences((prev) => ({ ...prev, [key]: { ...seq, prefix: e.target.value.toUpperCase() } }))}
-                        style={{ width: 70 }}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        value={seq.separator ?? "-"}
-                        onChange={(e) => setSequences((prev) => ({ ...prev, [key]: { ...seq, separator: e.target.value } }))}
-                        style={{ width: 40 }}
-                        maxLength={2}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="number"
-                        value={seq.padding}
-                        onChange={(e) => setSequences((prev) => ({ ...prev, [key]: { ...seq, padding: Math.max(1, Math.min(12, Number(e.target.value))) } }))}
-                        style={{ width: 50 }}
-                        min={1}
-                        max={12}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="number"
-                        value={seq.nextNumber}
-                        onChange={(e) => setSequences((prev) => ({ ...prev, [key]: { ...seq, nextNumber: Math.max(1, Number(e.target.value)) } }))}
-                        style={{ width: 70 }}
-                        min={1}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        value={seq.suffix || ""}
-                        onChange={(e) => setSequences((prev) => ({ ...prev, [key]: { ...seq, suffix: e.target.value || undefined } }))}
-                        style={{ width: 60 }}
-                        placeholder="e.g. 2026"
-                      />
-                    </td>
-                    <td className="mono" style={{ color: "var(--text-secondary, #787878)" }}>
-                      {formatSequencePreview(seq)}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="settings-section">
-          <h3 className="section-title">Invoicing</h3>
-          <div className="settings-field">
-            <label>Default payment terms (days)</label>
-            <input type="number" value={paymentTerms} onChange={(e) => setPaymentTerms(Number(e.target.value))} className="settings-input" style={{ maxWidth: 120 }} />
-          </div>
-        </div>
-
-        <div className="settings-section">
-          <h3 className="section-title">Number format</h3>
-          <div className="settings-field">
-            <label>Amount display</label>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {(Object.entries(FORMAT_LABELS) as [NumberFormat, string][]).map(([key, label]) => (
-                <button
-                  key={key}
-                  onClick={() => setNumberFormat(key)}
-                  style={{
-                    padding: "8px 16px",
-                    borderRadius: 8,
-                    border: numberFormat === key ? "2px solid var(--accent, #0A84FF)" : "1px solid #E0E0E0",
-                    background: numberFormat === key ? "var(--accent-bg, #F0F7FF)" : "#fff",
-                    color: "var(--text-primary, #1C1C1C)",
-                    fontFamily: "monospace",
-                    fontSize: 14,
-                    cursor: "pointer",
-                    fontWeight: numberFormat === key ? 600 : 400,
-                  }}
-                >
-                  €{label}
-                </button>
-              ))}
-            </div>
-            <span className="field-hint">How amounts appear across the app</span>
-          </div>
-        </div>
-
-        <div className="settings-section">
-          <h3 className="section-title">Date format</h3>
-          <div className="settings-field">
-            <label>Date display</label>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {(Object.entries(DATE_FORMAT_LABELS) as [DateFormat, string][]).map(([key, label]) => (
-                <button
-                  key={key}
-                  onClick={() => setDateFormat(key)}
-                  style={{
-                    padding: "8px 16px",
-                    borderRadius: 8,
-                    border: dateFormat === key ? "2px solid var(--accent, #0A84FF)" : "1px solid #E0E0E0",
-                    background: dateFormat === key ? "var(--accent-bg, #F0F7FF)" : "#fff",
-                    color: "var(--text-primary, #1C1C1C)",
-                    fontFamily: "monospace",
-                    fontSize: 14,
-                    cursor: "pointer",
-                    fontWeight: dateFormat === key ? 600 : 400,
-                  }}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            <span className="field-hint">How dates appear across the app</span>
-          </div>
-          <div className="settings-field" style={{ marginTop: 16 }}>
-            <label>Time display</label>
-            <div style={{ display: "flex", gap: 8 }}>
-              {(Object.entries(DATETIME_FORMAT_LABELS) as [DateTimeFormat, string][]).map(([key, label]) => (
-                <button
-                  key={key}
-                  onClick={() => setDateTimeFormat(key)}
-                  style={{
-                    padding: "8px 16px",
-                    borderRadius: 8,
-                    border: dateTimeFormat === key ? "2px solid var(--accent, #0A84FF)" : "1px solid #E0E0E0",
-                    background: dateTimeFormat === key ? "var(--accent-bg, #F0F7FF)" : "#fff",
-                    color: "var(--text-primary, #1C1C1C)",
-                    fontFamily: "monospace",
-                    fontSize: 14,
-                    cursor: "pointer",
-                    fontWeight: dateTimeFormat === key ? 600 : 400,
-                  }}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            <span className="field-hint">24-hour or 12-hour clock</span>
-          </div>
-        </div>
-
-        <div className="settings-section">
-          <h3 className="section-title">Address</h3>
-          <div className="settings-field">
-            <label>Legal address</label>
-            <input value={company.legalAddress?.line1 || ""} disabled className="disabled" />
-          </div>
-          <div className="settings-row">
+        {/* Block 1: Company information & invoicing — expanded by default */}
+        <CollapsibleSection title="Company information" defaultExpanded>
+          <div className="settings-section">
             <div className="settings-field">
-              <label>City</label>
-              <input value={company.legalAddress?.city || ""} disabled className="disabled" />
+              <label>Company code</label>
+              <input
+                className="code-input-lg"
+                value={code}
+                onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 5))}
+                maxLength={5}
+                placeholder="DAIS"
+              />
+              <span className="field-hint">Max 5 characters, shown in the company switcher</span>
             </div>
+
             <div className="settings-field">
-              <label>Postal code</label>
-              <input value={company.legalAddress?.postalCode || ""} disabled className="disabled" />
+              <label>Company name</label>
+              <input value={name} onChange={(e) => setName(e.target.value)} />
+            </div>
+
+            <div className="settings-field">
+              <label>Registration number</label>
+              <input value={company.registrationNumber} disabled className="disabled" />
+              <span className="field-hint">Cannot be changed after creation</span>
+            </div>
+
+            <div className="settings-field">
+              <label>VAT number</label>
+              <input value={vatNumber} onChange={(e) => setVatNumber(e.target.value)} placeholder="LV40003290084" />
             </div>
           </div>
-        </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 24 }}>
-          <button className="btn-primary" onClick={handleSave} disabled={saving}>
-            {saving ? "Saving..." : "Save changes"}
-          </button>
-          {saved && <span style={{ color: "#34C759", fontSize: 13 }}>✓ Saved</span>}
-        </div>
+          <div className="settings-section">
+            <h3 className="section-title">Address</h3>
+            <div className="settings-field">
+              <label>Legal address</label>
+              <input value={company.legalAddress?.line1 || ""} disabled className="disabled" />
+            </div>
+            <div className="settings-row">
+              <div className="settings-field">
+                <label>City</label>
+                <input value={company.legalAddress?.city || ""} disabled className="disabled" />
+              </div>
+              <div className="settings-field">
+                <label>Postal code</label>
+                <input value={company.legalAddress?.postalCode || ""} disabled className="disabled" />
+              </div>
+            </div>
+          </div>
 
-        <div className="settings-section" style={{ marginTop: 32 }}>
-          <h3 className="section-title">Currency settings</h3>
-          <p style={{ fontSize: 12, color: "var(--text-secondary, #787878)", marginBottom: 16 }}>
+          <div className="settings-section" style={{ borderBottom: "none", marginBottom: 0, paddingBottom: 0 }}>
+            <h3 className="section-title">Invoicing</h3>
+            <div className="settings-field">
+              <label>Default payment terms (days)</label>
+              <input type="number" value={paymentTerms} onChange={(e) => setPaymentTerms(Number(e.target.value))} className="settings-input" style={{ maxWidth: 120 }} />
+            </div>
+          </div>
+        </CollapsibleSection>
+
+        {/* Block 2: Currency settings — collapsed by default */}
+        <CollapsibleSection title="Currency settings">
+          <p style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 16 }}>
             Configure transaction, accounting, and reporting currencies. Exchange rates can be imported automatically from ECB or Latvian Central Bank.
           </p>
           <div className="settings-grid">
@@ -360,10 +200,175 @@ export function Settings() {
           <p style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 8 }}>
             Currency revaluation runs automatically as part of the month-end close process.
           </p>
+        </CollapsibleSection>
+
+        {/* Block 3: Number & date format — collapsed by default */}
+        <CollapsibleSection title="Number format">
+          <div className="settings-field">
+            <label>Amount display</label>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {(Object.entries(FORMAT_LABELS) as [NumberFormat, string][]).map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => setNumberFormat(key)}
+                  style={{
+                    padding: "8px 16px",
+                    borderRadius: 8,
+                    border: numberFormat === key ? "2px solid var(--accent, #0A84FF)" : "1px solid #E0E0E0",
+                    background: numberFormat === key ? "var(--accent-bg, #F0F7FF)" : "#fff",
+                    color: "var(--text-primary, #1C1C1C)",
+                    fontFamily: "monospace",
+                    fontSize: 14,
+                    cursor: "pointer",
+                    fontWeight: numberFormat === key ? 600 : 400,
+                  }}
+                >
+                  €{label}
+                </button>
+              ))}
+            </div>
+            <span className="field-hint">How amounts appear across the app</span>
+          </div>
+
+          <div className="settings-field" style={{ marginTop: 8 }}>
+            <label>Date display</label>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {(Object.entries(DATE_FORMAT_LABELS) as [DateFormat, string][]).map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => setDateFormat(key)}
+                  style={{
+                    padding: "8px 16px",
+                    borderRadius: 8,
+                    border: dateFormat === key ? "2px solid var(--accent, #0A84FF)" : "1px solid #E0E0E0",
+                    background: dateFormat === key ? "var(--accent-bg, #F0F7FF)" : "#fff",
+                    color: "var(--text-primary, #1C1C1C)",
+                    fontFamily: "monospace",
+                    fontSize: 14,
+                    cursor: "pointer",
+                    fontWeight: dateFormat === key ? 600 : 400,
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <span className="field-hint">How dates appear across the app</span>
+          </div>
+
+          <div className="settings-field" style={{ marginTop: 8 }}>
+            <label>Time display</label>
+            <div style={{ display: "flex", gap: 8 }}>
+              {(Object.entries(DATETIME_FORMAT_LABELS) as [DateTimeFormat, string][]).map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => setDateTimeFormat(key)}
+                  style={{
+                    padding: "8px 16px",
+                    borderRadius: 8,
+                    border: dateTimeFormat === key ? "2px solid var(--accent, #0A84FF)" : "1px solid #E0E0E0",
+                    background: dateTimeFormat === key ? "var(--accent-bg, #F0F7FF)" : "#fff",
+                    color: "var(--text-primary, #1C1C1C)",
+                    fontFamily: "monospace",
+                    fontSize: 14,
+                    cursor: "pointer",
+                    fontWeight: dateTimeFormat === key ? 600 : 400,
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <span className="field-hint">24-hour or 12-hour clock</span>
+          </div>
+        </CollapsibleSection>
+
+        {/* Block 4: Number sequences — collapsed by default */}
+        <CollapsibleSection title="Number sequences">
+          <p style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 16 }}>
+            Configure how document and record numbers are generated. Each type has a prefix, counter, and zero-padding width.
+          </p>
+          <div className="sequences-table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Prefix</th>
+                  <th style={{ width: 50 }}>Sep.</th>
+                  <th style={{ width: 55 }}>Pad</th>
+                  <th style={{ width: 65 }}>Next #</th>
+                  <th>Suffix</th>
+                  <th>Preview</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(Object.keys(SEQUENCE_LABELS) as SequenceType[]).map((key) => {
+                  const seq = sequences[key] || DEFAULT_SEQUENCES[key];
+                  return (
+                    <tr key={key}>
+                      <td style={{ fontWeight: 500, whiteSpace: "nowrap" }}>{SEQUENCE_LABELS[key]}</td>
+                      <td>
+                        <input
+                          value={seq.prefix}
+                          onChange={(e) => setSequences((prev) => ({ ...prev, [key]: { ...seq, prefix: e.target.value.toUpperCase() } }))}
+                          style={{ width: 64 }}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          value={seq.separator ?? "-"}
+                          onChange={(e) => setSequences((prev) => ({ ...prev, [key]: { ...seq, separator: e.target.value } }))}
+                          style={{ width: 36 }}
+                          maxLength={2}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          value={seq.padding}
+                          onChange={(e) => setSequences((prev) => ({ ...prev, [key]: { ...seq, padding: Math.max(1, Math.min(12, Number(e.target.value))) } }))}
+                          style={{ width: 44 }}
+                          min={1}
+                          max={12}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          value={seq.nextNumber}
+                          onChange={(e) => setSequences((prev) => ({ ...prev, [key]: { ...seq, nextNumber: Math.max(1, Number(e.target.value)) } }))}
+                          style={{ width: 58 }}
+                          min={1}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          value={seq.suffix || ""}
+                          onChange={(e) => setSequences((prev) => ({ ...prev, [key]: { ...seq, suffix: e.target.value || undefined } }))}
+                          style={{ width: 56 }}
+                          placeholder="e.g. 2026"
+                        />
+                      </td>
+                      <td className="mono" style={{ color: "var(--text-secondary)", whiteSpace: "nowrap" }}>
+                        {formatSequencePreview(seq)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </CollapsibleSection>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "20px 0" }}>
+          <button className="btn-primary" onClick={handleSave} disabled={saving}>
+            {saving ? "Saving..." : "Save changes"}
+          </button>
+          {saved && <span style={{ color: "#34C759", fontSize: 13 }}>✓ Saved</span>}
         </div>
 
-        <div className="settings-section" style={{ marginTop: 40, borderTop: "1px solid #FEE2E2", paddingTop: 24 }}>
-          <h3 className="section-title" style={{ color: "#FF3B30" }}>Danger zone</h3>
+        {/* Block 5: Danger zone — collapsed by default */}
+        <CollapsibleSection title="Danger zone" variant="danger">
           <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 16 }}>
             Permanently delete this company and all its data. This cannot be undone.
           </p>
@@ -459,7 +464,7 @@ export function Settings() {
               <p style={{ fontSize: 13, color: "#991B1B" }}>Deleting company and all data...</p>
             </div>
           )}
-        </div>
+        </CollapsibleSection>
       </div>
     </div>
   );

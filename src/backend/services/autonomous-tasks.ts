@@ -258,7 +258,7 @@ export async function checkCompanyHealth(companyId: string): Promise<CompanyHeal
   if (!company) throw new Error("Company not found");
 
   const today = new Date().toISOString().slice(0, 10);
-  const currentPeriod = today.slice(0, 7);
+  const _currentPeriod = today.slice(0, 7);
   const lastMonth = new Date();
   lastMonth.setMonth(lastMonth.getMonth() - 1);
   const lastPeriod = lastMonth.toISOString().slice(0, 7);

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { api } from "../utils/api";
 import { useApp } from "../utils/context";
-import { formatMoney, formatMoneyOr } from "../utils/format";
+import { formatMoney } from "../utils/format";
 
 interface Transaction {
   entryId: string;

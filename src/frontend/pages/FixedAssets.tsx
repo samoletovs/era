@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { api } from "../utils/api";
 import { useApp } from "../utils/context";
-import { formatMoney, formatMoneyOr } from "../utils/format";
+import { formatMoney } from "../utils/format";
 import { GlPostings } from "../components/GlPostings";
 
 type SortKey = "code" | "name" | "assetAccountCode" | "acquisitionCost" | "accumulatedDepreciation" | "netBookValue" | "status";
@@ -197,9 +197,9 @@ export function FixedAssets() {
       </div>
 
       {depResult && (
-        <div className="metric-card" style={{ marginBottom: 16, background: depResult.skipped ? "var(--bg-subtle, #F5F5F4)" : "var(--success-bg)" }}>
-          <span style={{ color: depResult.skipped ? "var(--text-secondary)" : "#1A7F37", fontSize: "var(--text-sm)" }}>
-            {depResult.skipped
+        <div className="metric-card" style={{ marginBottom: 16, background: depResult.isSkipped ? "var(--bg-subtle, #F5F5F4)" : "var(--success-bg)" }}>
+          <span style={{ color: depResult.isSkipped ? "var(--text-secondary)" : "#1A7F37", fontSize: "var(--text-sm)" }}>
+            {depResult.isSkipped
               ? `Depreciation for ${depPeriod} already posted (${formatMoney(depResult.totalAmount, fmt)}). No changes needed.`
               : `Depreciation posted: ${depResult.assetsDepreciated} asset${depResult.assetsDepreciated !== 1 ? "s" : ""}, ${formatMoney(depResult.totalAmount, fmt)} total`}
           </span>

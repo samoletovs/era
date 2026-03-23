@@ -345,7 +345,7 @@ export async function matchLineToInvoice(input: MatchInvoiceInput): Promise<Bank
 
   const absAmount = Math.abs(line.amount);
   const allocated = roundCurrency(input.allocatedAmount);
-  const invoiceDue = roundCurrency(invoice.total - invoice.amountPaid);
+  const _invoiceDue = roundCurrency(invoice.total - invoice.amountPaid);
 
   // Calculate difference
   const difference = roundCurrency(absAmount - allocated);

@@ -11,42 +11,90 @@ description: >-
   general principles. Follow the step-by-step process below.
 ---
 
-# Design System
+# Design System — The Jony Ive Approach
 
-This skill tells you exactly how to make any UI look like a modern 2026 app — the kind of 
-clean, light, airy aesthetic you see in Apple's apps, Linear, Notion, Vercel, or Arc browser.
+This skill tells you exactly how to make any UI embody the design philosophy of 
+**Sir Jony Ive** — the legendary former Apple Chief Design Officer whose work defined 
+the aesthetic of the iMac, iPod, iPhone, iPad, Apple Watch, iOS 7+, and Apple Park.
 
-## What "Good" Looks Like in 2026
+## The Ive Philosophy: Design Principles
 
-The target aesthetic is **light, spacious, and quiet**. Think of it this way: if you squint 
-at the screen, you should see mostly white/light gray with tiny touches of color. The 
-interface should feel like a calm, well-lit room — not a crowded dashboard.
+Ive's approach is rooted in **Dieter Rams** ("as little design as possible") and 
+the **Bauhaus** tradition ("form follows function", "less is more"). These aren't 
+abstract ideas — they translate to specific, actionable CSS decisions.
 
-**Reference apps to emulate** (study their visual style):
-- **Linear** (linear.app) — The gold standard for clean SaaS UI
-- **Notion** — Warm, readable, generous whitespace
-- **Apple HIG / Liquid Glass** — Light translucent surfaces, subtle depth
-- **Vercel** — Crisp black/white with surgical accent color use
-- **Arc Browser** — Soft colors, rounded but not bubbly
-- **Raycast** — Extremely clean command-palette aesthetic
-- **Stripe Dashboard** — Professional, data-dense but still clean
-- **claude.ai** — Anthropic's UI is a perfect reference: warm grays, minimal accent, sentence case everywhere
+### Core Principles (Memorize These)
+
+1. **Reduction to essence** — "True simplicity is derived from so much more than 
+   just the absence of clutter and ornamentation. It's about bringing order to 
+   complexity." Remove every element that doesn't serve a clear purpose. If removing 
+   something doesn't hurt the experience, it shouldn't be there.
+
+2. **Quiet confidence** — The design shouldn't shout. It should feel **inevitable** — 
+   like it couldn't have been done any other way. No decoration, no flourish, no 
+   visual noise. The interface recedes; the content comes forward.
+
+3. **Obsessive precision** — Sub-pixel alignment, mathematically consistent spacing, 
+   exact optical balance. Every gap, every margin, every radius follows a deliberate 
+   system. Nothing is arbitrary. Ive's team would spend weeks on the precise radius 
+   of a single corner.
+
+4. **Material honesty** — Surfaces communicate what they are through subtle physical 
+   cues: light, shadow, translucency, depth. Not heavy skeuomorphism, but gentle 
+   optical hints that create hierarchy — the way light falls on frosted glass.
+
+5. **Content is the hero** — UI chrome dissolves away. Navigation, toolbars, controls 
+   become near-invisible until needed. The user's data, text, and actions take center 
+   stage. The interface is a frame, not a painting.
+
+6. **Purposeful restraint** — One accent color. One typeface. One radius value. One 
+   shadow intensity. Restraint creates coherence. When everything is consistent, the 
+   few intentional deviations carry enormous visual weight.
+
+7. **Depth through light, not decoration** — Hierarchy comes from subtle changes in 
+   luminosity, translucency, and weight — not from colored borders, heavy shadows, or 
+   graphic ornaments. Think of light passing through layers of frosted glass.
+
+8. **Tactile responsiveness** — Every interactive element responds to touch/hover with 
+   subtle, purposeful feedback. Not bouncy or playful — precise and immediate, like 
+   the click of a well-machined button.
+
+## What "Good" Looks Like (The Ive Standard)
+
+The target aesthetic is **ethereal, precise, and serene**. If you squint at the screen, 
+you should see almost pure white with the faintest gray structure and one or two tiny 
+spots of color. The interface should feel like a beautifully lit gallery — the walls 
+disappear, and you see only the art.
+
+**Reference products that embody Ive-level design:**
+- **Apple HIG / Liquid Glass (2025)** — Ive's ultimate evolution: translucent layers, 
+  depth through refraction, controls that float above content
+- **Linear** (linear.app) — The closest any SaaS app gets to Apple-level precision
+- **Apple.com** — Study the product pages: vast whitespace, surgical typography, 
+  images that breathe
+- **iOS Settings app** — Grouped lists, clear hierarchy, zero decoration
+- **Vercel** — Monochrome discipline with one accent
+- **Stripe Dashboard** — Dense data presented with extreme clarity
+- **SF Symbols** — Apple's icon system: optically balanced, consistent weight
 
 **Key insights from testing (learned through iterations):**
-- **Toggle/segmented controls**: Apple-style white selected tab on gray bg with tiny shadow 
-  is better than dark filled tab. It feels lighter.
-- **Navigation steppers**: Active dots should use near-black (#1C1C1C), NOT accent blue. 
-  Accent is only for CTAs.
-- **Card shadows**: Use `0 1px 2px rgba(0,0,0,0.03)` — barely visible. Most cards should 
-  rely on border, not shadow.
-- **Form labels**: Uppercase at 11px, weight 500, color #A0A0A0 — they should barely be 
-  noticed.
-- **Drop zones**: Should look almost invisible by default. Gray dashed border, #FAFAFA bg. 
-  Content in dark gray, not bold.
-- **Disabled buttons**: opacity 0.35, pointer-events none. They shouldn't draw the eye.
-- **Text rendering**: Add `text-rendering: optimizeLegibility` for crisper Inter font.
-- **Always deploy with API**: When deploying to SWA or similar, include the API backend 
-  (`--api-location api`). Frontend-only deploys can overwrite the API.
+- **Toggle/segmented controls**: Apple-style white selected tab on gray bg with tiny 
+  shadow — like a physical switch that has been pressed. Better than filled tabs.
+- **Navigation steppers**: Active indicators use near-black (#1C1C1C), NOT accent 
+  blue. Accent is only for primary CTAs — this is the Ive discipline.
+- **Card shadows**: `0 1px 2px rgba(0,0,0,0.03)` — so subtle you feel it rather than 
+  see it. Most cards rely on border alone. Shadow implies elevation; use it only when 
+  something genuinely floats above the surface.
+- **Form labels**: Uppercase at 11px, weight 500, color #A0A0A0 — they exist as 
+  scaffolding, not as content. They guide without demanding attention.
+- **Drop zones**: Nearly invisible by default. Gray dashed border, barely-there 
+  background. The emptiness itself communicates "place something here."
+- **Disabled buttons**: opacity 0.35, pointer-events none. A disabled control should 
+  be almost invisible — it's not a valid path, so it shouldn't attract the eye.
+- **Text rendering**: `text-rendering: optimizeLegibility; -webkit-font-smoothing: 
+  antialiased;` — Ive's team obsessed over subpixel rendering. So should you.
+- **Always deploy with API**: When deploying to SWA or similar, include the API 
+  backend (`--api-location api`). Frontend-only deploys can overwrite the API.
 
 ## Step-by-Step: How to Redesign a UI
 
@@ -72,41 +120,53 @@ Read the existing code and identify these specific problems (most UIs have all o
 
 ### Step 2: Apply the Color System
 
-This is the most important step. The entire palette is almost monochrome with ONE accent.
+This is the most important step. Ive's palette is **almost monochrome** — a precisely 
+calibrated grayscale with ONE carefully chosen accent. The discipline of restraint is 
+what makes Ive's work feel premium. When everything is gray, the single blue accent 
+carries immense visual authority.
 
 **Light theme (DEFAULT — always use this unless user asks for dark):**
 
 ```css
-/* Backgrounds — almost all white */
---bg-page:          #FAFAFA;      /* Page background — barely warm gray */
---bg-card:          #FFFFFF;      /* Card/section background — pure white */
---bg-subtle:        #F5F5F4;      /* Subtle distinction — secondary areas */
---bg-hover:         #F0EFEE;      /* Hover state backgrounds */
---bg-active:        #EAEAE8;      /* Active/pressed states */
+/* Backgrounds — luminosity hierarchy through barely perceptible shifts */
+/* Ive principle: depth through light. Each layer is slightly different, */
+/* like sheets of paper at different distances from a light source. */
+--bg-page:          #FAFAFA;      /* Page — the lightest gray. Not pure white */
+                                   /* (pure white is harsh on screens). */
+--bg-card:          #FFFFFF;      /* Cards — pure white. The contrast between */
+                                   /* FAFAFA and FFFFFF creates the "floating" effect */
+--bg-subtle:        #F5F5F4;      /* Secondary areas — warm stone gray */
+--bg-hover:         #F0EFEE;      /* Hover — one luminosity step down */
+--bg-active:        #EAEAE8;      /* Active/pressed — another step down */
 
-/* Text — gray scale, NOT black */
---text-primary:     #1C1C1C;      /* Headings, important text — near-black */
---text-body:        #3C3C3C;      /* Body text — dark gray, very readable */
---text-secondary:   #787878;      /* Descriptions, metadata — medium gray */
---text-tertiary:    #A0A0A0;      /* Placeholders, hints — light gray */
+/* Text — a grayscale hierarchy with exactly 4 levels. Ive uses */
+/* near-black for primary (never pure #000), then descending opacity */
+--text-primary:     #1C1C1C;      /* Headings, key data — near-black, not #000 */
+--text-body:        #3C3C3C;      /* Body text — 76% contrast, very readable */
+--text-secondary:   #787878;      /* Metadata, descriptions — recedes */
+--text-tertiary:    #A0A0A0;      /* Placeholders, hints — nearly invisible scaffold */
 
-/* Accent — use SPARINGLY. Only for: primary button, links, active tab indicator */
---accent:           #0A84FF;      /* Apple-style blue — only for interactive elements */
---accent-hover:     #0070E0;      /* Slightly darker on hover */
---accent-bg:        #F0F7FF;      /* Very faint blue tint — for selected row or active tab bg */
+/* Accent — Ive's supreme discipline: ONE color, used on <5% of pixels */
+/* This is Apple's system blue. It appears ONLY on: */
+/* 1. The one primary CTA button  2. Text links  3. Focus rings */
+/* 4. Active tab thin indicator  5. Progress bar fill — NOTHING else */
+--accent:           #0A84FF;      /* Apple system blue */
+--accent-hover:     #0070E0;      /* Slightly darker — the only state change */
+--accent-bg:        #F0F7FF;      /* Barely perceptible blue tint */
 
-/* Semantic colors — muted versions, NOT saturated */
---success:          #34C759;      /* Green — iOS style */
---success-bg:       #F0FBF4;      /* Barely green background */
---warning:          #FF9500;      /* Amber — iOS style */
---warning-bg:       #FFFBF0;      /* Barely amber background */
---error:            #FF3B30;      /* Red — iOS style */
---error-bg:         #FFF5F5;      /* Barely red background */
+/* Semantic — iOS system colors, muted to near-invisible backgrounds */
+--success:          #34C759;      /* iOS green */
+--success-bg:       #F0FBF4;      /* 2% green wash */
+--warning:          #FF9500;      /* iOS amber */
+--warning-bg:       #FFFBF0;      /* 2% amber wash */
+--error:            #FF3B30;      /* iOS red */
+--error-bg:         #FFF5F5;      /* 2% red wash */
 
-/* Borders — barely visible. This is critical. */
---border:           #E8E8E8;      /* Default — very subtle */
---border-hover:     #D4D4D4;      /* On hover — slightly more visible */
---border-focus:     #0A84FF;      /* Focus ring — accent color, 2px */
+/* Borders — this is where most designs fail. Ive would say: */
+/* "If you can see the border, it's too heavy." */
+--border:           #E8E8E8;      /* Structure without assertion */
+--border-hover:     #D4D4D4;      /* Slightly more definition on hover */
+--border-focus:     #0A84FF;      /* Focus — the accent earns its place here */
 ```
 
 **Rules (STRICTLY FOLLOW — these are the most common mistakes):**
@@ -138,9 +198,15 @@ This is the most important step. The entire palette is almost monochrome with ON
 6. **ONE accent color per app.** Don't mix blue AND orange buttons. Pick ONE color for 
    all primary actions. Secondary actions are always gray/outlined.
 
-### Step 3: Apply Typography
+### Step 3: Apply Typography — The Ive Way
 
-Use **one font family** with different weights. Choose from the font matrix below.
+Typography was sacred to Ive. Apple created **San Francisco** (and before that, 
+chose Helvetica Neue) with optical sizes — different cuts for different scales. 
+The principle: **one typeface, varied weights, tight letter-spacing on large text, 
+open letter-spacing on small text.** Type should feel like it was carved from glass.
+
+For web apps, **Inter** is the closest free equivalent to San Francisco — variable, 
+optically designed, with tabular figures for data. It's what we use.
 
 #### Font Recommendation Matrix (All Free & Open Source)
 
@@ -241,13 +307,19 @@ Most apps need just ONE font family. But if you want more personality:
 --tracking-wide:    0.02em;      /* Uppercased labels — open up a bit */
 ```
 
-**Rules (STRICTLY FOLLOW):**
-- Base font size is `14px` for app UIs (not 16px — that's for articles/blogs). Modern apps 
-  like Linear, Figma, Notion all use 13-14px body text.
-- Headings: `font-weight: 600` max. Never use 700/800/bold for headings. It's too heavy.
-- Body text: `font-weight: 400`. Metadata/secondary: also 400 but smaller and lighter color.
-- Labels and uppercase text: add `letter-spacing: 0.02em` and use `text-transform: uppercase` 
-  with `font-size: 11px; font-weight: 500; color: var(--text-secondary)`.
+**Rules (STRICTLY FOLLOW — the Ive precision standard):**
+- Base font size is `14px` for app UIs (not 16px — that's for articles/blogs). Apple's own 
+  apps use 13-15px body text. Linear, Figma, Notion all use 13-14px.
+- Headings: `font-weight: 600` max. **Never 700/800/bold.** Ive always preferred 
+  medium-weight type — heaviness feels clumsy and amateur. Light, precise strokes.
+- Body text: `font-weight: 400`. Clean, unassuming, invisible as a vehicle for content.
+- Large display numbers (28px+): Use `font-weight: 200` or `300` — **ultralight display 
+  weight**. This is peak Ive: the iOS clock, Apple Watch complications, keynote 
+  slides. Thin numerals at large size feel machined and precious.
+- Labels and uppercase text: add `letter-spacing: 0.06em` — small caps need air to 
+  breathe. This is a direct Apple HIG pattern.
+- **Negative tracking on headings**: Large text (20px+) should use `letter-spacing: -0.02em` 
+  to -0.03em. This tightens the visual rhythm and gives headings gravitas.
 
 ### Step 3b: Apply Text Formatting & Capitalization
 
@@ -406,22 +478,28 @@ When showing code elements, variable names, or technical identifiers in the UI:
 
 **The takeaway: when in doubt, use sentence case. It's the modern standard.**
 
-### Step 4: Apply Spacing
+### Step 4: Apply Spacing — Mathematical Precision
 
-Modern UIs breathe. There is generous space between everything.
+Ive and Apple use a **strict 4px/8px grid**. Every dimension is a multiple of 4. 
+This creates the unconscious sense of order that makes Apple products feel "right."
+The spacing system isn't just generous — it's **mathematically inevitable**.
 
 ```css
---space-1:    4px;
---space-2:    8px;
---space-3:    12px;
---space-4:    16px;
---space-5:    20px;
---space-6:    24px;
---space-8:    32px;
---space-10:   40px;
---space-12:   48px;
---space-16:   64px;
+--space-1:    4px;     /* Minimum gap — icon to label */
+--space-2:    8px;     /* Tight gap — related items */
+--space-3:    12px;    /* Default inline spacing */
+--space-4:    16px;    /* Standard padding */
+--space-5:    20px;    /* Card internal padding */
+--space-6:    24px;    /* Between related sections */
+--space-8:    32px;    /* Between distinct sections */
+--space-10:   40px;    /* Major section breaks */
+--space-12:   48px;    /* Page-level separation */
+--space-16:   64px;    /* Hero/key metric breathing room */
 ```
+
+**The Ive whitespace principle**: If a layout feels "done" to you, add 20% more 
+whitespace. Ive's designs always have more breathing room than designers think is 
+necessary. The empty space IS the design — it creates focus, calm, and hierarchy.
 
 **Where to use what:**
 - Padding inside buttons: `8px 16px` (small) or `10px 20px` (regular)

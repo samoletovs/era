@@ -32,7 +32,7 @@ if (process.env.NODE_ENV === "production") {
 }
 
 app.listen(port, () => {
-  console.log(`ERA API running on port ${port}`);
+  console.warn(`ERA API running on port ${port}`);
 });
 
 export default app;

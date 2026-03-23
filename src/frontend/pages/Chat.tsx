@@ -30,7 +30,7 @@ export function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [_historyLoaded, setHistoryLoaded] = useState(false);
 
   // Load chat history from server when company changes
   useEffect(() => {

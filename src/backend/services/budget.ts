@@ -1,7 +1,6 @@
 // Budget management — create and compare budgets vs actuals
 // Sprint 4 feature
 
-import { v4 as uuidv4 } from "uuid";
 import { containers } from "./cosmos.js";
 import type { Account } from "@shared/types";
 

@@ -5,7 +5,7 @@ import { useApp } from "../utils/context";
 import { formatMoney } from "../utils/format";
 
 export function Dashboard() {
-  const { companyId, companies, numberFormat: fmt } = useApp();
+  const { companyId, numberFormat: fmt } = useApp();
   const navigate = useNavigate();
   const [data, setData] = useState<any>(null);
   const [health, setHealth] = useState<any>(null);

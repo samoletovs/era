@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { api } from "../utils/api";
 import { useApp } from "../utils/context";
-import { formatMoney, formatMoneyOr } from "../utils/format";
+import { formatMoney } from "../utils/format";
 
 type ContactSortKey = "name" | "type" | "registrationNumber" | "vatNumber" | "city" | "paymentTermsDays";
 type SortDir = "asc" | "desc";

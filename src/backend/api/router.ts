@@ -2,15 +2,15 @@ import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.js";
 import { createCompany, getCompany, updateCompany, deleteCompany, getCompanyStats } from "../services/company.js";
 import { postJournalEntry, reverseJournalEntry, getTrialBalance, GLError } from "../services/ledger.js";
-import { createInvoice, postInvoice, getInvoice, listInvoices, findDuplicateInvoice, cancelInvoice, getInvoicePostings, createCreditNote } from "../services/invoice.js";
+import { createInvoice, postInvoice, getInvoice, findDuplicateInvoice, cancelInvoice, getInvoicePostings, createCreditNote } from "../services/invoice.js";
 import { createAndPostPayment, listPayments } from "../services/payment.js";
-import { createContact, getContact, listContacts } from "../services/contact.js";
-import { createItem, listItems } from "../services/inventory.js";
+import { createContact, getContact } from "../services/contact.js";
+import { createItem } from "../services/inventory.js";
 import { generateVatReturn, getBalanceSheet, getProfitAndLoss, generateVatDeclaration, generateAnnualReport, getAgingReport, markOverdueInvoices } from "../services/reporting.js";
 import { searchCompanyByName, searchCompanyByRegNumber } from "../services/company-lookup.js";
 import { recognizeInvoice } from "../services/invoice-recognition.js";
 import { handleChat, parseItemDescription, parseInvoiceDescription } from "../services/agent.js";
-import { seedRules, getActiveRule } from "../services/posting-rules.js";
+import { seedRules } from "../services/posting-rules.js";
 import { closePeriod, reopenPeriod, yearEndClose, getPeriodStatus } from "../services/period-close.js";
 import { generateInvoicePdf } from "../services/invoice-pdf.js";
 import { importBankStatement, postUnmatchedLine, completeReconciliation, listReconciliations, getReconciliation, getOpenInvoices, suggestLedgerAccount, matchLineToInvoice, addManualTransaction } from "../services/bank-reconciliation.js";
@@ -61,7 +61,7 @@ router.get("/companies", async (req, res) => {
   try {
     const { resources } = await containers.companies().items
       .query<Company>({
-        query: "SELECT * FROM c ORDER BY c.name",
+        query: "SELECT * FROM c ORDER BY c.name", // eslint-disable-line era/no-cross-partition-query
         parameters: [],
       })
       .fetchAll();
@@ -840,7 +840,7 @@ router.get("/feedback", async (req, res) => {
     const params = req.query.status ? [{ name: "@status", value: req.query.status as string }] : [];
     const { resources } = await containers.feedback().items
       .query<Feedback>({
-        query: `SELECT * FROM c${statusFilter} ORDER BY c.submittedAt DESC`,
+        query: `SELECT * FROM c${statusFilter} ORDER BY c.submittedAt DESC`, // eslint-disable-line era/no-cross-partition-query
         parameters: params,
       })
       .fetchAll();

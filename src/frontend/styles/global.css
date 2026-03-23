@@ -700,14 +700,70 @@ body {
   border-color: var(--accent);
 }
 
+/* ─── Collapsible Sections (reusable) ────────────────────── */
+
+.collapsible-section {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  margin-bottom: 16px;
+}
+
+.collapsible-section:last-child {
+  margin-bottom: 0;
+}
+
+.collapsible-danger {
+  border-color: #FEE2E2;
+}
+
+.collapsible-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 16px 20px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  text-align: left;
+  border-radius: var(--radius-md);
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.collapsible-header:hover {
+  background: var(--bg-subtle);
+}
+
+.collapsible-title {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.collapsible-title.danger-title {
+  color: var(--error);
+}
+
+.collapsible-chevron {
+  color: var(--text-tertiary);
+  transition: transform var(--duration-normal) var(--ease-out);
+  flex-shrink: 0;
+}
+
+.collapsible-chevron-open {
+  transform: rotate(180deg);
+}
+
+.collapsible-content {
+  padding: 0 20px 20px;
+}
+
 /* ─── Settings ───────────────────────────────────────────── */
 
 .settings-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 28px;
-  max-width: 600px;
+  max-width: 720px;
 }
 
 .settings-section {
@@ -717,6 +773,12 @@ body {
 }
 
 .settings-section:last-of-type { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
 
 .section-title {
   font-size: var(--text-base);
@@ -794,6 +856,34 @@ body {
 select.settings-input {
   appearance: auto;
   cursor: pointer;
+}
+
+.sequences-table-wrap {
+  overflow-x: auto;
+  margin: 0 -4px;
+  padding: 0 4px;
+}
+
+.sequences-table-wrap .data-table {
+  min-width: 580px;
+  font-size: var(--text-sm);
+}
+
+.sequences-table-wrap .data-table input {
+  height: 32px;
+  padding: 0 8px;
+  font-size: var(--text-sm);
+  font-family: var(--font-sans);
+  color: var(--text-body);
+  background: var(--bg-page);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  outline: none;
+}
+
+.sequences-table-wrap .data-table input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-bg);
 }
 
 .field-hint {
@@ -1742,7 +1832,19 @@ select.settings-input {
 
   /* Forms */
   .settings-card {
-    padding: 16px;
+    padding: 0;
+  }
+
+  .collapsible-content {
+    padding: 0 16px 16px;
+  }
+
+  .collapsible-header {
+    padding: 14px 16px;
+  }
+
+  .settings-grid {
+    grid-template-columns: 1fr;
   }
 
   .settings-row {

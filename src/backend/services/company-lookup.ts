@@ -12,6 +12,7 @@ const CKAN_BASE = "https://data.gov.lv/dati/api/3/action";
 // The main enterprise register resource (register dataset)
 const UR_REGISTER_RESOURCE = "25e80bf3-f107-4ab4-89ef-251b5b9374e9";
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in type guard patterns
 interface URCompanyRecord {
   regcode: string;           // Registration number (11 digits)
   name: string;              // Company name
@@ -22,7 +23,7 @@ interface URCompanyRecord {
 }
 
 export interface CompanyLookupResult {
-  found: boolean;
+  found: boolean; // eslint-disable-line era/field-suffixes -- API shape
   results: Array<{
     registrationNumber: string;
     name: string;

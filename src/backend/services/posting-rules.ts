@@ -2,7 +2,7 @@
 // Falls back gracefully: if no rule is found, callers use hardcoded logic
 
 import { containers } from "./cosmos.js";
-import type { PostingRule, PostingRuleLine, JournalLine, Invoice, Payment } from "@shared/types";
+import type { PostingRule, JournalLine, Invoice, Payment } from "@shared/types";
 
 // ─── Fetch active rule ──────────────────────────────────────
 
