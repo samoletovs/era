@@ -5,6 +5,7 @@ interface CompanyInfo {
   id: string;
   code: string;
   name: string;
+  shortName?: string;
   numberFormat?: NumberFormat;
   dateFormat?: DateFormat;
   dateTimeFormat?: DateTimeFormat;
@@ -50,7 +51,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       });
       const json = await res.json();
       if (json.data) {
-        setCompanies(json.data.map((c: any) => ({ id: c.id, code: c.code || "-", name: c.name, numberFormat: c.settings?.numberFormat, dateFormat: c.settings?.dateFormat, dateTimeFormat: c.settings?.dateTimeFormat })));
+        setCompanies(json.data.map((c: any) => ({ id: c.id, code: c.code || "-", name: c.name, shortName: c.shortName, numberFormat: c.settings?.numberFormat, dateFormat: c.settings?.dateFormat, dateTimeFormat: c.settings?.dateTimeFormat })));
         // If no company selected but list has items, select first
         if (!companyId && json.data.length > 0) {
           setCompanyId(json.data[0].id);

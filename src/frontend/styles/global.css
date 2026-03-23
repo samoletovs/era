@@ -15,9 +15,9 @@
   --text-tertiary: #A0A0A0;
 
   /* Accent — used sparingly */
-  --accent: #0A84FF;
-  --accent-hover: #0070E0;
-  --accent-bg: #F0F7FF;
+  --accent: #2563EB;
+  --accent-hover: #1D4ED8;
+  --accent-bg: #EFF6FF;
 
   /* Semantic */
   --success: #34C759;
@@ -147,7 +147,8 @@ body {
   color: var(--text-secondary);
   font-size: var(--text-base);
   font-weight: 400;
-  transition: color var(--duration-normal) var(--ease-out);
+  transition: background var(--duration-normal) var(--ease-out),
+              color var(--duration-normal) var(--ease-out);
 }
 
 .app-sidebar nav a:hover {
@@ -221,6 +222,40 @@ body {
   font-size: var(--text-sm);
   color: var(--text-tertiary);
   margin-top: 6px;
+}
+
+/* Clickable KPI cards */
+.metric-card-clickable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.metric-card-clickable:hover {
+  border-color: var(--border-hover);
+}
+
+.metric-card-clickable:active {
+  background: var(--bg-subtle);
+  transform: none;
+}
+
+.metric-card-active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+/* Clickable table rows */
+.row-clickable {
+  cursor: pointer;
+  transition: background var(--duration-fast) ease;
+}
+
+.row-clickable:hover {
+  background: var(--bg-hover);
+}
+
+.row-clickable:active {
+  background: var(--bg-active);
 }
 
 /* ─── Chat ───────────────────────────────────────────────── */
@@ -374,7 +409,7 @@ body {
 
 .empty-state h3 {
   font-size: var(--text-md);
-  font-weight: 400;
+  font-weight: 500;
   color: var(--text-secondary);
   margin-bottom: 8px;
 }
@@ -406,7 +441,7 @@ body {
 
 .login-card h1 {
   font-size: var(--text-2xl);
-  font-weight: 300;
+  font-weight: 500;
   color: var(--text-primary);
   margin-bottom: 8px;
   letter-spacing: -0.02em;
@@ -592,7 +627,7 @@ body {
 
 .onboarding-card h2 {
   font-size: var(--text-xl);
-  font-weight: 300;
+  font-weight: 500;
   color: var(--text-primary);
   margin-bottom: 8px;
   letter-spacing: -0.02em;
@@ -764,7 +799,7 @@ body {
 
 .collapsible-title {
   font-size: var(--text-base);
-  font-weight: 500;
+  font-weight: 600;
   color: var(--text-primary);
   letter-spacing: -0.01em;
 }
@@ -809,7 +844,7 @@ body {
 
 .section-title {
   font-size: var(--text-base);
-  font-weight: 500;
+  font-weight: 600;
   color: var(--text-primary);
   margin-bottom: 16px;
 }

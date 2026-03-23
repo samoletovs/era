@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
+import { useLocation } from "react-router-dom";
 import { api } from "../utils/api";
 import { useApp } from "../utils/context";
 import { formatMoney } from "../utils/format";
@@ -58,6 +59,7 @@ const labelStyle: React.CSSProperties = {
 
 export function Invoices() {
   const { companyId, numberFormat: fmt } = useApp();
+  const location = useLocation();
   const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<any>(null);
@@ -98,6 +100,15 @@ export function Invoices() {
     if (!companyId) { setLoading(false); return; }
     loadInvoices();
   }, [companyId, filter]);
+
+  // Auto-select invoice when navigated from Dashboard
+  useEffect(() => {
+    const navState = location.state as { selectedInvoiceId?: string } | null;
+    if (navState?.selectedInvoiceId && companyId && invoices.length > 0) {
+      const inv = invoices.find((i: any) => i.id === navState.selectedInvoiceId);
+      if (inv && selected?.id !== inv.id) handleSelect(inv);
+    }
+  }, [location.state, invoices]);
 
   function loadInvoices() {
     setLoading(true);
@@ -511,17 +522,16 @@ export function Invoices() {
                 <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Credit note for {creditNoteInv.invoiceNumber}</h3>
                 <div style={{ marginBottom: 12 }}>
                   <label style={labelStyle}>Reason for credit note</label>
-                  <AiInput
-                    placeholder="Describe the reason, e.g. 'Price was incorrect, should be €100 instead of €120'"
-                    buttonLabel="✨ Generate corrected"
-                    loadingLabel="Processing..."
-                    onSubmit={async (text) => { setCreditReason(text); }}
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="e.g. Price was incorrect, should be €100 instead of €120"
+                    value={creditReason}
+                    onChange={e => setCreditReason(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter" && creditReason.trim() && !creditProcessing) submitCreditNote(); }}
+                    style={{ width: "100%", fontSize: 16 }}
+                    aria-label="Reason for credit note"
                   />
-                  {creditReason && (
-                    <div style={{ marginTop: 8, padding: 10, background: "var(--bg-subtle)", borderRadius: "var(--radius-sm)", fontSize: "var(--text-sm)" }}>
-                      {creditReason}
-                    </div>
-                  )}
                 </div>
                 <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--text-sm)", marginBottom: 12 }}>
                   <input type="checkbox" checked={creditCorrect} onChange={e => setCreditCorrect(e.target.checked)} />

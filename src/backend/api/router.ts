@@ -760,7 +760,7 @@ router.get("/companies/:companyId/dashboard", async (req, res) => {
     // Recent invoices
     const { resources: recentInvoices } = await containers.documents().items
       .query({
-        query: "SELECT TOP 5 c.invoiceNumber, c.type, c.contactName, c.total, c.status, c.date FROM c WHERE c.companyId = @cid AND (c.docType = 'invoice' OR IS_DEFINED(c.invoiceNumber)) ORDER BY c.date DESC",
+        query: "SELECT TOP 5 c.id, c.invoiceNumber, c.type, c.contactName, c.total, c.status, c.date FROM c WHERE c.companyId = @cid AND (c.docType = 'invoice' OR IS_DEFINED(c.invoiceNumber)) ORDER BY c.date DESC",
         parameters: [{ name: "@cid", value: cid }],
       })
       .fetchAll();

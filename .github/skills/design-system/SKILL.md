@@ -13,100 +13,95 @@ description: >-
 
 # Design System — Ive Principles
 
-This skill tells you exactly how to make any UI embody the **universal design 
-principles** of Sir Jony Ive — not by copying Apple's specific aesthetic, but by 
-applying the deeper philosophy that Ive carries across ALL his work: from the 
-original iMac to the Ferrari Luce interior (2026) designed at his firm LoveFrom.
+This skill tells you exactly how to make any UI embody the **design principles** 
+of Sir Jony Ive. Ive shaped Apple's design language for 27 years and continues 
+refining these ideas through LoveFrom (Ferrari Luce, Airbnb, OpenAI). We draw 
+from *both* his Apple legacy and his post-Apple work — using the best of each, 
+not copying either 1:1.
 
-**Important: This is NOT an "Apple design" system.** Ive left Apple in 2019 and 
-continues applying these same principles to Ferrari, Airbnb, OpenAI, and other 
-projects through LoveFrom. The principles are universal — they work for any 
-product in any domain.
+**The balance**: Apple's HIG, Liquid Glass, and iOS remain world-class references 
+for UI patterns, color systems, and interaction design — Ive created much of that 
+foundation. But we also learn from his Ferrari Luce interior (2026) where he went 
+beyond screens: physical controls, material honesty, avionics precision. The 
+combination of both worlds — digital interface mastery AND physical product 
+discipline — is what makes this system distinctive.
 
-## The Ive Principles (Universal, Not Apple-Specific)
+## Design Principles
 
-Ive's approach draws from **Dieter Rams** ("as little design as possible"), the 
-**Bauhaus** tradition ("form follows function"), and his own discipline of 
-**material honesty** refined across 30+ years. These principles translate to 
-specific, actionable CSS and design decisions.
+Roots: **Dieter Rams** ("as little design as possible"), **Bauhaus** ("form 
+follows function"), **Apple HIG** (clarity, deference, depth), and Ive's own 
+**material honesty** discipline refined across 30+ years.
 
-### Core Principles (Memorize These)
+### Core Principles
 
-1. **"Everything is founded on being functional. It's not styled, it's not 
-   garnish, because that's a distraction and it doesn't last well."** (Ive, 
-   Ferrari Luce 2026) — Every element must justify its existence through function. 
-   Decoration ages poorly. Function is timeless.
+1. **Function over garnish** — "Everything is founded on being functional. It's 
+   not styled, it's not garnish, because that's a distraction and it doesn't last 
+   well." (Ive, Ferrari Luce 2026). Every element justifies its existence.
 
-2. **"We treated every single element as if it was a camera or a watch."** — Each 
-   component deserves the same obsessive care as a standalone product. A button, 
-   an input, a card — each one should feel like a precision instrument. No element 
-   is too small to design well.
+2. **Each element is a product** — "We treated every single element as if it was 
+   a camera or a watch." A button, an input, a card — each deserves obsessive 
+   care. No element is too small to design well.
 
-3. **"It felt like designing hundreds of products, but in aggregate it feels 
-   singular and coherent."** — Unity through consistency. When individual components 
-   are excellent AND consistent, the whole transcends the parts. One radius, one 
-   weight system, one spacing grid, one accent.
+3. **Singular coherence** — "It felt like designing hundreds of products, but in 
+   aggregate it feels singular and coherent." One radius, one weight system, one 
+   spacing grid, one accent color. Unity through consistency.
 
-4. **Material honesty** — In physical design, Ive uses anodized aluminum milled 
-   from solid billets — no plastic, no fakes. In UI, this means: no fake gradients, 
-   no decorative effects that don't serve hierarchy. Surfaces should communicate 
-   their role honestly through subtle light, shadow, and weight.
+4. **Material honesty** — Surfaces communicate their role through subtle light, 
+   shadow, and weight. No fake effects. Depth comes from luminosity shifts — 
+   Apple's Liquid Glass principle: translucent layers that let content show through.
 
-5. **Reduction to essence** — "True simplicity is derived from so much more than 
-   just the absence of clutter. It's about bringing order to complexity." Remove 
-   what doesn't serve. But also: make what remains excellent. Simplicity is not 
-   emptiness — it's focus.
+5. **Reduction to essence** — Apple HIG calls this "deference": the UI recedes so 
+   content comes forward. Remove what doesn't serve. But make what remains excellent.
 
-6. **Physical and engaging** — Ive chose physical toggle switches over touchscreens 
-   for the Ferrari Luce because "the functionality is superior." In UI: form 
-   inputs should feel solid. Buttons should have tactile weight. Hover states 
-   should respond like well-machined controls, not cartoon animations.
+6. **Tactile engagement** — Ive chose physical toggles over touchscreens for 
+   Ferrari because "the functionality is superior." In UI: hover states, active 
+   states, and transitions should feel like well-machined controls responding to 
+   touch. Interactive elements NEED visual feedback.
 
-7. **Reducing cognitive load** — The Ferrari instrument cluster "reduces cognitive 
-   load on the driver." In UI: dashboard metrics should read at a glance. 
-   Navigation should be instantly parseable. The hierarchy should guide the eye 
-   effortlessly — the user never has to figure out where to look.
+7. **Reducing cognitive load** — Dashboard metrics read at a glance. Navigation is 
+   instantly parseable. The hierarchy guides the eye effortlessly.
 
-8. **Timelessness over trend** — Ive designs for decades, not seasons. Ferrari 
-   chairman Elkann: "There are elements here that are timeless, things that will 
-   truly last." In UI: avoid trendy effects (glassmorphism, neubrutalism, etc.). 
-   Use established, tested patterns that will look right in 5 years.
+8. **Timelessness over trend** — Design for years, not months. Avoid trendy effects. 
+   Use established patterns (Apple HIG, Material Design) that will look right in 5 years.
 
-9. **Obsessive precision** — Millimetrically perfect tolerances. Security screws 
-   that "justify themselves aesthetically." In UI: mathematically consistent 
-   spacing (4px grid), optically balanced alignment, no arbitrary values.
+9. **Obsessive precision** — Mathematically consistent spacing (4px/8px grid), 
+   optically balanced alignment, no arbitrary values. Like Apple's SF Pro optical 
+   sizes — different weights are tuned for different scales.
 
 ## What "Good" Looks Like
 
-The target aesthetic is **precise, confident, and warm**. Not cold minimalism — the 
-Ferrari Luce uses rich leather, warm aluminum, and heritage-inspired instrument 
-faces. The goal is an interface that feels crafted and human, not sterile.
+The target aesthetic is **precise, confident, and warm**. The interface feels 
+crafted and human — like an Apple product: you pick it up and it just *works*, 
+everything is in the right place, nothing is superfluous.
 
-**Reference products that embody these principles acrosss many domains:**
+**Reference products (study all of these):**
+- **Apple HIG / Liquid Glass** — Translucent layers, depth through refraction, 
+  controls that float above content. The gold standard for mobile/web UI patterns.
+- **iOS Settings app** — Grouped lists, clear hierarchy, zero decoration. Study how 
+  sections, labels, and toggles work together.
+- **Apple.com product pages** — Vast whitespace, surgical typography, images that breathe.
 - **Ferrari Luce interior** (LoveFrom, 2026) — Physical controls, CNC aluminum, 
-  avionics-inspired instruments. Each element is a standalone product.
-- **Linear** (linear.app) — Disciplined SaaS UI: one accent, precise spacing, quiet
-- **Stripe Dashboard** — Dense data presented with extreme clarity and hierarchy
-- **Vercel** — Monochrome restraint with surgical accent use
-- **Braun products** (Dieter Rams) — The original source: function dictates form
-- **Leica cameras** — Precision instruments where every surface is deliberate
+  avionics precision. Each element treated as a standalone product.
+- **Linear** (linear.app) — Disciplined SaaS UI: one accent, precise spacing, quiet.
+- **Stripe Dashboard** — Dense data with extreme clarity and hierarchy.
+- **Vercel** — Monochrome restraint with surgical accent use.
+- **SF Symbols** — Apple's icon system: optically balanced, consistent weight across 
+  thousands of glyphs. The reference for icon consistency.
 
 **Key insights from testing (learned through iterations):**
-- **Toggle/segmented controls**: White selected tab on subtle gray bg with tiny 
-  shadow — like a physical switch that has moved position. Function, not style.
-- **Navigation**: Active items use near-black text (#1C1C1C) with medium weight, 
-  NOT accent color backgrounds. Accent is reserved for primary CTAs only.
-- **Card shadows**: `0 1px 2px rgba(0,0,0,0.03)` — you feel elevation rather than 
-  see it. Most elements need no shadow — use border or spacing instead.
-- **Form labels**: Small uppercase scaffolding (11px, weight 500, #A0A0A0). They 
-  guide without demanding attention. They're the equivalent of laser-etched markings.
-- **Metric numbers**: Weight 300 (light, not ultralight). Like the physical 
-  aluminum needle on the Ferrari Luce instruments — present and readable, but 
-  refined. Weight 200 can feel fragile; 300 has authority while remaining elegant.
+- **Toggle/segmented controls**: Apple-style white selected tab on gray bg with tiny 
+  shadow — like a physical switch. Function, not style.
+- **Navigation**: Active items use subtle bg fill (`--bg-subtle`) + weight 500 + 
+  near-black text. This provides tactile feedback — the user knows where they are.
+- **Card shadows**: `0 1px 3px rgba(0,0,0,0.04)` — subtle elevation. Most cards use 
+  1px border. Shadow only for elements that genuinely float.
+- **Form labels**: Small uppercase scaffolding (11px, weight 500, #A0A0A0). Like 
+  laser-etched markings — guide without demanding attention.
+- **Metric numbers**: Weight 300 (light). Like the physical aluminum needle on the 
+  Ferrari Luce instruments — present, readable, refined. Not ultralight (200, too 
+  fragile) and not semibold (600, too heavy).
 - **Text rendering**: `text-rendering: optimizeLegibility; -webkit-font-smoothing: 
   antialiased;` — precision in every pixel.
-- **Always deploy with API**: When deploying to SWA or similar, include the API 
-  backend (`--api-location api`). Frontend-only deploys can overwrite the API.
 - **Always deploy with API**: When deploying to SWA or similar, include the API 
   backend (`--api-location api`). Frontend-only deploys can overwrite the API.
 
@@ -134,50 +129,48 @@ Read the existing code and identify these specific problems (most UIs have all o
 
 ### Step 2: Apply the Color System
 
-Almost monochrome — a precisely calibrated grayscale with ONE carefully chosen accent. 
-The discipline of restraint is what separates good design from great. When everything 
-is gray, the single accent color carries immense visual authority.
+Almost monochrome with ONE accent. This approach descends directly from Apple's 
+iOS 7 design language (created under Ive's direction) — a precisely calibrated 
+grayscale where the single accent color carries immense authority.
 
 **Light theme (DEFAULT — always use this unless user asks for dark):**
 
 ```css
-/* Backgrounds — luminosity hierarchy through barely perceptible shifts */
-/* Like sheets of material at different depths — aluminum, paper, glass. */
---bg-page:          #FAFAFA;      /* Page — warm near-white, not harsh pure white */
---bg-card:          #FFFFFF;      /* Cards — pure white for elevation contrast */
---bg-subtle:        #F5F5F4;      /* Secondary areas — warm stone gray */
---bg-hover:         #F0EFEE;      /* Hover — one step down */
---bg-active:        #EAEAE8;      /* Active/pressed — another step */
+/* Backgrounds — luminosity hierarchy (Apple calls this "depth") */
+--bg-page:          #FAFAFA;      /* Page — warm near-white */
+--bg-card:          #FFFFFF;      /* Cards float above the page */
+--bg-subtle:        #F5F5F4;      /* Grouped sections (like iOS Settings) */
+--bg-hover:         #F0EFEE;      /* Hover feedback */
+--bg-active:        #EAEAE8;      /* Active/pressed */
 
-/* Text — exactly 4 hierarchy levels */
---text-primary:     #1C1C1C;      /* Headings, key data — near-black */
---text-body:        #3C3C3C;      /* Body text — dark gray, readable */
+/* Text — 4 hierarchy levels (matches Apple's label/secondaryLabel/etc.) */
+--text-primary:     #1C1C1C;      /* Headings, key data */
+--text-body:        #3C3C3C;      /* Body text */
 --text-secondary:   #787878;      /* Metadata, descriptions */
---text-tertiary:    #A0A0A0;      /* Placeholders, hints — light scaffold */
+--text-tertiary:    #A0A0A0;      /* Placeholders, hints */
 
-/* Accent — ONE color, used on <5% of pixels. Choose any hue that fits the */
-/* brand — the discipline is in the restraint, not the specific color. */
---accent:           #0A84FF;      /* A confident blue — or pick your brand color */
---accent-hover:     #0070E0;      /* Slightly darker on hover */
---accent-bg:        #F0F7FF;      /* 2% tint for selected states */
+/* Accent — Apple system blue. ONE color, <5% of pixels. */
+--accent:           #2563EB;      /* Deep confident blue — calmer than Apple’s neon #0A84FF */
+--accent-hover:     #1D4ED8;      /* Hover state */
+--accent-bg:        #EFF6FF;      /* 2% tint for selected states */
 
-/* Semantic — muted versions, barely-there backgrounds */
---success:          #34C759;
+/* Semantic — based on Apple's iOS system colors */
+--success:          #34C759;      /* iOS systemGreen */
 --success-bg:       #F0FBF4;
---warning:          #FF9500;
+--warning:          #FF9500;      /* iOS systemOrange */
 --warning-bg:       #FFFBF0;
---error:            #FF3B30;
+--error:            #FF3B30;      /* iOS systemRed */
 --error-bg:         #FFF5F5;
 
-/* Borders — "if you can see the border, it's too heavy" */
---border:           #E8E8E8;      /* Structure without assertion */
+/* Borders */
+--border:           #E8E8E8;      /* Subtle structure */
 --border-hover:     #D4D4D4;      /* More definition on hover */
---border-focus:     var(--accent); /* Focus rings earn the accent */
+--border-focus:     var(--accent); /* Focus rings */
 ```
 
 **Rules (STRICTLY FOLLOW — these are the most common mistakes):**
 
-1. **Accent color budget: max ~5% of screen pixels.** Accent (#0A84FF) is ONLY for:
+1. **Accent color budget: max ~5% of screen pixels.** Accent (#2563EB) is ONLY for:
    - ONE primary action button per screen (the final/submit button)
    - Links (text only)
    - Focus rings
@@ -189,7 +182,8 @@ is gray, the single accent color carries immense visual authority.
    - Color: `#787878` (medium gray) — NEVER orange, red, blue, green
    - Style: `font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #787878;`
    - No background. No colored text. Just small gray uppercase text.
-   - This is how Linear, Notion, and Apple apps show category labels.
+   - This is how Linear, Notion, and Apple apps (iOS Settings, Finder) show 
+   category labels.
 
 3. **NO colored info/description blocks.** Text blocks showing instructions, descriptions,
    previous results, tips, etc.:
@@ -206,12 +200,14 @@ is gray, the single accent color carries immense visual authority.
 
 ### Step 3: Apply Typography — Precision Instrument
 
-Typography is the backbone. Ive's principle: **one typeface, varied weights, tight 
-letter-spacing on large text, open letter-spacing on small text.** Like the 
-laser-etched markings on a precision instrument — functional, measured, exact.
+Typography is the backbone. The principle (from Apple's SF Pro design): **one 
+typeface, varied weights, tight letter-spacing on large text, open letter-spacing 
+on small text, optical sizes tuned for each scale.** Like the laser-etched 
+markings on a precision instrument — functional, measured, exact.
 
 For web apps, **Inter** is ideal — variable weight, optically designed, tabular 
-figures for data, excellent at small sizes.
+figures for data, excellent at small sizes. It's the closest open-source 
+equivalent to Apple's SF Pro.
 
 #### Font Recommendation Matrix (All Free & Open Source)
 
@@ -900,11 +896,11 @@ These show exactly what to change when you encounter common dated patterns:
 
 ### Full-width chunky button → Right-aligned compact button
 Before: `width: 100%; background: #2563EB; color: white; font-weight: 700; padding: 16px 32px; font-size: 18px; border-radius: 12px;`
-After: `width: auto; background: #0A84FF; color: white; font-weight: 500; padding: 10px 20px; font-size: 14px; border-radius: 6px;` placed in a `display:flex; justify-content:flex-end` container.
+After: `width: auto; background: #2563EB; color: white; font-weight: 500; padding: 10px 20px; font-size: 14px; border-radius: 6px;` placed in a `display:flex; justify-content:flex-end` container.
 If it MUST be full-width (mobile CTA): `height: 40px; font-size: 14px; font-weight: 500; border-radius: 8px;`
 
 ### Active stepper/tab indicator → Near-black, not accent
-Before: `background: #0A84FF;` for active step dot
+Before: `background: #2563EB;` for active step dot
 After: `background: #1C1C1C;` — Active states use near-black, not accent blue. This is the Linear/Vercel pattern — accent is for CTAs only, not navigation state.
 
 ### Orange/colored category label → Gray uppercase
@@ -1482,41 +1478,31 @@ Use `.form-input` for standalone form inputs (not inside `.settings-field`):
 
 ## Lessons Learned Across Iterations
 
-Design is iterative — dozens of prototypes, obsessive refinement, small changes 
-that compound. Here's what we learned across testing cycles:
+Design is iterative. Here's what we learned across testing cycles:
 
-**Round 1: Foundations**
-- Light font-weight (300) for display numbers transforms a dashboard from 
-  "corporate" to "precision instrument." Like the needle on a fine gauge.
-- Border-radius 8-12px feels more refined than 6-10px.
-- Card hover transitions (shadow + 1px translateY) add tactile quality.
-- Page title weight 600 is too heavy. 500 is the right balance.
+**Round 1-2: Foundations**
+- Light font-weight (300) for display numbers — like a gauge needle.
+- Border-radius 8-12px. Card hover transitions add tactile quality.
+- Sidebar: shadow edge instead of border. Section labels at 10px/0.08em.
+- Page title weight 500 — confident for a tool UI.
 
-**Round 2: Chrome elimination**
-- Replacing sidebar `border-right` with `box-shadow: 1px 0 0 rgba(0,0,0,0.04)` 
-  eliminates visible hard edges. Surfaces separate through light, not lines.
-- Section labels at 10px with 0.08em tracking. Table headers at 10px to match.
+**Round 3-4: Tactile feedback**
+- Nav items NEED subtle hover/active backgrounds. Removing all backgrounds 
+  made the sidebar feel lifeless. Visual feedback IS the functionality.
+- Logo at weight 500. Medium weight is confident and readable.
 
-**Round 3: Mobile and polish**
-- Mobile metric cards: ALWAYS 2-column grid, even on 375px. Single-column is waste.
-- Weight 300 works at all sizes — no need for separate mobile weight.
-- Nearly invisible FAB (rgba borders/shadows) until hover interaction.
+**Round 5: Apple + Ive balance**
+- Removing Apple references entirely made the design lose its digital polish. 
+  Ive *created* Apple's design language — it's not an external influence, it's 
+  the same mind. Apple HIG, Liquid Glass, iOS system colors, SF Symbols are all 
+  valid references. Use the best of Apple's patterns without copying 1:1.
+- Apple's iOS system colors are excellent references for semantic colors — we use 
+  #2563EB (deeper blue, less neon than Apple's #0A84FF), #34C759, #FF9500, #FF3B30.
+- Apple's grouped list pattern (iOS Settings) is the best reference for 
+  sidebar navigation and settings pages.
 
-**Round 4: Tactile feedback (from Ferrari Luce principle)**
-- Nav items NEED subtle hover background and active state fill. Removing all 
-  backgrounds made the sidebar feel dead and lifeless — the opposite of "physical 
-  and engaging." Ive chose physical toggles over touchscreens because "the 
-  functionality is superior." Hover/active visual feedback IS the functionality.
-- Logo at weight 500, page titles at 500 — medium weight is confident and 
-  functional. Weight 300 for titles was too fragile for a tool UI (appropriate for 
-  marketing pages, not dashboards).
-- The key insight: don't copy Apple's *specific aesthetic*. Apply the *universal 
-  principles* — every element treated like a precision product, tactile engagement, 
-  material honesty, reduction to essence, coherent unity.
-
-**The compounding principle:** Each change seems minor. The aggregate effect of 
-refined weights + softer shadows + more spacing + tactile interactions transforms a 
-"nice app" into something that feels crafted — like a product you want to keep.
+**The compounding principle:** Each change seems minor. The aggregate effect 
+transforms a "nice app" into something that feels crafted.
 
 ## Post-Deploy Verification
 

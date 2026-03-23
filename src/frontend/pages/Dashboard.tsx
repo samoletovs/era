@@ -4,17 +4,72 @@ import { api } from "../utils/api";
 import { useApp } from "../utils/context";
 import { formatMoney } from "../utils/format";
 
+type KpiKey = "cash" | "receivables" | "payables" | "vat";
+
+interface AccountTransaction {
+  entryId: string;
+  entryNumber: string;
+  date: string;
+  description: string;
+  debit: number;
+  credit: number;
+  sourceType: string;
+}
+
+const KPI_ACCOUNTS: Record<KpiKey, { codes: string[]; label: string }> = {
+  cash: { codes: ["2420"], label: "Cash & bank transactions" },
+  receivables: { codes: ["2210"], label: "Receivable transactions" },
+  payables: { codes: ["4220"], label: "Payable transactions" },
+  vat: { codes: ["4230", "2310"], label: "VAT transactions" },
+};
+
 export function Dashboard() {
   const { companyId, numberFormat: fmt } = useApp();
   const navigate = useNavigate();
   const [data, setData] = useState<any>(null);
   const [health, setHealth] = useState<any>(null);
 
+  // Drill-down state
+  const [activeKpi, setActiveKpi] = useState<KpiKey | null>(null);
+  const [drillTxns, setDrillTxns] = useState<AccountTransaction[]>([]);
+  const [drillLoading, setDrillLoading] = useState(false);
+
   useEffect(() => {
     if (!companyId) return;
     api.dashboard(companyId).then(setData).catch(() => {});
     api.companyHealth(companyId).then(setHealth).catch(() => {});
   }, [companyId]);
+
+  async function handleKpiClick(key: KpiKey) {
+    if (activeKpi === key) {
+      setActiveKpi(null);
+      setDrillTxns([]);
+      return;
+    }
+    setActiveKpi(key);
+    setDrillLoading(true);
+    setDrillTxns([]);
+    try {
+      const { codes } = KPI_ACCOUNTS[key];
+      const results = await Promise.all(
+        codes.map((code) => api.accountTransactions(companyId, code))
+      );
+      const allTxns = results.flatMap((r) => r.transactions);
+      allTxns.sort((a, b) => b.date.localeCompare(a.date));
+      setDrillTxns(allTxns);
+    } catch {
+      setDrillTxns([]);
+    }
+    setDrillLoading(false);
+  }
+
+  function handleInvoiceClick(inv: any) {
+    if (inv.id) {
+      navigate("/invoices", { state: { selectedInvoiceId: inv.id } });
+    } else {
+      navigate("/invoices");
+    }
+  }
 
   if (!companyId) return (
     <div className="empty-state" style={{ marginTop: 80 }}>
@@ -29,27 +84,91 @@ export function Dashboard() {
     <div>
       <h2 className="page-title">Dashboard</h2>
       <div className="dashboard-grid">
-        <div className="metric-card">
-          <div className="label">Cash position</div>
-          <div className="value">{formatMoney(data?.cash, fmt)}</div>
-          <div className="subtitle">Bank + cash accounts</div>
-        </div>
-        <div className="metric-card">
-          <div className="label">Receivables</div>
-          <div className="value">{formatMoney(data?.receivables, fmt)}</div>
-          <div className="subtitle">Outstanding invoices</div>
-        </div>
-        <div className="metric-card">
-          <div className="label">Payables</div>
-          <div className="value">{formatMoney(data?.payables, fmt)}</div>
-          <div className="subtitle">Bills to pay</div>
-        </div>
-        <div className="metric-card">
-          <div className="label">VAT due</div>
-          <div className="value">{formatMoney(data?.vatDue, fmt)}</div>
-          <div className="subtitle">Current period</div>
-        </div>
+        {([
+          { key: "cash" as KpiKey, label: "Cash position", value: data?.cash, subtitle: "Bank + cash accounts" },
+          { key: "receivables" as KpiKey, label: "Receivables", value: data?.receivables, subtitle: "Outstanding invoices" },
+          { key: "payables" as KpiKey, label: "Payables", value: data?.payables, subtitle: "Bills to pay" },
+          { key: "vat" as KpiKey, label: "VAT due", value: data?.vatDue, subtitle: "Current period" },
+        ]).map((kpi) => (
+          <div
+            key={kpi.key}
+            className={`metric-card metric-card-clickable${activeKpi === kpi.key ? " metric-card-active" : ""}`}
+            onClick={() => handleKpiClick(kpi.key)}
+            role="button"
+            tabIndex={0}
+            aria-label={`View ${kpi.label} details`}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleKpiClick(kpi.key); } }}
+          >
+            <div className="label">{kpi.label}</div>
+            <div className="value">{formatMoney(kpi.value, fmt)}</div>
+            <div className="subtitle">
+              {kpi.subtitle}
+              <span style={{ marginLeft: 6, fontSize: 10, color: "var(--accent)" }}>
+                {activeKpi === kpi.key ? "▴" : "▾"}
+              </span>
+            </div>
+          </div>
+        ))}
       </div>
+
+      {/* KPI drill-down panel */}
+      {activeKpi && (
+        <div className="metric-card" style={{ marginBottom: 20 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <div className="label" style={{ marginBottom: 0 }}>{KPI_ACCOUNTS[activeKpi].label}</div>
+            <button
+              onClick={() => { setActiveKpi(null); setDrillTxns([]); }}
+              style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "var(--text-tertiary)", padding: 4 }}
+              aria-label="Close drill-down"
+            >
+              ✕
+            </button>
+          </div>
+          {drillLoading ? (
+            <div style={{ padding: "20px 0", textAlign: "center", color: "var(--text-tertiary)", fontSize: "var(--text-sm)" }}>
+              Loading transactions...
+            </div>
+          ) : drillTxns.length === 0 ? (
+            <div style={{ padding: "20px 0", textAlign: "center", color: "var(--text-tertiary)", fontSize: "var(--text-sm)" }}>
+              No transactions found
+            </div>
+          ) : (
+            <table className="data-table" style={{ marginTop: 4 }}>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Entry</th>
+                  <th>Description</th>
+                  <th>Debit</th>
+                  <th>Credit</th>
+                </tr>
+              </thead>
+              <tbody>
+                {drillTxns.slice(0, 20).map((txn, i) => (
+                  <tr key={`${txn.entryId}-${i}`}>
+                    <td style={{ whiteSpace: "nowrap" }}>{txn.date}</td>
+                    <td className="mono">{txn.entryNumber}</td>
+                    <td>{txn.description}</td>
+                    <td className="num">{txn.debit ? formatMoney(txn.debit, fmt) : ""}</td>
+                    <td className="num">{txn.credit ? formatMoney(txn.credit, fmt) : ""}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          {drillTxns.length > 20 && (
+            <div style={{ marginTop: 12, textAlign: "center" }}>
+              <button
+                className="btn-secondary"
+                style={{ fontSize: "var(--text-sm)" }}
+                onClick={() => navigate("/accounts", { state: { accountCode: KPI_ACCOUNTS[activeKpi].codes[0] } })}
+              >
+                View all {drillTxns.length} transactions
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {health && (
         <div className="metric-card" style={{ marginBottom: 20 }}>
@@ -141,7 +260,15 @@ export function Dashboard() {
             <thead><tr><th>Number</th><th>Type</th><th>Contact</th><th>Total</th><th>Status</th></tr></thead>
             <tbody>
               {data.recentInvoices.map((inv: any, i: number) => (
-                <tr key={i}>
+                <tr
+                  key={i}
+                  onClick={() => handleInvoiceClick(inv)}
+                  className="row-clickable"
+                  role="link"
+                  tabIndex={0}
+                  aria-label={`Open invoice ${inv.invoiceNumber}`}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleInvoiceClick(inv); }}
+                >
                   <td className="mono">{inv.invoiceNumber}</td>
                   <td><span className="badge">{inv.type}</span></td>
                   <td>{inv.contactName}</td>
