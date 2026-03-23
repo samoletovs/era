@@ -109,7 +109,7 @@ body {
 .app-sidebar .logo {
   padding: 0 20px 20px;
   font-size: var(--text-lg);
-  font-weight: 300;
+  font-weight: 500;
   color: var(--text-primary);
   letter-spacing: -0.02em;
 }
@@ -151,12 +151,12 @@ body {
 }
 
 .app-sidebar nav a:hover {
-  background: transparent;
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 
 .app-sidebar nav a.active {
-  background: transparent;
+  background: var(--bg-subtle);
   color: var(--text-primary);
   font-weight: 500;
 }
@@ -172,7 +172,7 @@ body {
 
 .page-title {
   font-size: var(--text-xl);
-  font-weight: 300;
+  font-weight: 500;
   color: var(--text-primary);
   margin-bottom: 28px;
   letter-spacing: -0.02em;
@@ -210,7 +210,7 @@ body {
 
 .metric-card .value {
   font-size: 32px;
-  font-weight: 200;
+  font-weight: 300;
   color: var(--text-primary);
   letter-spacing: -0.03em;
   line-height: 1;
@@ -406,10 +406,10 @@ body {
 
 .login-card h1 {
   font-size: var(--text-2xl);
-  font-weight: 200;
+  font-weight: 300;
   color: var(--text-primary);
   margin-bottom: 8px;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
 }
 
 .login-card p {
@@ -812,7 +812,6 @@ body {
   font-weight: 500;
   color: var(--text-primary);
   margin-bottom: 16px;
-  letter-spacing: -0.01em;
 }
 
 .settings-field {
@@ -1656,7 +1655,7 @@ select.settings-input {
 
 .mobile-logo {
   font-size: var(--text-lg);
-  font-weight: 300;
+  font-weight: 500;
   color: var(--text-primary);
   letter-spacing: -0.02em;
 }

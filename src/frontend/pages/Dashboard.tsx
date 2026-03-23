@@ -31,22 +31,22 @@ export function Dashboard() {
       <div className="dashboard-grid">
         <div className="metric-card">
           <div className="label">Cash position</div>
-          <div className="value" style={{ fontWeight: 200 }}>{formatMoney(data?.cash, fmt)}</div>
+          <div className="value">{formatMoney(data?.cash, fmt)}</div>
           <div className="subtitle">Bank + cash accounts</div>
         </div>
         <div className="metric-card">
           <div className="label">Receivables</div>
-          <div className="value" style={{ fontWeight: 200 }}>{formatMoney(data?.receivables, fmt)}</div>
+          <div className="value">{formatMoney(data?.receivables, fmt)}</div>
           <div className="subtitle">Outstanding invoices</div>
         </div>
         <div className="metric-card">
           <div className="label">Payables</div>
-          <div className="value" style={{ fontWeight: 200 }}>{formatMoney(data?.payables, fmt)}</div>
+          <div className="value">{formatMoney(data?.payables, fmt)}</div>
           <div className="subtitle">Bills to pay</div>
         </div>
         <div className="metric-card">
           <div className="label">VAT due</div>
-          <div className="value" style={{ fontWeight: 200 }}>{formatMoney(data?.vatDue, fmt)}</div>
+          <div className="value">{formatMoney(data?.vatDue, fmt)}</div>
           <div className="subtitle">Current period</div>
         </div>
       </div>

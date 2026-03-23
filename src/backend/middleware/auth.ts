@@ -82,19 +82,24 @@ async function verifyMicrosoftToken(token: string): Promise<AuthUser> {
 
 export async function authMiddleware(req: Request, res: Response, next: NextFunction) {
   // Dev bypass — allowed until real frontend auth (Google/Microsoft login) is implemented
+  // Accept token from Authorization header or query param (for browser-opened URLs like PDF)
   const authHeader = req.headers.authorization;
-  if (authHeader === "Bearer dev-bypass") {
+  const queryToken = req.query.token as string | undefined;
+
+  if (authHeader === "Bearer dev-bypass" || queryToken === "dev-bypass") {
     req.user = { id: "dev-user", email: "dev@era.local", name: "Developer", provider: "google" };
     next();
     return;
   }
 
-  if (!authHeader?.startsWith("Bearer ")) {
+  const rawToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : queryToken;
+
+  if (!rawToken) {
     res.status(401).json({ error: { code: "UNAUTHORIZED", message: "Missing bearer token" } });
     return;
   }
 
-  const token = authHeader.slice(7);
+  const token = rawToken;
 
   try {
     // Try Google first, then Microsoft

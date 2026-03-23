@@ -86,11 +86,11 @@ export function Accounting() {
         <div className="dashboard-grid" style={{ marginBottom: 24 }}>
           <div className="metric-card">
             <div className="label">Health score</div>
-            <div className="value" style={{ fontWeight: 200 }}>{health.score}/100</div>
+            <div className="value">{health.score}/100</div>
           </div>
           <div className="metric-card">
             <div className="label">Issues</div>
-            <div className="value" style={{ fontWeight: 200 }}>{health.issues?.length || 0}</div>
+            <div className="value">{health.issues?.length || 0}</div>
             <div className="subtitle">{health.issues?.filter((i: any) => i.severity === "critical").length || 0} critical</div>
           </div>
         </div>

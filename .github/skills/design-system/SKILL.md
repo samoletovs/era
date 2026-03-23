@@ -204,15 +204,14 @@ is gray, the single accent color carries immense visual authority.
 6. **ONE accent color per app.** Don't mix blue AND orange buttons. Pick ONE color for 
    all primary actions. Secondary actions are always gray/outlined.
 
-### Step 3: Apply Typography — The Ive Way
+### Step 3: Apply Typography — Precision Instrument
 
-Typography was sacred to Ive. Apple created **San Francisco** (and before that, 
-chose Helvetica Neue) with optical sizes — different cuts for different scales. 
-The principle: **one typeface, varied weights, tight letter-spacing on large text, 
-open letter-spacing on small text.** Type should feel like it was carved from glass.
+Typography is the backbone. Ive's principle: **one typeface, varied weights, tight 
+letter-spacing on large text, open letter-spacing on small text.** Like the 
+laser-etched markings on a precision instrument — functional, measured, exact.
 
-For web apps, **Inter** is the closest free equivalent to San Francisco — variable, 
-optically designed, with tabular figures for data. It's what we use.
+For web apps, **Inter** is ideal — variable weight, optically designed, tabular 
+figures for data, excellent at small sizes.
 
 #### Font Recommendation Matrix (All Free & Open Source)
 
@@ -313,19 +312,18 @@ Most apps need just ONE font family. But if you want more personality:
 --tracking-wide:    0.02em;      /* Uppercased labels — open up a bit */
 ```
 
-**Rules (STRICTLY FOLLOW — the Ive precision standard):**
-- Base font size is `14px` for app UIs (not 16px — that's for articles/blogs). Apple's own 
-  apps use 13-15px body text. Linear, Figma, Notion all use 13-14px.
-- Headings: `font-weight: 600` max. **Never 700/800/bold.** Ive always preferred 
-  medium-weight type — heaviness feels clumsy and amateur. Light, precise strokes.
-- Body text: `font-weight: 400`. Clean, unassuming, invisible as a vehicle for content.
-- Large display numbers (28px+): Use `font-weight: 200` or `300` — **ultralight display 
-  weight**. This is peak Ive: the iOS clock, Apple Watch complications, keynote 
-  slides. Thin numerals at large size feel machined and precious.
-- Labels and uppercase text: add `letter-spacing: 0.06em` — small caps need air to 
-  breathe. This is a direct Apple HIG pattern.
-- **Negative tracking on headings**: Large text (20px+) should use `letter-spacing: -0.02em` 
-  to -0.03em. This tightens the visual rhythm and gives headings gravitas.
+**Rules (STRICTLY FOLLOW):**
+- Base font size is `14px` for app UIs (not 16px — that's for articles/blogs). 
+  Linear, Figma, Notion all use 13-14px body text.
+- Headings: `font-weight: 600` max. **Never 700/800/bold.** Heaviness feels clumsy. 
+  For page titles, `500` is usually sufficient.
+- Body text: `font-weight: 400`. Clean, invisible as a vehicle for content.
+- Large display numbers (28px+): Use `font-weight: 300` — **light, not ultralight**. 
+  Like the physical aluminum needle on the Ferrari Luce instruments: refined but 
+  readable. Weight 200 can feel fragile; 300 has authority while remaining elegant.
+- Labels and uppercase text: `letter-spacing: 0.06em` — small caps need air.
+- **Negative tracking on headings**: Large text (20px+) uses `letter-spacing: -0.02em` 
+  to tighten visual rhythm and give headings gravitas.
 
 ### Step 3b: Apply Text Formatting & Capitalization
 
@@ -484,11 +482,11 @@ When showing code elements, variable names, or technical identifiers in the UI:
 
 **The takeaway: when in doubt, use sentence case. It's the modern standard.**
 
-### Step 4: Apply Spacing — Mathematical Precision
+### Step 4: Apply Spacing — Millimetric Precision
 
-Ive and Apple use a **strict 4px/8px grid**. Every dimension is a multiple of 4. 
-This creates the unconscious sense of order that makes Apple products feel "right."
-The spacing system isn't just generous — it's **mathematically inevitable**.
+Use a **strict 4px/8px grid**. Every dimension is a multiple of 4. This creates 
+the unconscious sense of order that Ive describes as "millimetrically perfect 
+tolerances" — the same standard applied to CNC-machined aluminum parts.
 
 ```css
 --space-1:    4px;     /* Minimum gap — icon to label */
@@ -503,9 +501,8 @@ The spacing system isn't just generous — it's **mathematically inevitable**.
 --space-16:   64px;    /* Hero/key metric breathing room */
 ```
 
-**The Ive whitespace principle**: If a layout feels "done" to you, add 20% more 
-whitespace. Ive's designs always have more breathing room than designers think is 
-necessary. The empty space IS the design — it creates focus, calm, and hierarchy.
+**Whitespace principle**: If a layout feels "done," add 20% more breathing room. 
+Empty space IS the design — it creates focus, calm, and hierarchy.
 
 **Where to use what:**
 - Padding inside buttons: `8px 16px` (small) or `10px 20px` (regular)
@@ -632,55 +629,58 @@ use a 1px border or background contrast instead.
 - **Don't mix accent colors.** If the primary button is blue, the secondary/completion 
   button is also blue — not orange, not green. ONE color.
 
-#### Sidebar Navigation — The Ive Pattern
+#### Sidebar Navigation
 ```css
-/* Sidebar: shadow edge, not border */
+/* Sidebar: shadow edge, not hard border */
 .sidebar {
   background: var(--bg-card);
-  border-right: none;                         /* NO hard border line */
-  box-shadow: 1px 0 0 rgba(0,0,0,0.04);      /* Barely-there shadow edge */
+  border-right: none;
+  box-shadow: 1px 0 0 rgba(0,0,0,0.04);      /* Surfaces separate through light */
 }
 
-/* Nav items: zero chrome. Just text. */
+/* Nav items: subtle but tactile */
 .nav-item {
   color: var(--text-secondary);
   font-weight: 400;
   background: transparent;
   padding: 9px 12px;
-  transition: color 0.15s ease;
+  border-radius: var(--radius-sm);
+  transition: background 0.15s ease, color 0.15s ease;
 }
 .nav-item:hover {
-  background: transparent;                    /* NO background on hover */
-  color: var(--text-primary);                 /* Just darken the text */
+  background: var(--bg-hover);                /* Subtle feedback — "physical" */
+  color: var(--text-primary);
 }
 .nav-item.active {
-  background: transparent;                    /* NO background fill */
+  background: var(--bg-subtle);               /* Quiet present state */
   color: var(--text-primary);
-  font-weight: 500;                           /* Slightly heavier — that's all */
+  font-weight: 500;
 }
 
-/* Section labels */
+/* Section labels: etched markings */
 .nav-section-label {
   font-size: 10px;
   font-weight: 500;
   color: var(--text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  padding: 20px 12px 6px;
 }
 
-/* Logo: light weight, not bold */
+/* Logo: confident, not shouting */
 .logo {
-  font-weight: 300;
+  font-weight: 500;
   letter-spacing: -0.02em;
 }
 ```
 
-**Ive sidebar rules:**
-- **No border-right**. Use `box-shadow: 1px 0 0 rgba(0,0,0,0.04)` — invisible edge.
-- **No background on hover or active**. Text color + weight change only.
-- **Section labels at 10px**, not 11px. More tracking (0.08em). Tiny scaffolding.
-- **Logo at weight 300** — light, confident, not shouting.
+**Sidebar rules:**
+- **No border-right**. Use shadow edge: `box-shadow: 1px 0 0 rgba(0,0,0,0.04)`.
+- **Subtle hover background** — interactive elements need tactile feedback. 
+  Ive's Ferrari toggle switches are physical because "the functionality is superior." 
+  A nav hover with zero visual response feels broken, not minimal.
+- **Active: subtle bg fill** — the user needs to know where they are.
+- **Section labels at 10px** with 0.08em tracking. Like etched instrument markings.
+- **Logo at weight 500** — medium. Confident and readable.
 
 #### Cards and Containers
 ```css
@@ -835,16 +835,16 @@ footer p {
 - List items with no breathing room → add `gap: 8px` or `padding: 12px 0` per item
 - Inconsistent alignment → pick left-align for everything (centered only for hero/empty states)
 
-### Step 9: Fix Large Numbers and Metrics — The Ive Display Style
+### Step 9: Fix Large Numbers and Metrics — Precision Instruments
 
-This is where the Ive aesthetic is most distinctive. Think of the iOS Clock app, 
-Apple Watch faces, or Keynote slides: **ultralight type at generous sizes**. 
-The thinner the stroke at large scale, the more refined and precious it feels.
+Think of the Ferrari Luce instrument cluster: physical aluminum needles, 
+avionics-inspired dials, Samsung OLED displays. The key numbers are **present and 
+authoritative** — not fragile. A precision instrument reads clearly.
 
 ```css
 .metric-value {
   font-size: 32px;         /* Generous — let the number breathe */
-  font-weight: 200;        /* ULTRALIGHT — this is the Ive signature */
+  font-weight: 300;        /* LIGHT — has presence like a physical dial needle */
   color: var(--text-primary);  /* Near-black, never accent */
   line-height: 1;
   letter-spacing: -0.03em; /* Tight tracking at large size */
@@ -853,24 +853,23 @@ The thinner the stroke at large scale, the more refined and precious it feels.
 .metric-label {
   font-size: 11px;
   font-weight: 500;
-  color: var(--text-tertiary);  /* Barely visible scaffolding */
+  color: var(--text-tertiary);  /* Small uppercase scaffolding — like etched markings */
   text-transform: uppercase;
   letter-spacing: 0.06em;
   margin-top: 6px;
 }
 ```
 
-**Ive rules for metrics/numbers:**
-- **Font-weight: 200 (ultralight) for display numbers.** This is the single most 
-  distinctive Ive pattern. Weight 600+ for numbers looks crude and corporate. 
-  Ultralight at 28-40px looks machined and elegant.
-- Color: `#1C1C1C` (near-black). NEVER use accent blue for display numbers.
-- Size: 28-36px. Not 48px+ (that's a billboard, not an app).
-- The label underneath is tiny, uppercase, tertiary gray — invisible scaffolding.
+**Rules for metrics/numbers:**
+- **Font-weight: 300 (light) for display numbers.** Not 200 (too fragile) and not 
+  600 (too heavy). 300 has the authority of a physical instrument needle while 
+  remaining refined. It reads at a glance without demanding attention.
+- Color: `#1C1C1C` (near-black). NEVER use accent for display numbers.
+- Size: 28-36px. Not 48px+ (that's a billboard, not an instrument).
+- The label underneath is tiny, uppercase, tertiary gray — like etched markings 
+  on a precision instrument face.
 - Use `font-variant-numeric: tabular-nums` for aligned data columns.
-- **Mobile metrics**: On mobile (375px), reduce size to 24-28px and bump weight to **300** 
-  (light, not ultralight). Weight 200 can look anemic on small screens where subpixel 
-  rendering is less precise. Also reduce the card padding from 24px to 14px on mobile.
+- **Mobile**: Reduce size to 24-28px. Keep weight at 300 — it works at all sizes.
 
 ### Step 10: Fix Previous Data / Info Rows
 
@@ -1371,11 +1370,11 @@ these. If ANY fails, go back and fix it. "Good enough" is not good enough.
 13. **Sidebar chrome check**: Does the sidebar use a hard border-right line? → Replace with 
     barely-visible shadow: `box-shadow: 1px 0 0 rgba(0,0,0,0.04)`. Ive eliminates visible 
     borders wherever possible — use light to create edges, not lines.
-14. **Page title weight check**: Page titles (h2) should use weight 300 (light) for the Ive 
-    display aesthetic. Not 500 or 600 — light-weight headings at 22px feel prestigious.
-15. **Navigation active state**: Active nav items should NOT use a colored/tinted background. 
-    Use only text color (#1C1C1C) + weight 500 change. Background fills are heavy — Ive 
-    prefers the lightest possible indication of state.
+14. **Page title weight check**: Page titles should use weight 500 (medium). Functional 
+    and clear, like an instrument face label. Not 300 (too fragile for navigation).
+15. **Navigation tactile check**: Do nav items have hover backgrounds? Active states? 
+    Interactive elements need tactile feedback — "the functionality is superior" when the 
+    user can feel where they are. Subtle bg-hover + bg-subtle active.
 16. **Motion check**: Do all interactive elements (buttons, links, cards) have `transition` declarations? Are any transitions longer than 300ms? Is `prefers-reduced-motion` handled? → Add transitions, reduce durations, add reduced-motion media query.
 17. **Icon consistency check**: Are all icons from the same set? Same stroke width? Same size in similar contexts? → Standardize to one icon set.
 18. **Loading state check**: Does the app show skeleton loaders or inline spinners during data fetches? Or does it show a blank screen / full-page spinner? → Replace with skeletons. Buttons should show inline spinners during actions.
@@ -1481,42 +1480,43 @@ Use `.form-input` for standalone form inputs (not inside `.settings-field`):
 | `height: calc(100vh - 120px)` for chat | Use `100dvh` on mobile |
 | Fixed pixel widths on form inputs (`width: 80`) | Use `max-width` with percentage or class override |
 
-## Lessons Learned Across Iterations (The Ive Refinement Process)
+## Lessons Learned Across Iterations
 
-Ive's design process was always iterative — dozens of prototypes, obsessive refinement, 
-small changes that compound into something extraordinary. Here's what we learned 
-applying the Ive standard across 3 review iterations:
+Design is iterative — dozens of prototypes, obsessive refinement, small changes 
+that compound. Here's what we learned across testing cycles:
 
-**Iteration 1 findings:**
-- Ultralight font-weight (200) for display numbers is the single most impactful Ive 
-  signature. It transforms "corporate dashboard" into "precision instrument."
-- Increasing border-radius from 6-10px to 8-12px immediately feels more Apple-like.
+**Round 1: Foundations**
+- Light font-weight (300) for display numbers transforms a dashboard from 
+  "corporate" to "precision instrument." Like the needle on a fine gauge.
+- Border-radius 8-12px feels more refined than 6-10px.
 - Card hover transitions (shadow + 1px translateY) add tactile quality.
-- Reducing page title weight from 600 → 500 was not enough. Need to go to 300.
+- Page title weight 600 is too heavy. 500 is the right balance.
 
-**Iteration 2 findings:**
+**Round 2: Chrome elimination**
 - Replacing sidebar `border-right` with `box-shadow: 1px 0 0 rgba(0,0,0,0.04)` 
-  eliminates the last visible hard edge. The sidebar blends with the page naturally.
-- Active nav items should use text color/weight only — NO background tint. 
-  `background: transparent` + `color: var(--text-primary)` + `font-weight: 500`.
-- Nav hover should also be transparent bg with just a color shift to text-primary.
-- Section labels at 10px (not 11px) with 0.08em tracking feel more refined.
-- Table headers at 10px with 0.08em tracking match the section label cadence.
-- The "ERA" logo at weight 300 feels more Ive than 500 or 600.
+  eliminates visible hard edges. Surfaces separate through light, not lines.
+- Section labels at 10px with 0.08em tracking. Table headers at 10px to match.
 
-**Iteration 3 findings:**
-- On mobile (375px), font-weight 200 (ultralight) can look too thin due to subpixel 
-  rendering limitations. Bump to 300 (light) on mobile — still elegant, but legible.
-- Mobile metric cards should ALWAYS use 2-column grid, even on 375px phones. A 1fr 
-  single-column grid wastes vertical space. A12-column works at 375px with 12px padding.
-- The 400px "small phone" breakpoint was too aggressive — 375px iPhones need 2-column.
-- The feedback FAB should use `rgba(0,0,0,0.06)` border and `rgba(0,0,0,0.04)` shadow 
-  instead of the standard `var(--border)` — it should be nearly invisible until hover.
-- Sidebar bottom divider at `rgba(0,0,0,0.04)` is more consistent than `var(--border)`.
+**Round 3: Mobile and polish**
+- Mobile metric cards: ALWAYS 2-column grid, even on 375px. Single-column is waste.
+- Weight 300 works at all sizes — no need for separate mobile weight.
+- Nearly invisible FAB (rgba borders/shadows) until hover interaction.
 
-**The compounding principle:** Each individual change seems minor. But the aggregate 
-effect of lighter weights + softer shadows + more spacing + invisible chrome transforms 
-a "nice modern app" into something that feels machined and inevitable — the Ive standard.
+**Round 4: Tactile feedback (from Ferrari Luce principle)**
+- Nav items NEED subtle hover background and active state fill. Removing all 
+  backgrounds made the sidebar feel dead and lifeless — the opposite of "physical 
+  and engaging." Ive chose physical toggles over touchscreens because "the 
+  functionality is superior." Hover/active visual feedback IS the functionality.
+- Logo at weight 500, page titles at 500 — medium weight is confident and 
+  functional. Weight 300 for titles was too fragile for a tool UI (appropriate for 
+  marketing pages, not dashboards).
+- The key insight: don't copy Apple's *specific aesthetic*. Apply the *universal 
+  principles* — every element treated like a precision product, tactile engagement, 
+  material honesty, reduction to essence, coherent unity.
+
+**The compounding principle:** Each change seems minor. The aggregate effect of 
+refined weights + softer shadows + more spacing + tactile interactions transforms a 
+"nice app" into something that feels crafted — like a product you want to keep.
 
 ## Post-Deploy Verification
 
