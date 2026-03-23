@@ -1,8 +1,9 @@
 // Sync user feedback from Cosmos DB → dev-tasks.md
 // Usage: npx tsx scripts/sync-dev-tasks.ts
+// Falls back to direct Cosmos DB access when API is unavailable
 
-const API = process.env.ERA_API || "http://localhost:3000/api";
-const TOKEN = process.env.ERA_TOKEN || "dev-bypass";
+import { config } from "dotenv";
+config();
 
 interface FeedbackItem {
   id: string;
@@ -13,12 +14,41 @@ interface FeedbackItem {
   submittedAt: string;
 }
 
-async function main() {
+const API = process.env.ERA_API || "http://localhost:3000/api";
+const TOKEN = process.env.ERA_TOKEN || "dev-bypass";
+
+async function fetchFromApi(): Promise<FeedbackItem[]> {
   const res = await fetch(`${API}/feedback`, {
     headers: { Authorization: `Bearer ${TOKEN}` },
   });
   const json = await res.json();
-  const items: FeedbackItem[] = json.data || [];
+  return json.data || [];
+}
+
+async function fetchFromCosmos(): Promise<FeedbackItem[]> {
+  const { CosmosClient } = await import("@azure/cosmos");
+  const { DefaultAzureCredential } = await import("@azure/identity");
+  const endpoint = process.env.COSMOS_ENDPOINT;
+  if (!endpoint) throw new Error("COSMOS_ENDPOINT not set");
+  const client = process.env.COSMOS_KEY
+    ? new CosmosClient({ endpoint, key: process.env.COSMOS_KEY })
+    : new CosmosClient({ endpoint, aadCredentials: new DefaultAzureCredential() });
+  const container = client.database(process.env.COSMOS_DATABASE || "era-db").container("feedback");
+  const { resources } = await container.items
+    .query<FeedbackItem>({ query: "SELECT * FROM c ORDER BY c.submittedAt DESC" })
+    .fetchAll();
+  return resources;
+}
+
+async function main() {
+  let items: FeedbackItem[];
+  try {
+    items = await fetchFromApi();
+    console.log("(fetched from API)");
+  } catch {
+    console.log("(API unavailable — fetching directly from Cosmos DB)");
+    items = await fetchFromCosmos();
+  }
 
   const open = items.filter((i) => i.status === "open");
   const inProgress = items.filter((i) => i.status === "in-progress");

@@ -14,6 +14,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const port = process.env.PORT || 3000;
 
+// Serve frontend static files BEFORE any middleware — same-origin assets must not go through CORS
+if (process.env.NODE_ENV === "production") {
+  const frontendPath = path.join(__dirname, "../frontend");
+  app.use(express.static(frontendPath));
+}
+
 // Security headers
 app.use(helmet({ contentSecurityPolicy: false })); // CSP off — SPA serves own scripts
 
@@ -26,7 +32,8 @@ app.use(cors({
   origin: (origin, cb) => {
     // Allow requests with no origin (server-to-server, curl, mobile)
     if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
-    cb(new Error("Not allowed by CORS"));
+    // Reject unknown origins silently (browser enforces; don't crash with 500)
+    cb(null, false);
   },
   credentials: true,
 }));
@@ -76,10 +83,9 @@ app.get("/health", async (_req, res) => {
 // API routes
 app.use("/api", router);
 
-// Serve frontend in production
+// SPA catch-all — serve index.html for client-side routes
 if (process.env.NODE_ENV === "production") {
   const frontendPath = path.join(__dirname, "../frontend");
-  app.use(express.static(frontendPath));
   app.get("*", (_req, res) => {
     res.sendFile(path.join(frontendPath, "index.html"));
   });
