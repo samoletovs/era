@@ -111,6 +111,17 @@ everything is in the right place, nothing is superfluous.
 - **Mobile chat pages**: Hide floating action buttons (like feedback FABs) that 
   overlap with chat input areas. Use `.chat-active` class on the app container 
   and hide the FAB via CSS `display: none`.
+- **Disabled buttons**: Use `opacity: 0.45; cursor: not-allowed;` — never let
+  disabled buttons still appear clickable. Apply `:hover:not(:disabled)` selectors
+  so hover effects are suppressed on disabled state.
+- **Mobile safe areas**: Always add `viewport-fit=cover` to the meta viewport tag
+  and use `env(safe-area-inset-bottom)` for fixed-bottom elements (FABs, chat inputs,
+  toast containers) to prevent overlap with phone notches and home indicators.
+- **Empty states must guide**: Every "no data" or "no company selected" state should
+  include a brief sentence telling the user what to do next. Never leave an empty page
+  with just a heading.
+- **Loading skeletons over text**: Use CSS `skeleton-line` pulse animations instead of
+  plain "Loading..." text. Skeletons feel faster and more polished.
 
 ## Step-by-Step: How to Redesign a UI
 
