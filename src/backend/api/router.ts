@@ -60,6 +60,7 @@ router.use(authMiddleware);
 
 router.get("/companies", async (req, res) => {
   try {
+    // Cross-partition query is acceptable here — companies container is small and rarely queried
     const { resources } = await containers.companies().items
       .query<Company>({
         query: "SELECT * FROM c ORDER BY c.name", // eslint-disable-line era/no-cross-partition-query
@@ -70,7 +71,9 @@ router.get("/companies", async (req, res) => {
     for (const c of resources) {
       if (!c.shortName && c.name) {
         c.shortName = generateShortName(c.name);
-        containers.companies().item(c.id, c.id).replace(c).catch(() => {});
+        containers.companies().item(c.id, c.id).replace(c).catch((err) => {
+          console.error("Failed to backfill shortName:", c.id, err instanceof Error ? err.message : String(err));
+        });
       }
     }
     res.json({ data: resources } as ApiResponse);

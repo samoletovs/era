@@ -81,15 +81,17 @@ async function verifyMicrosoftToken(token: string): Promise<AuthUser> {
 }
 
 export async function authMiddleware(req: Request, res: Response, next: NextFunction) {
-  // Dev bypass — allowed until real frontend auth (Google/Microsoft login) is implemented
   // Accept token from Authorization header or query param (for browser-opened URLs like PDF)
   const authHeader = req.headers.authorization;
   const queryToken = req.query.token as string | undefined;
 
-  if (authHeader === "Bearer dev-bypass" || queryToken === "dev-bypass") {
-    req.user = { id: "dev-user", email: "dev@era.local", name: "Developer", provider: "google" };
-    next();
-    return;
+  // Dev bypass — only allowed in development mode
+  if (process.env.NODE_ENV !== "production") {
+    if (authHeader === "Bearer dev-bypass" || queryToken === "dev-bypass") {
+      req.user = { id: "dev-user", email: "dev@era.local", name: "Developer", provider: "google" };
+      next();
+      return;
+    }
   }
 
   const rawToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : queryToken;

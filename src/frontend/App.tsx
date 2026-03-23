@@ -1,21 +1,28 @@
-import React from "react";
+import React, { Suspense } from "react";
 import { BrowserRouter, Routes, Route, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { AppProvider, useApp } from "./utils/context";
 import { api } from "./utils/api";
-import { Dashboard } from "./pages/Dashboard";
-import { Chat } from "./pages/Chat";
-import { Accounts } from "./pages/Accounts";
-import { Invoices } from "./pages/Invoices";
-import { Contacts } from "./pages/Contacts";
-import { Items } from "./pages/Items";
-import { Reports } from "./pages/Reports";
-import { Onboarding } from "./pages/Onboarding";
-import { Settings } from "./pages/Settings";
-import { FixedAssets } from "./pages/FixedAssets";
-import { BankRecon } from "./pages/BankRecon";
-import { JournalEntries } from "./pages/JournalEntries";
-import { EventLog } from "./pages/EventLog";
-import { Accounting } from "./pages/Accounting";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+
+// Code splitting — lazy-load pages for faster initial load
+const Dashboard = React.lazy(() => import("./pages/Dashboard").then(m => ({ default: m.Dashboard })));
+const Chat = React.lazy(() => import("./pages/Chat").then(m => ({ default: m.Chat })));
+const Accounts = React.lazy(() => import("./pages/Accounts").then(m => ({ default: m.Accounts })));
+const Invoices = React.lazy(() => import("./pages/Invoices").then(m => ({ default: m.Invoices })));
+const Contacts = React.lazy(() => import("./pages/Contacts").then(m => ({ default: m.Contacts })));
+const Items = React.lazy(() => import("./pages/Items").then(m => ({ default: m.Items })));
+const Reports = React.lazy(() => import("./pages/Reports").then(m => ({ default: m.Reports })));
+const Onboarding = React.lazy(() => import("./pages/Onboarding").then(m => ({ default: m.Onboarding })));
+const Settings = React.lazy(() => import("./pages/Settings").then(m => ({ default: m.Settings })));
+const FixedAssets = React.lazy(() => import("./pages/FixedAssets").then(m => ({ default: m.FixedAssets })));
+const BankRecon = React.lazy(() => import("./pages/BankRecon").then(m => ({ default: m.BankRecon })));
+const JournalEntries = React.lazy(() => import("./pages/JournalEntries").then(m => ({ default: m.JournalEntries })));
+const EventLog = React.lazy(() => import("./pages/EventLog").then(m => ({ default: m.EventLog })));
+const Accounting = React.lazy(() => import("./pages/Accounting").then(m => ({ default: m.Accounting })));
+
+function PageLoader() {
+  return <div style={{ padding: 40, textAlign: "center", color: "#A0A0A0" }}>Loading...</div>;
+}
 
 function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { companies, companyId, setCompanyId } = useApp();
@@ -148,18 +155,20 @@ function FeedbackButton() {
 
 export function App() {
   return (
-    <AppProvider>
-      <BrowserRouter>
-        <AppShell />
-      </BrowserRouter>
-    </AppProvider>
+    <ErrorBoundary>
+      <AppProvider>
+        <BrowserRouter>
+          <AppShell />
+        </BrowserRouter>
+      </AppProvider>
+    </ErrorBoundary>
   );
 }
 
 function AppShell() {
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
   const location = useLocation();
-  const { toasts } = useApp();
+  const { toasts, dismissToast } = useApp();
 
   return (
     <div className={`app${location.pathname === '/chat' ? ' chat-active' : ''}`}>
@@ -171,29 +180,34 @@ function AppShell() {
       </div>
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <main className="app-main">
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/chat" element={<Chat />} />
-          <Route path="/accounts" element={<Accounts />} />
-          <Route path="/invoices" element={<Invoices />} />
-          <Route path="/contacts" element={<Contacts />} />
-          <Route path="/items" element={<Items />} />
-          <Route path="/reports" element={<Reports />} />
-          <Route path="/fixed-assets" element={<FixedAssets />} />
-          <Route path="/bank" element={<BankRecon />} />
-          <Route path="/journal" element={<JournalEntries />} />
-          <Route path="/events" element={<EventLog />} />
-          <Route path="/accounting" element={<Accounting />} />
-          <Route path="/onboarding" element={<Onboarding />} />
-          <Route path="/settings" element={<Settings />} />
-        </Routes>
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/chat" element={<Chat />} />
+            <Route path="/accounts" element={<Accounts />} />
+            <Route path="/invoices" element={<Invoices />} />
+            <Route path="/contacts" element={<Contacts />} />
+            <Route path="/items" element={<Items />} />
+            <Route path="/reports" element={<Reports />} />
+            <Route path="/fixed-assets" element={<FixedAssets />} />
+            <Route path="/bank" element={<BankRecon />} />
+            <Route path="/journal" element={<JournalEntries />} />
+            <Route path="/events" element={<EventLog />} />
+            <Route path="/accounting" element={<Accounting />} />
+            <Route path="/onboarding" element={<Onboarding />} />
+            <Route path="/settings" element={<Settings />} />
+          </Routes>
+        </Suspense>
       </main>
       <FeedbackButton />
       {/* Toast notifications */}
       {toasts.length > 0 && (
         <div className="toast-container">
           {toasts.map(t => (
-            <div key={t.id} className={`toast toast-${t.type}`}>{t.message}</div>
+            <div key={t.id} className={`toast toast-${t.type}`}>
+              <span>{t.message}</span>
+              <button className="toast-dismiss" onClick={() => dismissToast(t.id)} aria-label="Dismiss">✕</button>
+            </div>
           ))}
         </div>
       )}

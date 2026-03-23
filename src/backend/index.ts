@@ -3,20 +3,74 @@ config(); // Load .env file
 
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import path from "path";
 import { fileURLToPath } from "url";
 import { router } from "./api/router.js";
+import { getCosmosClient } from "./services/cosmos.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const port = process.env.PORT || 3000;
 
-app.use(cors({ origin: (origin, cb) => cb(null, true) }));
+// Security headers
+app.use(helmet({ contentSecurityPolicy: false })); // CSP off — SPA serves own scripts
+
+// CORS — whitelist known origins
+const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(",")
+  : ["http://localhost:5173", "http://localhost:3000"];
+
+app.use(cors({
+  origin: (origin, cb) => {
+    // Allow requests with no origin (server-to-server, curl, mobile)
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+    cb(new Error("Not allowed by CORS"));
+  },
+  credentials: true,
+}));
+
+// Rate limiting — 200 requests per minute per IP
+app.use(rateLimit({
+  windowMs: 60_000,
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: { code: "RATE_LIMITED", message: "Too many requests, please try again later" } },
+}));
+
 app.use(express.json({ limit: "10mb" }));
 
-// Health check (no auth)
-app.get("/health", (_req, res) => {
-  res.json({ status: "healthy", version: "0.1.0", timestamp: new Date().toISOString() });
+// Request logging
+app.use((req, _res, next) => {
+  const start = Date.now();
+  _res.on("finish", () => {
+    const duration = Date.now() - start;
+    if (req.path !== "/health") {
+      console.warn(`${req.method} ${req.path} ${_res.statusCode} ${duration}ms`);
+    }
+  });
+  next();
+});
+
+// Health check (no auth) — includes dependency checks
+app.get("/health", async (_req, res) => {
+  const checks: Record<string, string> = { api: "healthy" };
+  try {
+    const client = getCosmosClient();
+    await client.getDatabaseAccount();
+    checks.database = "healthy";
+  } catch {
+    checks.database = "unhealthy";
+  }
+  const overall = Object.values(checks).every(s => s === "healthy") ? "healthy" : "degraded";
+  res.status(overall === "healthy" ? 200 : 503).json({
+    status: overall,
+    version: "0.1.0",
+    timestamp: new Date().toISOString(),
+    checks,
+  });
 });
 
 // API routes
@@ -31,8 +85,21 @@ if (process.env.NODE_ENV === "production") {
   });
 }
 
-app.listen(port, () => {
+const server = app.listen(port, () => {
   console.warn(`ERA API running on port ${port}`);
 });
+
+// Graceful shutdown
+function shutdown(signal: string) {
+  console.warn(`Received ${signal}, shutting down gracefully...`);
+  server.close(() => {
+    console.warn("HTTP server closed");
+    process.exit(0);
+  });
+  // Force exit after 10s if connections don't close
+  setTimeout(() => process.exit(1), 10_000);
+}
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
 
 export default app;

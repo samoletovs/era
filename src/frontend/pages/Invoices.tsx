@@ -9,7 +9,7 @@ import { AiInput } from "../components/AiInput";
 type SortKey = "invoiceNumber" | "vendorInvoiceNumber" | "type" | "contactName" | "date" | "subtotal" | "vatAmount" | "total" | "status";
 type SortDir = "asc" | "desc";
 
-const TOKEN = "dev-bypass";
+import { getAuthToken } from "../utils/api";
 
 // Cancel confirmation state type
 type CancelConfirm = { inv: any } | null;
@@ -339,7 +339,7 @@ export function Invoices() {
     try {
       const res = await fetch(`/api/companies/${companyId}/invoices/upload`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${TOKEN}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getAuthToken()}` },
         body: JSON.stringify({ image: base64, mimeType }),
       });
       const json = await res.json();

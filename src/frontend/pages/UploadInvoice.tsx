@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from "react";
 import { useApp } from "../utils/context";
 
-const TOKEN = "dev-bypass";
+import { getAuthToken } from "../utils/api";
 
 // Convert PDF first page to PNG using canvas (no external dependencies)
 async function pdfToImage(file: File): Promise<{ base64: string; dataUrl: string }> {
@@ -109,7 +109,7 @@ export function UploadInvoice() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${TOKEN}`,
+          Authorization: `Bearer ${getAuthToken()}`,
         },
         body: JSON.stringify({ image: base64, mimeType }),
       });

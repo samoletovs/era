@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { useApp } from "../utils/context";
-import { api } from "../utils/api";
+import { api, getAuthToken } from "../utils/api";
 
 interface Message {
   id: string;
@@ -10,16 +10,35 @@ interface Message {
 }
 
 const API_BASE = "/api";
-const AUTH_TOKEN = "dev-bypass";
 
-// Simple markdown → HTML renderer (bold, newlines, numbered lists)
+// Safe markdown-like renderer: bold, lists, newlines — no dangerouslySetInnerHTML
 function FormattedMessage({ content }: { content: string }) {
-  const html = content
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\n(\d+)\.\s/g, '\n<br/><span class="list-num">$1.</span> ')
-    .replace(/\n-\s/g, '\n<br/>• ')
-    .replace(/\n/g, '<br/>');
-  return <div dangerouslySetInnerHTML={{ __html: html }} />;
+  const lines = content.split("\n");
+  return (
+    <div>
+      {lines.map((line, i) => {
+        // Parse bold segments: **text** → <strong>text</strong>
+        const parts = line.split(/\*\*(.+?)\*\*/g);
+        const rendered = parts.map((part, j) =>
+          j % 2 === 1 ? <strong key={j}>{part}</strong> : <React.Fragment key={j}>{part}</React.Fragment>
+        );
+
+        // Numbered list item
+        const numMatch = line.match(/^(\d+)\.\s/);
+        if (numMatch) {
+          return <div key={i} style={{ marginLeft: 16 }}><span className="list-num">{numMatch[1]}.</span> {rendered}</div>;
+        }
+        // Bullet list item
+        if (line.startsWith("- ")) {
+          return <div key={i} style={{ marginLeft: 16 }}>{"• "}{parts.map((part, j) =>
+            j % 2 === 1 ? <strong key={j}>{part}</strong> : <React.Fragment key={j}>{part.replace(/^- /, "")}</React.Fragment>
+          )}</div>;
+        }
+        // Normal line
+        return <React.Fragment key={i}>{rendered}{i < lines.length - 1 && <br />}</React.Fragment>;
+      })}
+    </div>
+  );
 }
 
 export function Chat() {
@@ -104,7 +123,7 @@ export function Chat() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${AUTH_TOKEN}`,
+          Authorization: `Bearer ${getAuthToken()}`,
         },
         body: JSON.stringify({
           companyId: companyId || undefined,

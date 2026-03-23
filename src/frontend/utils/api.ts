@@ -1,12 +1,24 @@
 const API = "/api";
-const TOKEN = "dev-bypass";
+
+/** Centralized auth token management. Uses stored token from login, falls back to dev-bypass in development. */
+export function getAuthToken(): string {
+  return localStorage.getItem("era_authToken") || "dev-bypass";
+}
+
+export function setAuthToken(token: string): void {
+  localStorage.setItem("era_authToken", token);
+}
+
+export function clearAuthToken(): void {
+  localStorage.removeItem("era_authToken");
+}
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API}${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${TOKEN}`,
+      Authorization: `Bearer ${getAuthToken()}`,
       ...options?.headers,
     },
   });
@@ -134,7 +146,7 @@ export const api = {
 
   // Invoice PDF
   invoicePdfUrl: (companyId: string, invoiceId: string) =>
-    `${API}/companies/${companyId}/invoices/${invoiceId}/pdf?token=${TOKEN}`,
+    `${API}/companies/${companyId}/invoices/${invoiceId}/pdf?token=${encodeURIComponent(getAuthToken())}`,
 
   // Period close
   closePeriod: (companyId: string, period: string) =>

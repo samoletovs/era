@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { useApp } from "../utils/context";
 
+import { getAuthToken } from "../utils/api";
 const API = "/api";
-const TOKEN = "dev-bypass";
 
 interface RegisterResult {
   registrationNumber: string;
@@ -43,7 +43,7 @@ export function Onboarding() {
     setError("");
     try {
       const res = await fetch(`${API}/register/search?q=${encodeURIComponent(query.trim())}`, {
-        headers: { Authorization: `Bearer ${TOKEN}` },
+        headers: { Authorization: `Bearer ${getAuthToken()}` },
       });
       const json = await res.json();
       const data = json.data;
@@ -72,7 +72,7 @@ export function Onboarding() {
 
       const res = await fetch(`${API}/companies`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${TOKEN}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getAuthToken()}` },
         body: JSON.stringify({
           name: selected.name,
           code: companyCode || generateCode(selected.name),

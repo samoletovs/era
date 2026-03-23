@@ -10,8 +10,12 @@ export async function emitEvent(event: Omit<BusinessEvent, "id" | "timestamp">):
   };
   try {
     await containers.events().items.create(record);
-  } catch {
-    // Event logging should never break business operations
-    console.error("Failed to emit event:", record.type, record.documentId);
+  } catch (err) {
+    // Event logging should never break business operations, but log with structured context
+    console.error("Failed to emit event:", {
+      type: record.type,
+      documentId: record.documentId,
+      error: err instanceof Error ? err.message : String(err),
+    });
   }
 }

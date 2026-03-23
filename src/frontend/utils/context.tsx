@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import type { NumberFormat, DateFormat, DateTimeFormat } from "@shared/types";
+import { getAuthToken } from "./api";
 
 interface CompanyInfo {
   id: string;
@@ -27,6 +28,7 @@ interface AppState {
   dateFormat: DateFormat;
   dateTimeFormat: DateTimeFormat;
   toast: (message: string, type?: "error" | "success" | "info") => void;
+  dismissToast: (id: number) => void;
   toasts: ToastItem[];
 }
 
@@ -40,6 +42,7 @@ const AppContext = createContext<AppState>({
   dateFormat: "dd.MM.yyyy",
   dateTimeFormat: "24h",
   toast: () => {},
+  dismissToast: () => {},
   toasts: [],
 });
 
@@ -57,6 +60,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
   }, []);
 
+  const dismissToast = useCallback((id: number) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
+
   function setCompanyId(id: string) {
     setCompanyIdState(id);
     if (id) localStorage.setItem("era_companyId", id);
@@ -65,7 +72,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   async function refreshCompanies() {
     try {
       const res = await fetch("/api/companies", {
-        headers: { Authorization: "Bearer dev-bypass" },
+        headers: { Authorization: `Bearer ${getAuthToken()}` },
       });
       const json = await res.json();
       if (json.data) {
@@ -75,8 +82,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           setCompanyId(json.data[0].id);
         }
       }
-    } catch {
-      // Ignore — API might not be running
+    } catch (err) {
+      console.error("Failed to load companies:", err);
+      // Don't toast on initial load if API is down — user will see empty state
     }
   }
 
@@ -90,7 +98,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const dateTimeFormat: DateTimeFormat = activeCompany?.dateTimeFormat || "24h";
 
   return (
-    <AppContext.Provider value={{ companyId, setCompanyId, companies, setCompanies, refreshCompanies, numberFormat, dateFormat, dateTimeFormat, toast, toasts }}>
+    <AppContext.Provider value={{ companyId, setCompanyId, companies, setCompanies, refreshCompanies, numberFormat, dateFormat, dateTimeFormat, toast, dismissToast, toasts }}>
       {children}
     </AppContext.Provider>
   );

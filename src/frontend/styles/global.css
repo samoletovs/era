@@ -2442,7 +2442,23 @@ select.settings-input {
   pointer-events: auto;
   animation: toast-in 0.2s var(--ease-out);
   box-shadow: var(--shadow-md);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
+
+.toast-dismiss {
+  background: none;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  opacity: 0.6;
+  padding: 0 2px;
+  color: inherit;
+  flex-shrink: 0;
+}
+.toast-dismiss:hover { opacity: 1; }
 
 .toast-error {
   background: var(--error-bg);
