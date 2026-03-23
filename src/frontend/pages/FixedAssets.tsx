@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { api } from "../utils/api";
 import { useApp } from "../utils/context";
 import { formatMoney, formatMoneyOr } from "../utils/format";
+import { GlPostings } from "../components/GlPostings";
 
 type SortKey = "code" | "name" | "assetAccountCode" | "acquisitionCost" | "accumulatedDepreciation" | "netBookValue" | "status";
 type SortDir = "asc" | "desc";
@@ -59,6 +60,11 @@ export function FixedAssets() {
     if (statusFilter) {
       list = list.filter(a => a.status === statusFilter);
     }
+    // Period filter: show assets acquired in/before the selected period
+    if (depPeriod) {
+      const periodEnd = depPeriod + "-31"; // rough last day
+      list = list.filter(a => a.acquisitionDate <= periodEnd);
+    }
     list = [...list].sort((a, b) => {
       let av = a[sortKey] ?? "";
       let bv = b[sortKey] ?? "";
@@ -72,7 +78,7 @@ export function FixedAssets() {
       return 0;
     });
     return list;
-  }, [assets, search, statusFilter, sortKey, sortDir]);
+  }, [assets, search, statusFilter, sortKey, sortDir, depPeriod]);
 
   async function handleSelect(asset: any) {
     setSelected(asset);
@@ -171,31 +177,7 @@ export function FixedAssets() {
           <div style={{ flex: 1 }}>
             <div className="settings-card">
               <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>GL postings</h3>
-              {loadingGl ? <p style={{ color: "#A0A0A0" }}>Loading...</p> : glEntries.length === 0 ? (
-                <p style={{ color: "#A0A0A0", fontSize: 13 }}>No GL entries found</p>
-              ) : (
-                glEntries.map((entry: any, ei: number) => (
-                  <div key={ei} style={{ marginBottom: 16 }}>
-                    <div style={{ fontSize: 12, color: "#787878", marginBottom: 6 }}>
-                      <span className="mono">{entry.entryNumber}</span> · {entry.date} · {entry.description}
-                      {entry.status === "reversed" && <span className="badge badge-cancelled" style={{ marginLeft: 8 }}>reversed</span>}
-                    </div>
-                    <table className="data-table">
-                      <thead><tr><th>Account</th><th>Name</th><th>Debit</th><th>Credit</th></tr></thead>
-                      <tbody>
-                        {entry.lines?.map((l: any, li: number) => (
-                          <tr key={li}>
-                            <td className="mono">{l.accountCode}</td>
-                            <td>{l.accountName}</td>
-                            <td className="num">{l.debit ? formatMoney(l.debit, fmt) : ""}</td>
-                            <td className="num">{l.credit ? formatMoney(l.credit, fmt) : ""}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ))
-              )}
+              <GlPostings entries={glEntries} loading={loadingGl} emptyMessage="No GL entries found" formatMoney={formatMoney} fmt={fmt} />
             </div>
           </div>
         </div>

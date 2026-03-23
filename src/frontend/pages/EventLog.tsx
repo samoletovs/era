@@ -49,7 +49,7 @@ function summarizeData(type: string, data: Record<string, any> | undefined): str
   if (data.description && !data.invoiceNumber) parts.push(data.description);
   if (data.entryNumber) parts.push(`#${data.entryNumber}`);
   if (data.name && !data.contactName) parts.push(data.name);
-  if (data.stepsCompleted != null) parts.push(`${data.stepsCompleted} step${data.stepsCompleted !== 1 ? "s" : ""} completed`);
+  if (data.stepsCompleted !== null) parts.push(`${data.stepsCompleted} step${data.stepsCompleted !== 1 ? "s" : ""} completed`);
 
   if (parts.length === 0) {
     // Fallback: show key-value pairs but with readable keys

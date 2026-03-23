@@ -57,15 +57,15 @@ def test_desktop(browser):
     assert create_btn.is_visible(), "Create invoice button should be visible"
     print("  ✅ Create invoice button found")
 
-    # Check for Upload invoice button
-    upload_btn = page.locator("button:text('Upload invoice')")
-    assert upload_btn.is_visible(), "Upload invoice button should be visible"
-    print("  ✅ Upload invoice button found")
+    # Check for Upload button
+    upload_btn = page.locator("button:text('Upload')")
+    assert upload_btn.is_visible(), "Upload button should be visible"
+    print("  ✅ Upload button found")
 
-    # Check for Pay invoice button
-    pay_btn = page.locator("button:text('Pay invoice')")
-    assert pay_btn.is_visible(), "Pay invoice button should be visible"
-    print("  ✅ Pay invoice button found")
+    # Verify Pay invoice header button is REMOVED
+    pay_header_btn = page.locator(".page-header-bar button:text('Pay invoice')")
+    assert pay_header_btn.count() == 0, "Pay invoice header button should be removed"
+    print("  ✅ Pay invoice header button correctly removed")
 
     # Test Create invoice panel
     create_btn.click()
@@ -86,25 +86,14 @@ def test_desktop(browser):
     page.locator("button:text('Cancel')").first.click()
     page.wait_for_timeout(200)
 
-    # Test Upload invoice panel
-    upload_btn = page.locator("button:text('Upload invoice')")
+    # Test Upload panel
+    upload_btn = page.locator("button:text('Upload')")
     upload_btn.click()
     page.wait_for_timeout(300)
     screenshot(page, "05-desktop-invoices-upload-panel")
     drop_zone = page.locator(".drop-zone")
     assert drop_zone.is_visible(), "Drop zone should be visible"
     print("  ✅ Upload invoice panel visible")
-    page.locator("button:text('Cancel')").first.click()  # close
-    page.wait_for_timeout(200)
-
-    # Test Pay invoice panel
-    pay_btn = page.locator("button:text('Pay invoice')")
-    pay_btn.click()
-    page.wait_for_timeout(300)
-    screenshot(page, "06-desktop-invoices-pay-panel")
-    pay_hint = page.locator("text=Select an invoice to pay")
-    assert pay_hint.is_visible(), "Pay invoice hint should be visible"
-    print("  ✅ Pay invoice panel visible")
     page.locator("button:text('Cancel')").first.click()  # close
     page.wait_for_timeout(200)
 

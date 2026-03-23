@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState, useRef, useCallback } from "react"
 import { api } from "../utils/api";
 import { useApp } from "../utils/context";
 import { formatMoney, formatMoneyOr } from "../utils/format";
+import { GlPostings } from "../components/GlPostings";
 
 type SortKey = "invoiceNumber" | "vendorInvoiceNumber" | "type" | "contactName" | "date" | "subtotal" | "vatAmount" | "total" | "status";
 type SortDir = "asc" | "desc";
@@ -424,31 +425,7 @@ export function Invoices() {
 
             <div className="settings-card" style={{ marginTop: 16 }}>
               <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>GL postings</h3>
-              {loadingPostings ? <p style={{ color: "#A0A0A0" }}>Loading...</p> : postings.length === 0 ? (
-                <p style={{ color: "#A0A0A0", fontSize: 13 }}>No GL entries (invoice not yet posted)</p>
-              ) : (
-                postings.map((entry: any, ei: number) => (
-                  <div key={ei} style={{ marginBottom: 16 }}>
-                    <div style={{ fontSize: 12, color: "#787878", marginBottom: 6 }}>
-                      <span className="mono">{entry.entryNumber}</span> · {entry.date} · {entry.description}
-                      {entry.status === "reversed" && <span className="badge badge-cancelled" style={{ marginLeft: 8 }}>reversed</span>}
-                    </div>
-                    <table className="data-table">
-                      <thead><tr><th>Account</th><th>Name</th><th>Debit</th><th>Credit</th></tr></thead>
-                      <tbody>
-                        {entry.lines?.map((l: any, li: number) => (
-                          <tr key={li}>
-                            <td className="mono">{l.accountCode}</td>
-                            <td>{l.accountName}</td>
-                            <td className="num">{l.debit ? formatMoney(l.debit, fmt) : ""}</td>
-                            <td className="num">{l.credit ? formatMoney(l.credit, fmt) : ""}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ))
-              )}
+              <GlPostings entries={postings} loading={loadingPostings} emptyMessage="No GL entries (invoice not yet posted)" formatMoney={formatMoney} fmt={fmt} />
             </div>
 
             {/* Pay invoice inline panel (from detail view) */}

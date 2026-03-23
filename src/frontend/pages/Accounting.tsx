@@ -165,7 +165,7 @@ export function Accounting() {
           {yearEndResult && (
             <div style={{ marginTop: 16, padding: 14, background: "var(--bg-page)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)" }}>
               <div style={{ fontWeight: 500, marginBottom: 4 }}>FY{yearEndResult.fiscalYear} closed</div>
-              {yearEndResult.netResult != null && (
+              {yearEndResult.netResult !== null && (
                 <div style={{ fontSize: "var(--text-sm)" }}>
                   Net result: <strong style={{ color: yearEndResult.netResult >= 0 ? "#34C759" : "#FF3B30" }}>{formatMoney(yearEndResult.netResult, fmt)}</strong> transferred to retained earnings
                 </div>
@@ -273,7 +273,7 @@ export function Accounting() {
 function CloseRunDetail({ run, fmt }: { run: PeriodCloseRun; fmt: NumberFormat | undefined }) {
   return (
     <div style={{ padding: "12px 16px 16px 40px", background: "var(--bg-subtle)", borderBottom: "1px solid var(--border)" }}>
-      {run.type === "year-end" && run.netResult != null && (
+      {run.type === "year-end" && run.netResult !== null && (
         <div style={{ marginBottom: 12, fontSize: "var(--text-sm)" }}>
           Net result: <strong style={{ color: run.netResult >= 0 ? "#34C759" : "#FF3B30" }}>{formatMoney(run.netResult, fmt)}</strong> transferred to retained earnings
           {run.closingEntryId && (
