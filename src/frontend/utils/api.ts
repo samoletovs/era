@@ -1,5 +1,24 @@
 const API = "/api";
 
+// ─── API Response Types ─────────────────────────────────────
+// Typed interfaces for API responses — improves type safety across all pages
+
+export interface DashboardData {
+  kpiAccounts: Record<string, { balance: number; accountCodes: string[] }>;
+  recentInvoices: { id: string; invoiceNumber: string; contactName: string; total: number; status: string; date: string }[];
+}
+
+export interface BusinessEventData {
+  id: string;
+  type: string;
+  timestamp: string;
+  companyId: string;
+  documentId?: string;
+  data?: Record<string, unknown>;
+}
+
+// ─── Auth Token Management ──────────────────────────────────
+
 /** Centralized auth token management. Uses stored token from login, falls back to dev-bypass in development. */
 export function getAuthToken(): string {
   return localStorage.getItem("era_authToken") || "dev-bypass";
@@ -252,5 +271,5 @@ export const api = {
 
   // Event log
   events: (companyId: string, limit?: number) =>
-    apiFetch(`/companies/${companyId}/events${limit ? `?limit=${limit}` : ""}`),
+    apiFetch<BusinessEventData[]>(`/companies/${companyId}/events${limit ? `?limit=${limit}` : ""}`),
 };

@@ -1,7 +1,9 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { api } from "../utils/api";
+import React, { useMemo, useState } from "react";
+import { api, type BusinessEventData } from "../utils/api";
 import { useApp } from "../utils/context";
 import { formatDateTime } from "../utils/format";
+import { useApiData } from "../hooks/useApiData";
+import { PageHeader, EmptyState, FilterBar, SortHeader } from "../components/PageControls";
 
 // Map technical event types to user-friendly labels and icons
 const EVENT_DISPLAY: Record<string, { label: string; icon: string }> = {
@@ -67,19 +69,16 @@ type SortDir = "asc" | "desc";
 
 export function EventLog() {
   const { companyId, dateFormat, dateTimeFormat } = useApp();
-  const [events, setEvents] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: events, loading } = useApiData<BusinessEventData[]>(
+    companyId ? () => api.events(companyId, 200) : null,
+    [companyId]
+  );
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("");
   const [sortField, setSortField] = useState<SortField>("timestamp");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
-  useEffect(() => {
-    if (!companyId) return;
-    api.events(companyId, 200).then((d: any) => setEvents(d as any[])).catch(() => {}).finally(() => setLoading(false));
-  }, [companyId]);
-
-  if (!companyId) return <div className="empty-state"><div className="icon">🏢</div><h3>No company selected</h3><p>Add a company first to view events.</p></div>;
+  if (!companyId) return <EmptyState icon="🏢" title="No company selected" description="Add a company first to view events." />;
 
   const typeColors: Record<string, string> = {
     "entry.posted": "badge-posted", "entry.reversed": "badge-cancelled",
@@ -93,13 +92,13 @@ export function EventLog() {
   };
 
   const eventTypes = useMemo(() => {
-    const types = new Set(events.map(e => e.type));
+    const types = new Set((events || []).map(e => e.type));
     return Array.from(types).sort();
   }, [events]);
 
   const filteredEvents = useMemo(() => {
     const q = search.toLowerCase().trim();
-    let list = events;
+    let list = events || [];
     if (q) {
       list = list.filter(e =>
         getEventLabel(e.type).toLowerCase().includes(q) ||
@@ -132,14 +131,11 @@ export function EventLog() {
     }
   }
 
-  const sortIndicator = (field: SortField) =>
-    sortField === field ? (sortDir === "asc" ? " ↑" : " ↓") : "";
-
   return (
     <div>
-      <h2 className="page-title">Event log</h2>
+      <PageHeader title="Event log" />
 
-      <div style={{ display: "flex", gap: 10, marginBottom: 16, alignItems: "center" }}>
+      <FilterBar>
         <input
           type="text"
           placeholder="Search events..."
@@ -164,19 +160,19 @@ export function EventLog() {
             {filteredEvents.length} result{filteredEvents.length !== 1 ? "s" : ""}
           </span>
         )}
-      </div>
+      </FilterBar>
 
       {loading ? <p style={{ color: "#A0A0A0" }}>Loading...</p> : filteredEvents.length === 0 ? (
-        events.length === 0 ? (
-          <div className="empty-state"><div className="icon">📋</div><h3>No events yet</h3><p>Actions like posting invoices and payments will appear here.</p></div>
+        (events || []).length === 0 ? (
+          <EmptyState icon="📋" title="No events yet" description="Actions like posting invoices and payments will appear here." />
         ) : (
-          <div className="empty-state"><div className="icon">🔍</div><h3>No matching events</h3><p>Try adjusting your search or filters.</p></div>
+          <EmptyState icon="🔍" title="No matching events" description="Try adjusting your search or filters." />
         )
       ) : (
         <table className="data-table">
           <thead><tr>
-            <th style={{ cursor: "pointer", userSelect: "none" }} onClick={() => toggleSort("timestamp")}>Time{sortIndicator("timestamp")}</th>
-            <th style={{ cursor: "pointer", userSelect: "none" }} onClick={() => toggleSort("type")}>Event{sortIndicator("type")}</th>
+            <SortHeader label="Time" field="timestamp" currentSort={sortField} currentDir={sortDir} onSort={(f) => toggleSort(f as SortField)} />
+            <SortHeader label="Event" field="type" currentSort={sortField} currentDir={sortDir} onSort={(f) => toggleSort(f as SortField)} />
             <th>Details</th>
           </tr></thead>
           <tbody>
