@@ -31,22 +31,22 @@ export function Dashboard() {
       <div className="dashboard-grid">
         <div className="metric-card">
           <div className="label">Cash position</div>
-          <div className="value">{formatMoney(data?.cash, fmt)}</div>
+          <div className="value" style={{ fontWeight: 200 }}>{formatMoney(data?.cash, fmt)}</div>
           <div className="subtitle">Bank + cash accounts</div>
         </div>
         <div className="metric-card">
           <div className="label">Receivables</div>
-          <div className="value">{formatMoney(data?.receivables, fmt)}</div>
+          <div className="value" style={{ fontWeight: 200 }}>{formatMoney(data?.receivables, fmt)}</div>
           <div className="subtitle">Outstanding invoices</div>
         </div>
         <div className="metric-card">
           <div className="label">Payables</div>
-          <div className="value">{formatMoney(data?.payables, fmt)}</div>
+          <div className="value" style={{ fontWeight: 200 }}>{formatMoney(data?.payables, fmt)}</div>
           <div className="subtitle">Bills to pay</div>
         </div>
         <div className="metric-card">
           <div className="label">VAT due</div>
-          <div className="value">{formatMoney(data?.vatDue, fmt)}</div>
+          <div className="value" style={{ fontWeight: 200 }}>{formatMoney(data?.vatDue, fmt)}</div>
           <div className="subtitle">Current period</div>
         </div>
       </div>
@@ -88,8 +88,8 @@ export function Dashboard() {
                   gap: 10,
                   padding: "10px 12px",
                   borderRadius: 8,
-                  background: issue.severity === "critical" ? "#FEF2F2" : issue.severity === "warning" ? "#FFFBEB" : "#F0F7FF",
-                  border: `1px solid ${issue.severity === "critical" ? "#FEE2E2" : issue.severity === "warning" ? "#FEF3C7" : "#DBEAFE"}`,
+                  background: "var(--bg-subtle, #F5F5F4)",
+                  border: "1px solid var(--border, #E8E8E8)",
                   cursor: issue.agentCommand ? "pointer" : "default",
                   transition: "opacity 0.15s",
                 }}>

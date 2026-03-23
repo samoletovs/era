@@ -477,3 +477,74 @@ export async function parseInvoiceDescription(description: string): Promise<Pars
     })),
   };
 }
+
+// ─── AI: Parse Contact Description ──────────────────────────
+
+export interface ParsedContactFields {
+  type: "customer" | "vendor" | "both";
+  name: string;
+  registrationNumber: string;
+  vatNumber: string;
+  email: string;
+  phone: string;
+  address: { line1: string; city: string; postalCode: string; country: string };
+  bankAccount: { iban: string; swift: string; bankName: string };
+  paymentTermsDays: number;
+  notes: string;
+}
+
+const PARSE_CONTACT_PROMPT = `You are an ERP contact assistant for a Latvian SIA company. Given a free-text description of a contact (customer, vendor, or both), extract structured contact fields.
+
+Return ONLY valid JSON with these fields:
+- type: "customer" (we sell to them), "vendor" (we buy from them), or "both"
+- name: company or person name
+- registrationNumber: registration/company number (e.g. "40003290084" for Latvian companies)
+- vatNumber: VAT registration number (e.g. "LV40003290084")
+- email: contact email
+- phone: contact phone number
+- address: object with line1 (street), city, postalCode, country (default "Latvia")
+- bankAccount: object with iban, swift, bankName
+- paymentTermsDays: payment terms in days (default 30)
+- notes: any additional notes
+
+If a field is not mentioned, use an empty string (or 30 for paymentTermsDays).
+For Latvian companies, country defaults to "Latvia".
+Respond with the JSON object only, no markdown fences.`;
+
+export async function parseContactDescription(description: string): Promise<ParsedContactFields> {
+  const response = await getClient().chat.completions.create({
+    model: DEPLOYMENT,
+    messages: [
+      { role: "system", content: PARSE_CONTACT_PROMPT },
+      { role: "user", content: description },
+    ],
+    temperature: 0.1,
+    max_tokens: 600,
+  });
+
+  const content = response.choices[0]?.message?.content || "{}";
+  const cleaned = content.replace(/```json?\n?/g, "").replace(/```/g, "").trim();
+  const parsed = JSON.parse(cleaned);
+
+  return {
+    type: ["customer", "vendor", "both"].includes(parsed.type) ? parsed.type : "customer",
+    name: String(parsed.name || "").slice(0, 120),
+    registrationNumber: String(parsed.registrationNumber || ""),
+    vatNumber: String(parsed.vatNumber || ""),
+    email: String(parsed.email || ""),
+    phone: String(parsed.phone || ""),
+    address: {
+      line1: String(parsed.address?.line1 || ""),
+      city: String(parsed.address?.city || ""),
+      postalCode: String(parsed.address?.postalCode || ""),
+      country: String(parsed.address?.country || "Latvia"),
+    },
+    bankAccount: {
+      iban: String(parsed.bankAccount?.iban || ""),
+      swift: String(parsed.bankAccount?.swift || ""),
+      bankName: String(parsed.bankAccount?.bankName || ""),
+    },
+    paymentTermsDays: Number(parsed.paymentTermsDays) || 30,
+    notes: String(parsed.notes || ""),
+  };
+}

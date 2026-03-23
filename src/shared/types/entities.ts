@@ -195,6 +195,7 @@ export interface Contact extends BaseEntity {
   contactNumber?: string;
   type: "customer" | "vendor" | "both";
   name: string;
+  shortName?: string;            // Display name / "known as" — auto-generated from official name
   registrationNumber?: string;
   vatNumber?: string;
   email?: string;

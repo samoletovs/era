@@ -49,6 +49,8 @@ export const api = {
     apiFetch(`/companies/${companyId}/contacts`, { method: "POST", body: JSON.stringify(body) }),
   contactTransactions: (companyId: string, contactId: string) =>
     apiFetch(`/companies/${companyId}/contacts/${contactId}/transactions`),
+  parseContactDescription: (companyId: string, description: string) =>
+    apiFetch(`/companies/${companyId}/contacts/parse-description`, { method: "POST", body: JSON.stringify({ description }) }),
 
   // Items
   items: (companyId: string) => apiFetch(`/companies/${companyId}/items`),

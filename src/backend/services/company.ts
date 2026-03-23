@@ -33,6 +33,63 @@ function generateCode(name: string): string {
     .toUpperCase();
 }
 
+/**
+ * Generate a friendly short name from a registered company/contact name.
+ * Strips legal form prefixes, quotes, and excess formatting.
+ *
+ * Examples:
+ *   'Sabiedrība ar ierobežotu atbildību "DAIS"' → 'Dais'
+ *   '"MICROSOFT TEHNOLOĢIJU LIETOTĀJU BIEDRĪBA"' → 'Microsoft Tehnoloģiju Lietotāju Biedrība'
+ *   'SIA "DAIS GRĀMATVEDĪBA"' → 'Dais Grāmatvedība'
+ *   'DAISY ADVERTISING SIA' → 'Daisy Advertising'
+ *   'SIA ERA Demo' → 'ERA Demo'
+ */
+export function generateShortName(officialName: string): string {
+  let name = officialName.trim();
+
+  // 1. Extract content from quotes if present (Latvian register often wraps in quotes)
+  const quoted = name.match(/[""\u201C\u201D]([^""\u201C\u201D]+)[""\u201C\u201D]/);
+  if (quoted) {
+    name = quoted[1].trim();
+  }
+
+  // 2. Remove common Latvian/Baltic legal form prefixes and suffixes
+  const legalForms = [
+    /^Sabiedr[iī]ba ar ierobe[zž]otu atbild[iī]bu\s*/i,
+    /^Akciju sabiedr[iī]ba\s*/i,
+    /^Individu[aā]lais uz[nņ][eē]mums\s*/i,
+    /^Zemnieku saimniec[iī]ba\s*/i,
+    /^Pilnsabiedr[iī]ba\s*/i,
+    /^Kooperat[iī]v[aā] sabiedr[iī]ba\s*/i,
+    /^Biedr[iī]ba\s*/i,
+    /^Nodibin[aā]jums\s*/i,
+    /^(SIA|AS|IK|ZS|PS|SE|O[UÜ]|GmbH|Ltd\.?|LLC|Inc\.?|AG|AB|UAB|Oy|ApS)\s+/i,
+    /\s+(SIA|AS|IK|ZS|PS|SE|O[UÜ]|GmbH|Ltd\.?|LLC|Inc\.?|AG|AB|UAB|Oy|ApS)$/i,
+  ];
+  for (const re of legalForms) {
+    name = name.replace(re, "").trim();
+  }
+
+  // 3. Remove remaining outer quotes
+  name = name.replace(/^[""\u201C\u201D]+|[""\u201C\u201D]+$/g, "").trim();
+
+  // 4. Title-case if all uppercase (many register names are ALL CAPS)
+  if (name === name.toUpperCase() && name.length > 3) {
+    name = name
+      .toLowerCase()
+      .split(/\s+/)
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+  }
+
+  // 5. Limit length for display
+  if (name.length > 40) {
+    name = name.slice(0, 38).replace(/\s+\S*$/, "") + "…";
+  }
+
+  return name || officialName;
+}
+
 export async function createCompany(input: CreateCompanyInput): Promise<Company> {
   const id = uuidv4();
   const now = new Date().toISOString();
@@ -50,6 +107,7 @@ export async function createCompany(input: CreateCompanyInput): Promise<Company>
     id,
     code,
     name: input.name,
+    shortName: generateShortName(input.name),
     registrationNumber: input.registrationNumber,
     vatNumber: input.vatNumber,
     legalAddress: input.legalAddress,

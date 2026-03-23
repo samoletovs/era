@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.js";
-import { createCompany, getCompany, updateCompany, deleteCompany, getCompanyStats } from "../services/company.js";
+import { createCompany, getCompany, updateCompany, deleteCompany, getCompanyStats, generateShortName } from "../services/company.js";
 import { postJournalEntry, reverseJournalEntry, getTrialBalance, GLError } from "../services/ledger.js";
 import { createInvoice, postInvoice, getInvoice, findDuplicateInvoice, cancelInvoice, getInvoicePostings, createCreditNote } from "../services/invoice.js";
 import { createAndPostPayment, listPayments } from "../services/payment.js";
@@ -9,7 +9,7 @@ import { createItem } from "../services/inventory.js";
 import { generateVatReturn, getBalanceSheet, getProfitAndLoss, generateVatDeclaration, generateAnnualReport, getAgingReport, markOverdueInvoices } from "../services/reporting.js";
 import { searchCompanyByName, searchCompanyByRegNumber } from "../services/company-lookup.js";
 import { recognizeInvoice } from "../services/invoice-recognition.js";
-import { handleChat, parseItemDescription, parseInvoiceDescription } from "../services/agent.js";
+import { handleChat, parseItemDescription, parseInvoiceDescription, parseContactDescription } from "../services/agent.js";
 import { seedRules } from "../services/posting-rules.js";
 import { closePeriod, reopenPeriod, yearEndClose, getPeriodStatus } from "../services/period-close.js";
 import { generateInvoicePdf } from "../services/invoice-pdf.js";
@@ -656,6 +656,20 @@ router.post("/companies/:companyId/items", async (req, res) => {
   }
 });
 
+router.post("/companies/:companyId/contacts/parse-description", async (req, res) => {
+  try {
+    const description = req.body.description as string;
+    if (!description?.trim()) {
+      res.status(400).json({ error: { code: "VAL-001", message: "Description is required" } });
+      return;
+    }
+    const fields = await parseContactDescription(description.trim());
+    res.json({ data: fields } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "PARSE_FAILED", message: String(err) } });
+  }
+});
+
 router.post("/companies/:companyId/items/parse-description", async (req, res) => {
   try {
     const description = req.body.description as string;
@@ -762,6 +776,56 @@ router.get("/companies/:companyId/dashboard", async (req, res) => {
     } as ApiResponse);
   } catch (err) {
     res.status(500).json({ error: { code: "DASHBOARD_FAILED", message: String(err) } });
+  }
+});
+
+// ─── Migration: Generate short names ────────────────────────
+
+router.post("/migrate/short-names", async (req, res) => {
+  try {
+    let updated = 0;
+
+    // Update companies
+    const { resources: companies } = await containers.companies().items
+      .query<Company>({
+        query: "SELECT * FROM c", // eslint-disable-line era/no-cross-partition-query
+        parameters: [],
+      })
+      .fetchAll();
+
+    for (const company of companies) {
+      if (!company.shortName) {
+        const shortName = generateShortName(company.name);
+        await containers.companies().item(company.id, company.id).patch([
+          { op: "add", path: "/shortName", value: shortName },
+        ]);
+        updated++;
+      }
+    }
+
+    // Update contacts per company
+    for (const company of companies) {
+      const { resources: contacts } = await containers.contacts().items
+        .query({
+          query: "SELECT * FROM c WHERE c.companyId = @cid",
+          parameters: [{ name: "@cid", value: company.id }],
+        })
+        .fetchAll();
+
+      for (const contact of contacts) {
+        if (!contact.shortName && contact.name) {
+          const shortName = generateShortName(contact.name);
+          await containers.contacts().item(contact.id, contact.companyId).patch([
+            { op: "add", path: "/shortName", value: shortName },
+          ]);
+          updated++;
+        }
+      }
+    }
+
+    res.json({ data: { updated } } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "MIGRATION_FAILED", message: String(err) } });
   }
 });
 

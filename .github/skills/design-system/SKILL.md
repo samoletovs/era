@@ -509,40 +509,54 @@ necessary. The empty space IS the design — it creates focus, calm, and hierarc
 - Page side margins (mobile): `16px` to `20px`
 - Page side margins (desktop): `24px` to `40px`
 
-### Step 5: Apply Borders and Radius
+### Step 5: Apply Borders and Radius — The Ive Curve
+
+Ive is famous for his border radii. The iPhone's corners use a **squircle** 
+(superellipse) — not a standard CSS border-radius, but the concept applies: 
+**one consistent radius, used everywhere, creating a unified visual language.**
 
 ```css
-/* Radius — use ONE consistent level across the whole app */
---radius-sm:      6px;      /* Buttons, inputs, small elements */
---radius-md:      10px;     /* Cards, panels */
---radius-lg:      14px;     /* Modals, large containers */
---radius-full:    9999px;   /* Pills, avatars, progress bars */
+/* Radius — Ive would pick ONE value and use it religiously */
+--radius-sm:      8px;      /* Buttons, inputs, small elements — slightly larger */
+                             /* than typical 6px for that Ive-era softness */
+--radius-md:      12px;     /* Cards, panels — the signature Apple corner */
+--radius-lg:      16px;     /* Modals, large containers — generous, inviting */
+--radius-full:    9999px;   /* Pills, avatars, toggle tracks */
 
-/* Borders */
+/* Borders — barely there. Ive eliminated visible borders wherever possible. */
+/* Use spacing/shadow instead. When you must use a border: */
 --border-width:   1px;
 --border-color:   #E8E8E8;
 --border:         1px solid #E8E8E8;
 ```
 
-**Rules:**
-- Pick `radius-sm` (6px) OR `radius-md` (10px) for the project. Use it everywhere.
-- Don't mix 4px, 8px, 12px, 20px radius on the same page.
-- Borders: use sparingly. Prefer spacing or background color differences to separate areas.
-- Never use colored borders (blue border around active card is outdated). Use a subtle 
-  shadow or background tint instead.
+**Ive rules for borders and radius:**
+- Pick ONE consistent radius for the project and use it everywhere. Mixing 4px, 8px, 
+  12px, 20px on the same page is visual anarchy.
+- **Prefer no border.** Use slight background color differences or subtle shadow to 
+  separate elements. Borders are structure lines — they should be invisible scaffolding.
+- **NEVER** use colored borders (blue/orange around active cards). This is a relic. 
+  Use a barely-there shadow lift or faint background tint instead.
+- The radius should feel **continuous** — matching between nested elements. If a card 
+  has 12px radius, its inner elements should have 8px (radius minus padding offset).
 
-### Step 6: Apply Shadows
+### Step 6: Apply Shadows — Depth Through Light
 
-Minimal, soft, barely-there shadows:
+Ive's approach to depth evolved from heavy skeuomorphic shadows (pre-iOS 7) to 
+**almost imperceptible luminosity shifts**. Shadows should feel like natural light 
+falling on layered sheets of paper — present but subconscious.
 
 ```css
---shadow-xs:      0 1px 2px rgba(0,0,0,0.04);
---shadow-sm:      0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.03);
---shadow-md:      0 4px 12px rgba(0,0,0,0.06);
---shadow-lg:      0 8px 24px rgba(0,0,0,0.08);
+--shadow-xs:      0 1px 2px rgba(0,0,0,0.03);                       /* Barely there — buttons */
+--shadow-sm:      0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02);  /* Cards at rest */
+--shadow-md:      0 4px 12px rgba(0,0,0,0.05);                      /* Hover lift — cards */
+--shadow-lg:      0 12px 32px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04); /* Modals, drawers */
 ```
 
-Cards should use `shadow-sm` at most. Modals use `shadow-lg`. Most elements: no shadow.
+**The Ive shadow principle**: If you can clearly see a shadow, it's too heavy. 
+Shadows should create a **feeling** of elevation, not a visible dark edge. Cards 
+at rest should use `shadow-sm` at most. Many elements need **no shadow at all** — 
+use a 1px border or background contrast instead.
 
 ### Step 7: Fix Specific Components
 
@@ -765,33 +779,42 @@ footer p {
 - List items with no breathing room → add `gap: 8px` or `padding: 12px 0` per item
 - Inconsistent alignment → pick left-align for everything (centered only for hero/empty states)
 
-### Step 9: Fix Large Numbers and Metrics
+### Step 9: Fix Large Numbers and Metrics — The Ive Display Style
 
-Apps often display key numbers (reps, score, count, price). Modern style:
+This is where the Ive aesthetic is most distinctive. Think of the iOS Clock app, 
+Apple Watch faces, or Keynote slides: **ultralight type at generous sizes**. 
+The thinner the stroke at large scale, the more refined and precious it feels.
 
 ```css
 .metric-value {
-  font-size: 28px;         /* NOT 48px — keep proportional */
-  font-weight: 600;        /* NOT 900 or black */
-  color: var(--text-primary);  /* Dark gray, NOT accent blue */
-  line-height: 1.1;
-  letter-spacing: -0.02em;
+  font-size: 32px;         /* Generous — let the number breathe */
+  font-weight: 200;        /* ULTRALIGHT — this is the Ive signature */
+  color: var(--text-primary);  /* Near-black, never accent */
+  line-height: 1;
+  letter-spacing: -0.03em; /* Tight tracking at large size */
+  font-variant-numeric: tabular-nums; /* Aligned columns */
 }
 .metric-label {
   font-size: 11px;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--text-tertiary);  /* Barely visible scaffolding */
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  margin-top: 4px;
+  margin-top: 6px;
 }
 ```
 
-**Rules for numbers/metrics:**
-- Color: `#1C1C1C` (near-black). NEVER accent blue for display numbers.
-- Size: 24-32px. Not 48px+. Large numbers look dated and amateur.
-- Weight: 600 max. Not 700, 800, 900, or `bold`.
-- The label below ("reps", "goal", "total") is tiny gray uppercase at 11px.
+**Ive rules for metrics/numbers:**
+- **Font-weight: 200 (ultralight) for display numbers.** This is the single most 
+  distinctive Ive pattern. Weight 600+ for numbers looks crude and corporate. 
+  Ultralight at 28-40px looks machined and elegant.
+- Color: `#1C1C1C` (near-black). NEVER use accent blue for display numbers.
+- Size: 28-36px. Not 48px+ (that's a billboard, not an app).
+- The label underneath is tiny, uppercase, tertiary gray — invisible scaffolding.
+- Use `font-variant-numeric: tabular-nums` for aligned data columns.
+- **Mobile metrics**: On mobile (375px), reduce size to 24-28px and bump weight to **300** 
+  (light, not ultralight). Weight 200 can look anemic on small screens where subpixel 
+  rendering is less precise. Also reduce the card padding from 24px to 14px on mobile.
 
 ### Step 10: Fix Previous Data / Info Rows
 
@@ -881,25 +904,29 @@ Only implement if the user asks for it. When you do:
 }
 ```
 
-### Step 11: Apply Motion & Micro-interactions
+### Step 11: Apply Motion & Micro-interactions — Ive's Tactile Precision
 
-Motion should be **purposeful, brief, and subtle** — never decorative. Apple HIG says:
-"Don't add motion for the sake of adding motion." Google M3 uses spring-based physics
-for natural feel. Both agree: less is more.
+Ive's approach to motion: **purposeful, brief, and physically plausible**. Every 
+animation should feel like a real object responding to touch — not a decorative 
+flourish. The iPhone's inertial scrolling, the bounce at the end of a list, the 
+way cards settle after being released — all suggest real physics.
+
+Apple HIG: "Don't add motion for the sake of adding motion." Every transition must 
+serve comprehension (where did this come from? where did it go?).
 
 ```css
-/* Transition tokens — use these everywhere */
---duration-fast:    100ms;    /* Hover color changes, opacity toggles */
---duration-normal:  150ms;    /* Button state changes, border color */
---duration-slow:    250ms;    /* Card expand/collapse, panel slides */
---duration-enter:   200ms;    /* Elements appearing (slightly slower than exit) */
---duration-exit:    150ms;    /* Elements disappearing (faster — feels snappier) */
+/* Transition tokens — precise, not lazy */
+--duration-fast:    100ms;    /* Hover states, opacity shifts — instant feedback */
+--duration-normal:  150ms;    /* Button states, border color — crisp response */
+--duration-slow:    250ms;    /* Card expand/collapse — smooth but never sluggish */
+--duration-enter:   200ms;    /* Elements appearing — slightly deliberate */
+--duration-exit:    150ms;    /* Elements leaving — faster than enter (snappy) */
 
-/* Easing curves */
---ease-out:         cubic-bezier(0.16, 1, 0.3, 1);    /* Elements entering — decelerate */
---ease-in:          cubic-bezier(0.5, 0, 1, 0.5);     /* Elements exiting — accelerate */
+/* Easing — Apple uses spring-based physics. In CSS, approximate with: */
+--ease-out:         cubic-bezier(0.16, 1, 0.3, 1);    /* Decelerate — the Ive default */
+--ease-in:          cubic-bezier(0.5, 0, 1, 0.5);     /* Accelerate out */
 --ease-in-out:      cubic-bezier(0.33, 0, 0.67, 1);   /* Position changes */
---ease-spring:      cubic-bezier(0.34, 1.56, 0.64, 1); /* Playful bounce (use sparingly) */
+--ease-spring:      cubic-bezier(0.34, 1.56, 0.64, 1); /* Bounce — use VERY sparingly */
 ```
 
 **What gets transitions (ALWAYS add these):**
@@ -923,18 +950,18 @@ transition: box-shadow var(--duration-slow) var(--ease-out),
 - `width`, `height` on complex layouts — causes jank. Use `transform: scale()` instead
 - Anything on scroll — it's too laggy. Only use CSS scroll-snap or intersection observers
 
-**Hover micro-interactions (subtle is key):**
+**Hover micro-interactions (Ive: barely perceptible, yet you feel them):**
 ```css
-/* Card lift — barely perceptible */
+/* Card lift — the "sheet of paper rising toward the light" effect */
 .card:hover {
   box-shadow: var(--shadow-md);
-  transform: translateY(-1px);  /* Just 1px — not 4px or 8px */
+  transform: translateY(-1px);  /* Just 1px — if you can clearly see it move, it's too much */
 }
 
-/* Button press — instant feedback */
+/* Button press — instant tactile feedback, like a well-machined switch */
 .btn:active {
-  transform: scale(0.98);       /* Tiny shrink — feels tactile */
-  transition-duration: 50ms;    /* Instant on press */
+  transform: scale(0.98);       /* Tiny shrink — physical, precise */
+  transition-duration: 50ms;    /* Instant response — no lag */
 }
 
 /* Link underline reveal */
@@ -1259,28 +1286,46 @@ Every app must work well on mobile. Use a **768px breakpoint** as the primary mo
 @media (max-width: 768px) { .mobile-header { display: flex; } }
 ```
 
-## Final Checklist (Before Saying "Done")
+## Final Checklist — The Ive Quality Gate
 
-After applying changes, verify EVERY point. If ANY fails, go back and fix it.
+After applying changes, verify EVERY point. Ive would reject work that fails any of 
+these. If ANY fails, go back and fix it. "Good enough" is not good enough.
 
-1. **Squint test**: Squint at the screen. Is it mostly white/light gray with tiny color touches? If large colored blocks are still visible → fix them.
-2. **Category label check**: Are any category/type labels (like "EXERCISE", "WARMUP", "STATUS") colored (orange, blue, red, green)? → Change to gray: `color: #787878; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;`
-3. **Background tint check**: Are any text sections, description blocks, or info rows using yellow, beige, cream, light blue, or any non-white background? → Change to `#FFFFFF` or `#F5F5F4` or `transparent`.
-4. **Button size check**: Are any buttons full-width, taller than 44px, or using font-weight > 500? Are there multiple accent colors (blue AND orange buttons)? → Reduce size, use one accent color, make non-primary buttons ghost/outlined.
-5. **Number/metric check**: Are display numbers larger than 32px, bolder than weight 600, or colored (blue, orange)? → Reduce to 28px, weight 600, color #1C1C1C.
-6. **Border audit**: Are any borders thicker than 1px or colored (not gray)? → Fix to 1px #E8E8E8 or remove.
-7. **Accent budget check**: Count accent-colored elements on screen. More than 2-3? → Reduce. Only the primary CTA button and maybe one progress bar / active indicator.
-8. **Spacing check**: Do all sections have 24px+ gap between them? → Add more space.
-9. **Border-radius consistency**: Is the same radius value used everywhere? → Standardize to one value (6px or 10px).
-10. **Font weight audit**: Any body text using 600+? Any element using 700, 800, 900, or `bold`? → Reduce. Max 600 for page titles only.
-11. **Capitalization consistency check**: Are headings, buttons, labels, and titles using sentence case consistently? Are any using Title Case or ALL CAPS where they shouldn't be? → Fix to sentence case. Only category labels/tags and short badges should be UPPERCASE.
-12. **Text structure check**: Are button labels action-verb-first and 1-3 words? Are error messages specific and non-blaming? Are headings short (3-8 words) with no trailing periods? → Fix per text formatting rules.
-13. **Motion check**: Do all interactive elements (buttons, links, cards) have `transition` declarations? Are any transitions longer than 300ms? Is `prefers-reduced-motion` handled? → Add transitions, reduce durations, add reduced-motion media query.
-14. **Icon consistency check**: Are all icons from the same set? Same stroke width? Same size in similar contexts? → Standardize to one icon set.
-15. **Loading state check**: Does the app show skeleton loaders or inline spinners during data fetches? Or does it show a blank screen / full-page spinner? → Replace with skeletons. Buttons should show inline spinners during actions.
-16. **Empty state check**: When there's no data (empty list, no results, first use), is there a helpful message with a CTA? Or just a blank area? → Add empty state with heading, description, and action button.
-17. **Accessibility check**: Do all interactive elements have visible `:focus-visible` styles? Are touch targets at least 44px? Do text colors meet WCAG 4.5:1 contrast? → Fix per accessibility rules.
-18. **Mobile check**: Does the layout work at 375px width? Is the sidebar a hamburger drawer? Do tables scroll horizontally? Do toolbars/controls stack vertically? Are touch targets 44px+? → Fix per mobile responsiveness rules.
+1. **The gallery test**: Look at the interface. Does it feel like a well-lit art gallery — 
+   mostly white/light gray with content as the exhibit? If colored blocks dominate → fix.
+2. **Category label check**: Any colored category labels (orange, blue, green)? → Fix to 
+   gray: `color: #787878; font-size: 11px; font-weight: 600; text-transform: uppercase; 
+   letter-spacing: 0.06em;`
+3. **Background tint check**: Any info sections using yellow, beige, cream, or tinted 
+   backgrounds? → Change to `#FFFFFF` or `#F5F5F4` or `transparent`. White is the answer.
+4. **Button discipline check**: Multiple accent colors? Full-width buttons? Font-weight > 500? 
+   → ONE accent. Compact buttons. Weight 500 max.
+5. **Display number check**: Are metrics using weight 600+? Colored (blue/orange)? → 
+   Change to **weight 200** (ultralight), color #1C1C1C. This is the Ive signature.
+6. **Border audit**: Colored borders? Borders thicker than 1px? → Fix to 1px #E8E8E8 or remove.
+7. **Accent budget**: Count accent-colored elements. More than 2-3 per viewport? → Reduce. 
+   Ive would likely say even 2 is too many.
+8. **Breathing room check**: Sections have 24px+ gap? Cards have 24px+ padding? → Add space.
+9. **Radius consistency**: Same radius everywhere? → Standardize to 8px (sm) or 12px (md).
+10. **Weight audit**: Any body text using weight 600+? Any weight 700/800/900 anywhere? → 
+    Reduce. Ive never uses bold. Maximum 500 for section titles, 300 for page titles.
+11. **Capitalization check**: Consistent sentence case? → Fix per text rules.
+12. **Ultralight display check**: Are key metric numbers using ultralight weight (200-300)? 
+    If they're still at 600, they look heavy and corporate, not refined. Fix them.
+13. **Sidebar chrome check**: Does the sidebar use a hard border-right line? → Replace with 
+    barely-visible shadow: `box-shadow: 1px 0 0 rgba(0,0,0,0.04)`. Ive eliminates visible 
+    borders wherever possible — use light to create edges, not lines.
+14. **Page title weight check**: Page titles (h2) should use weight 300 (light) for the Ive 
+    display aesthetic. Not 500 or 600 — light-weight headings at 22px feel prestigious.
+15. **Navigation active state**: Active nav items should NOT use a colored/tinted background. 
+    Use only text color (#1C1C1C) + weight 500 change. Background fills are heavy — Ive 
+    prefers the lightest possible indication of state.
+16. **Motion check**: Do all interactive elements (buttons, links, cards) have `transition` declarations? Are any transitions longer than 300ms? Is `prefers-reduced-motion` handled? → Add transitions, reduce durations, add reduced-motion media query.
+17. **Icon consistency check**: Are all icons from the same set? Same stroke width? Same size in similar contexts? → Standardize to one icon set.
+18. **Loading state check**: Does the app show skeleton loaders or inline spinners during data fetches? Or does it show a blank screen / full-page spinner? → Replace with skeletons. Buttons should show inline spinners during actions.
+19. **Empty state check**: When there's no data (empty list, no results, first use), is there a helpful message with a CTA? Or just a blank area? → Add empty state with heading, description, and action button.
+20. **Accessibility check**: Do all interactive elements have visible `:focus-visible` styles? Are touch targets at least 44px? Do text colors meet WCAG 4.5:1 contrast? → Fix per accessibility rules.
+21. **Mobile check**: Does the layout work at 375px width? Is the sidebar a hamburger drawer? Do tables scroll horizontally? Do toolbars/controls stack vertically? Are touch targets 44px+? → Fix per mobile responsiveness rules.
 
 If any check fails, go back and fix it before presenting the result.
 
@@ -1379,6 +1424,43 @@ Use `.form-input` for standalone form inputs (not inside `.settings-field`):
 | `width: 380px` on login card | Use `max-width: 380px; width: calc(100% - 32px)` |
 | `height: calc(100vh - 120px)` for chat | Use `100dvh` on mobile |
 | Fixed pixel widths on form inputs (`width: 80`) | Use `max-width` with percentage or class override |
+
+## Lessons Learned Across Iterations (The Ive Refinement Process)
+
+Ive's design process was always iterative — dozens of prototypes, obsessive refinement, 
+small changes that compound into something extraordinary. Here's what we learned 
+applying the Ive standard across 3 review iterations:
+
+**Iteration 1 findings:**
+- Ultralight font-weight (200) for display numbers is the single most impactful Ive 
+  signature. It transforms "corporate dashboard" into "precision instrument."
+- Increasing border-radius from 6-10px to 8-12px immediately feels more Apple-like.
+- Card hover transitions (shadow + 1px translateY) add tactile quality.
+- Reducing page title weight from 600 → 500 was not enough. Need to go to 300.
+
+**Iteration 2 findings:**
+- Replacing sidebar `border-right` with `box-shadow: 1px 0 0 rgba(0,0,0,0.04)` 
+  eliminates the last visible hard edge. The sidebar blends with the page naturally.
+- Active nav items should use text color/weight only — NO background tint. 
+  `background: transparent` + `color: var(--text-primary)` + `font-weight: 500`.
+- Nav hover should also be transparent bg with just a color shift to text-primary.
+- Section labels at 10px (not 11px) with 0.08em tracking feel more refined.
+- Table headers at 10px with 0.08em tracking match the section label cadence.
+- The "ERA" logo at weight 300 feels more Ive than 500 or 600.
+
+**Iteration 3 findings:**
+- On mobile (375px), font-weight 200 (ultralight) can look too thin due to subpixel 
+  rendering limitations. Bump to 300 (light) on mobile — still elegant, but legible.
+- Mobile metric cards should ALWAYS use 2-column grid, even on 375px phones. A 1fr 
+  single-column grid wastes vertical space. A12-column works at 375px with 12px padding.
+- The 400px "small phone" breakpoint was too aggressive — 375px iPhones need 2-column.
+- The feedback FAB should use `rgba(0,0,0,0.06)` border and `rgba(0,0,0,0.04)` shadow 
+  instead of the standard `var(--border)` — it should be nearly invisible until hover.
+- Sidebar bottom divider at `rgba(0,0,0,0.04)` is more consistent than `var(--border)`.
+
+**The compounding principle:** Each individual change seems minor. But the aggregate 
+effect of lighter weights + softer shadows + more spacing + invisible chrome transforms 
+a "nice modern app" into something that feels machined and inevitable — the Ive standard.
 
 ## Post-Deploy Verification
 

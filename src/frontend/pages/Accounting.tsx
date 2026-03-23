@@ -86,11 +86,11 @@ export function Accounting() {
         <div className="dashboard-grid" style={{ marginBottom: 24 }}>
           <div className="metric-card">
             <div className="label">Health score</div>
-            <div className="value" style={{ color: health.score >= 80 ? "#34C759" : health.score >= 50 ? "#FF9500" : "#FF3B30" }}>{health.score}/100</div>
+            <div className="value" style={{ fontWeight: 200 }}>{health.score}/100</div>
           </div>
           <div className="metric-card">
             <div className="label">Issues</div>
-            <div className="value">{health.issues?.length || 0}</div>
+            <div className="value" style={{ fontWeight: 200 }}>{health.issues?.length || 0}</div>
             <div className="subtitle">{health.issues?.filter((i: any) => i.severity === "critical").length || 0} critical</div>
           </div>
         </div>
@@ -237,11 +237,11 @@ export function Accounting() {
                       <span style={{
                         display: "inline-block",
                         padding: "2px 8px",
-                        borderRadius: 4,
+                        borderRadius: "var(--radius-full, 9999px)",
                         fontSize: "var(--text-xs)",
                         fontWeight: 500,
-                        background: run.status === "completed" ? "#E8F5E9" : run.status === "partial" ? "#FFF3E0" : "#FFEBEE",
-                        color: run.status === "completed" ? "#2E7D32" : run.status === "partial" ? "#E65100" : "#C62828",
+                        background: run.status === "completed" ? "var(--success-bg, #F0FBF4)" : run.status === "partial" ? "var(--warning-bg, #FFFBF0)" : "var(--error-bg, #FFF5F5)",
+                        color: run.status === "completed" ? "#1A7F37" : run.status === "partial" ? "#9A6700" : "#D1242F",
                       }}>
                         {run.status}
                       </span>

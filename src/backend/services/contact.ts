@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from "uuid";
 import { containers } from "./cosmos.js";
 import { emitEvent } from "./events.js";
 import { getNextNumber } from "./sequences.js";
+import { generateShortName } from "./company.js";
 import type { Contact } from "@shared/types";
 
 interface CreateContactInput {
@@ -26,6 +27,7 @@ export async function createContact(input: CreateContactInput): Promise<Contact>
     contactNumber,
     type: input.type,
     name: input.name,
+    shortName: generateShortName(input.name),
     registrationNumber: input.registrationNumber,
     vatNumber: input.vatNumber,
     email: input.email,

@@ -2,9 +2,46 @@ import React, { useEffect, useMemo, useState } from "react";
 import { api } from "../utils/api";
 import { useApp } from "../utils/context";
 import { formatMoney } from "../utils/format";
+import { AiInput } from "../components/AiInput";
 
 type ContactSortKey = "name" | "type" | "registrationNumber" | "vatNumber" | "city" | "paymentTermsDays";
 type SortDir = "asc" | "desc";
+
+interface ContactForm {
+  type: "customer" | "vendor" | "both";
+  name: string;
+  registrationNumber: string;
+  vatNumber: string;
+  email: string;
+  phone: string;
+  addressLine1: string;
+  city: string;
+  postalCode: string;
+  country: string;
+  iban: string;
+  swift: string;
+  bankName: string;
+  paymentTermsDays: string;
+  notes: string;
+}
+
+const EMPTY_FORM: ContactForm = {
+  type: "customer",
+  name: "",
+  registrationNumber: "",
+  vatNumber: "",
+  email: "",
+  phone: "",
+  addressLine1: "",
+  city: "",
+  postalCode: "",
+  country: "Latvia",
+  iban: "",
+  swift: "",
+  bankName: "",
+  paymentTermsDays: "30",
+  notes: "",
+};
 
 export function Contacts() {
   const { companyId, numberFormat: fmt } = useApp();
@@ -17,10 +54,18 @@ export function Contacts() {
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<ContactSortKey>("name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState<ContactForm>(EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
+
+  function loadContacts() {
+    if (!companyId) return;
+    api.contacts(companyId).then((data: any) => { setContacts(data); setLoading(false); }).catch(() => setLoading(false));
+  }
 
   useEffect(() => {
     if (!companyId) { setLoading(false); return; }
-    api.contacts(companyId).then((data: any) => { setContacts(data); setLoading(false); }).catch(() => setLoading(false));
+    loadContacts();
   }, [companyId]);
 
   async function handleSelect(c: any) {
@@ -42,12 +87,68 @@ export function Contacts() {
     }
   }
 
+  async function handleAiParse(text: string) {
+    const fields = await api.parseContactDescription(companyId, text) as any;
+    setForm({
+      type: fields.type || "customer",
+      name: fields.name || "",
+      registrationNumber: fields.registrationNumber || "",
+      vatNumber: fields.vatNumber || "",
+      email: fields.email || "",
+      phone: fields.phone || "",
+      addressLine1: fields.address?.line1 || "",
+      city: fields.address?.city || "",
+      postalCode: fields.address?.postalCode || "",
+      country: fields.address?.country || "Latvia",
+      iban: fields.bankAccount?.iban || "",
+      swift: fields.bankAccount?.swift || "",
+      bankName: fields.bankAccount?.bankName || "",
+      paymentTermsDays: String(fields.paymentTermsDays ?? 30),
+      notes: fields.notes || "",
+    });
+    setShowForm(true);
+  }
+
+  async function handleSave() {
+    if (!form.name.trim() || !companyId) return;
+    setSaving(true);
+    try {
+      await api.createContact(companyId, {
+        type: form.type,
+        name: form.name,
+        registrationNumber: form.registrationNumber || undefined,
+        vatNumber: form.vatNumber || undefined,
+        email: form.email || undefined,
+        phone: form.phone || undefined,
+        address: {
+          line1: form.addressLine1,
+          city: form.city,
+          postalCode: form.postalCode,
+          country: form.country,
+        },
+        bankAccount: form.iban ? {
+          iban: form.iban,
+          swift: form.swift,
+          bankName: form.bankName,
+        } : undefined,
+        paymentTermsDays: parseInt(form.paymentTermsDays) || 30,
+        notes: form.notes || undefined,
+      });
+      setForm(EMPTY_FORM);
+      setShowForm(false);
+      loadContacts();
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
     let list = filter ? contacts.filter((c) => c.type === filter || c.type === "both") : contacts;
     if (q) {
       list = list.filter(c =>
         c.name?.toLowerCase().includes(q) ||
+        c.shortName?.toLowerCase().includes(q) ||
         c.registrationNumber?.toLowerCase().includes(q) ||
         c.vatNumber?.toLowerCase().includes(q) ||
         c.address?.city?.toLowerCase().includes(q)
@@ -187,6 +288,99 @@ export function Contacts() {
           <button className={filter === "customer" ? "btn-primary" : "btn-secondary"} onClick={() => setFilter("customer")}>Customers</button>
         </div>
       </div>
+
+      <div style={{ marginBottom: 16 }}>
+        <AiInput
+          placeholder="Describe the contact, e.g. 'Vendor SIA Apex, reg 40003112233, Riga, payment 45 days'"
+          buttonLabel="✨ Fill fields"
+          loadingLabel="Parsing..."
+          onSubmit={handleAiParse}
+        />
+      </div>
+
+      {showForm && (
+        <div className="settings-card" style={{ marginBottom: 20, maxWidth: "100%" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            <div className="settings-field">
+              <label>Name</label>
+              <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+            </div>
+            <div className="settings-field">
+              <label>Type</label>
+              <select
+                value={form.type}
+                onChange={e => setForm(f => ({ ...f, type: e.target.value as ContactForm["type"] }))}
+                className="settings-input"
+              >
+                <option value="customer">Customer</option>
+                <option value="vendor">Vendor</option>
+                <option value="both">Both</option>
+              </select>
+            </div>
+            <div className="settings-field">
+              <label>Registration number</label>
+              <input value={form.registrationNumber} onChange={e => setForm(f => ({ ...f, registrationNumber: e.target.value }))} />
+            </div>
+            <div className="settings-field">
+              <label>VAT number</label>
+              <input value={form.vatNumber} onChange={e => setForm(f => ({ ...f, vatNumber: e.target.value }))} placeholder="LV40003290084" />
+            </div>
+            <div className="settings-field">
+              <label>Email</label>
+              <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+            </div>
+            <div className="settings-field">
+              <label>Phone</label>
+              <input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
+            </div>
+            <div className="settings-field" style={{ gridColumn: "1 / -1" }}>
+              <label>Street address</label>
+              <input value={form.addressLine1} onChange={e => setForm(f => ({ ...f, addressLine1: e.target.value }))} />
+            </div>
+            <div className="settings-field">
+              <label>City</label>
+              <input value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} />
+            </div>
+            <div className="settings-field">
+              <label>Postal code</label>
+              <input value={form.postalCode} onChange={e => setForm(f => ({ ...f, postalCode: e.target.value }))} />
+            </div>
+            <div className="settings-field">
+              <label>Country</label>
+              <input value={form.country} onChange={e => setForm(f => ({ ...f, country: e.target.value }))} />
+            </div>
+            <div className="settings-field">
+              <label>Payment terms (days)</label>
+              <input type="number" value={form.paymentTermsDays} onChange={e => setForm(f => ({ ...f, paymentTermsDays: e.target.value }))} min={0} />
+            </div>
+            <div className="settings-field">
+              <label>IBAN</label>
+              <input value={form.iban} onChange={e => setForm(f => ({ ...f, iban: e.target.value }))} placeholder="LV00HABA0551000000000" />
+            </div>
+            <div className="settings-field">
+              <label>SWIFT / BIC</label>
+              <input value={form.swift} onChange={e => setForm(f => ({ ...f, swift: e.target.value }))} />
+            </div>
+            <div className="settings-field" style={{ gridColumn: "1 / -1" }}>
+              <label>Bank name</label>
+              <input value={form.bankName} onChange={e => setForm(f => ({ ...f, bankName: e.target.value }))} />
+            </div>
+            <div className="settings-field" style={{ gridColumn: "1 / -1" }}>
+              <label>Notes</label>
+              <input value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+            <button className="btn-primary" onClick={handleSave} disabled={saving || !form.name.trim()}>
+              {saving ? "Saving..." : "Save contact"}
+            </button>
+            <button className="btn-secondary" onClick={() => { setForm(EMPTY_FORM); setShowForm(false); }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="filter-bar">
         <input
           type="text"
@@ -208,7 +402,7 @@ export function Contacts() {
           <div className="empty-state">
             <div className="icon">👥</div>
             <h3>No contacts yet</h3>
-            <p>Upload an invoice or use the agent chat to add contacts.</p>
+            <p>Use the text field above to describe a contact and add it.</p>
           </div>
         ) : (
           <div className="empty-state">
@@ -246,7 +440,7 @@ export function Contacts() {
           <tbody>
             {filtered.map((c: any) => (
               <tr key={c.id} onClick={() => handleSelect(c)} style={{ cursor: "pointer" }}>
-                <td style={{ fontWeight: 500 }}>{c.name}</td>
+                <td style={{ fontWeight: 500 }}>{c.shortName || c.name}</td>
                 <td><span className="badge">{c.type}</span></td>
                 <td className="mono">{c.registrationNumber || "—"}</td>
                 <td className="mono">{c.vatNumber || "—"}</td>

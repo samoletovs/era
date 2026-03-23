@@ -20,6 +20,7 @@ export function Settings() {
   // Editable fields
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
+  const [shortName, setShortName] = useState("");
   const [vatNumber, setVatNumber] = useState("");
   const [paymentTerms, setPaymentTerms] = useState(30);
   const [numberFormat, setNumberFormat] = useState<NumberFormat>("space_comma");
@@ -33,6 +34,7 @@ export function Settings() {
       setCompany(data);
       setCode(data.code || "");
       setName(data.name || "");
+      setShortName(data.shortName || "");
       setVatNumber(data.vatNumber || "");
       setPaymentTerms(data.settings?.defaultPaymentTermsDays || 30);
       setNumberFormat(data.settings?.numberFormat || "space_comma");
@@ -56,6 +58,7 @@ export function Settings() {
       const updated = await api.updateCompany(companyId, {
         code: code.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 5),
         name,
+        shortName: shortName || undefined,
         vatNumber: vatNumber || undefined,
         settings: {
           ...company.settings,
@@ -109,6 +112,12 @@ export function Settings() {
             <div className="settings-field">
               <label>Company name</label>
               <input value={name} onChange={(e) => setName(e.target.value)} />
+            </div>
+
+            <div className="settings-field">
+              <label>Short name</label>
+              <input value={shortName} onChange={(e) => setShortName(e.target.value)} placeholder="Friendly display name" />
+              <span className="field-hint">Shown in the company switcher and across the app. Auto-generated from official name if empty.</span>
             </div>
 
             <div className="settings-field">
