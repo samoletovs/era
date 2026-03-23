@@ -85,8 +85,8 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
   const authHeader = req.headers.authorization;
   const queryToken = req.query.token as string | undefined;
 
-  // Dev bypass — only allowed in development mode
-  if (process.env.NODE_ENV !== "production") {
+  // Dev bypass — allowed when explicitly enabled via env var (for pre-auth-flow phase)
+  if (process.env.NODE_ENV !== "production" || process.env.ALLOW_DEV_BYPASS === "true") {
     if (authHeader === "Bearer dev-bypass" || queryToken === "dev-bypass") {
       req.user = { id: "dev-user", email: "dev@era.local", name: "Developer", provider: "google" };
       next();
