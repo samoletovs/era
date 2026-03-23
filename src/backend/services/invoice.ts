@@ -199,6 +199,7 @@ function buildInvoiceJournalLines(invoice: Invoice): JournalLine[] {
         description: invLine.description,
         contactId: invoice.contactId,
         itemId: invLine.itemId,
+        itemCode: invLine.itemId,
         taxCode: invLine.vatRate > 0 ? `LV-${invLine.vatRate}` : undefined,
       });
     }
@@ -241,6 +242,7 @@ function buildInvoiceJournalLines(invoice: Invoice): JournalLine[] {
         description: invLine.description,
         contactId: invoice.contactId,
         itemId: invLine.itemId,
+        itemCode: invLine.itemId,
         taxCode: invLine.vatRate > 0 ? `LV-${invLine.vatRate}` : undefined,
       });
     }

@@ -371,8 +371,16 @@ body {
   transition: background var(--duration-normal) var(--ease-out);
 }
 
-.btn-primary:hover { background: var(--accent-hover); }
-.btn-primary:active { transform: scale(0.98); transition-duration: 50ms; }
+.btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+.btn-primary:active:not(:disabled) { transform: scale(0.98); transition-duration: 50ms; }
+.btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.btn-secondary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
 
 .btn-secondary {
   background: transparent;
@@ -1903,6 +1911,7 @@ select.settings-input {
     border-left: none;
     border-right: none;
     margin: -16px;
+    padding-bottom: env(safe-area-inset-bottom, 0);
   }
 
   .chat-message {
@@ -1957,7 +1966,7 @@ select.settings-input {
 
   /* Feedback */
   .feedback-fab {
-    bottom: 16px;
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
     right: 16px;
     width: 40px;
     height: 40px;
@@ -2461,7 +2470,7 @@ select.settings-input {
 @media (max-width: 768px) {
   .toast-container {
     top: auto;
-    bottom: 60px;
+    bottom: calc(60px + env(safe-area-inset-bottom, 0px));
     left: 16px;
     right: 16px;
   }
@@ -2469,4 +2478,23 @@ select.settings-input {
   .toast {
     max-width: 100%;
   }
+}
+
+/* ─── Loading skeleton ───────────────────────────────────── */
+
+.skeleton-line {
+  height: 14px;
+  background: linear-gradient(90deg, var(--bg-subtle) 25%, var(--bg-hover) 50%, var(--bg-subtle) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+  border-radius: 4px;
+}
+
+.skeleton-line + .skeleton-line {
+  margin-top: 10px;
+}
+
+@keyframes skeleton-pulse {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }

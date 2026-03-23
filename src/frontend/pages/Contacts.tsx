@@ -120,6 +120,55 @@ export function Contacts() {
     setShowForm(true);
   }
 
+  async function handleMerge(targetId: string) {
+    if (!companyId || !selected) return;
+    setMerging(true);
+    try {
+      const result = await api.mergeContacts(companyId, selected.id, targetId) as any;
+      setMergeResult(result);
+      setShowMerge(false);
+      // Refresh and navigate to merged contact
+      loadContacts();
+      const merged = await api.contact(companyId, targetId) as any;
+      setSelected(merged);
+      const data = await api.contactTransactions(companyId, targetId);
+      setTxns(data);
+    } catch (e: any) {
+      setMergeResult({ error: e.message });
+    } finally {
+      setMerging(false);
+    }
+  }
+
+  async function handleCheckRegister() {
+    if (!companyId || !selected) return;
+    setCheckingRegister(true);
+    setRegisterData(null);
+    try {
+      const result = await api.checkRegister(companyId, selected.id);
+      setRegisterData(result);
+    } catch (e: any) {
+      setRegisterData({ found: false, error: e.message });
+    } finally {
+      setCheckingRegister(false);
+    }
+  }
+
+  async function handleApplyRegister() {
+    if (!companyId || !selected || !registerData?.registerData) return;
+    setApplyingRegister(true);
+    try {
+      const updated = await api.applyRegister(companyId, selected.id, registerData.registerData) as any;
+      setSelected(updated);
+      setRegisterData(null);
+      loadContacts();
+    } catch {
+      // keep panel open on error
+    } finally {
+      setApplyingRegister(false);
+    }
+  }
+
   async function handleSave() {
     if (!form.name.trim() || !companyId) return;
     setSaving(true);
@@ -181,15 +230,144 @@ export function Contacts() {
   }, [contacts, filter, search, sortKey, sortDir]);
 
   if (!companyId) return (
-    <div className="empty-state"><div className="icon">🏢</div><h3>No company selected</h3></div>
+    <div className="empty-state"><div className="icon">🏢</div><h3>No company selected</h3><p>Add a company first to manage contacts.</p></div>
   );
 
   // Detail view
   if (selected) {
+    const mergeTargets = contacts.filter(c =>
+      c.id !== selected.id &&
+      (!mergeSearch || c.name?.toLowerCase().includes(mergeSearch.toLowerCase()) || c.registrationNumber?.includes(mergeSearch))
+    );
+
     return (
       <div>
-        <button className="btn-secondary" style={{ marginBottom: 16 }} onClick={() => setSelected(null)}>← Back to list</button>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+          <button className="btn-secondary" onClick={() => { setSelected(null); setRegisterData(null); setShowMerge(false); setMergeResult(null); }}>← Back to list</button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              className="btn-secondary"
+              onClick={handleCheckRegister}
+              disabled={checkingRegister || !selected.registrationNumber}
+              title={!selected.registrationNumber ? "No registration number to look up" : "Check business register for updates"}
+              aria-label="Check register"
+            >
+              {checkingRegister ? "Checking..." : "Check register"}
+            </button>
+            <button
+              className="btn-secondary"
+              onClick={() => { setShowMerge(!showMerge); setMergeResult(null); }}
+              aria-label="Merge with another contact"
+            >
+              Merge contact
+            </button>
+          </div>
+        </div>
+
         <h2 className="page-title">{selected.name}</h2>
+
+        {/* Merge result notification */}
+        {mergeResult && !mergeResult.error && (
+          <div className="settings-card" style={{ marginBottom: 16, borderLeft: "3px solid var(--success, #34C759)" }}>
+            <p style={{ fontSize: 13, color: "var(--text-body, #3C3C3C)", margin: 0 }}>
+              Contacts merged. Updated {mergeResult.invoicesUpdated} invoice{mergeResult.invoicesUpdated !== 1 ? "s" : ""}, {mergeResult.paymentsUpdated} payment{mergeResult.paymentsUpdated !== 1 ? "s" : ""}, {mergeResult.journalEntriesUpdated} journal {mergeResult.journalEntriesUpdated !== 1 ? "entries" : "entry"}.
+            </p>
+          </div>
+        )}
+        {mergeResult?.error && (
+          <div className="settings-card" style={{ marginBottom: 16, borderLeft: "3px solid var(--error, #FF3B30)" }}>
+            <p style={{ fontSize: 13, color: "var(--error, #FF3B30)", margin: 0 }}>{mergeResult.error}</p>
+          </div>
+        )}
+
+        {/* Register check panel */}
+        {registerData && (
+          <div className="settings-card" style={{ marginBottom: 16 }}>
+            <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Business register data</h3>
+            {!registerData.found ? (
+              <p style={{ fontSize: 13, color: "var(--text-secondary, #787878)", margin: 0 }}>
+                {registerData.error || "No matching record found in the register."}
+              </p>
+            ) : registerData.diffs?.length === 0 ? (
+              <p style={{ fontSize: 13, color: "var(--success, #34C759)", margin: 0 }}>
+                Contact data matches the register. No updates needed.
+              </p>
+            ) : (
+              <>
+                <table className="data-table" style={{ marginBottom: 12 }}>
+                  <thead>
+                    <tr><th>Field</th><th>Current value</th><th>Register value</th></tr>
+                  </thead>
+                  <tbody>
+                    {registerData.diffs?.map((d: any) => (
+                      <tr key={d.field}>
+                        <td style={{ fontWeight: 500, textTransform: "capitalize" }}>{d.field}</td>
+                        <td style={{ color: "var(--text-secondary, #787878)" }}>{d.current || "—"}</td>
+                        <td style={{ fontWeight: 500 }}>{d.register}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button className="btn-primary" onClick={handleApplyRegister} disabled={applyingRegister}>
+                    {applyingRegister ? "Applying..." : "Apply updates"}
+                  </button>
+                  <button className="btn-secondary" onClick={() => setRegisterData(null)}>
+                    Dismiss
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Merge contact picker */}
+        {showMerge && (
+          <div className="settings-card" style={{ marginBottom: 16 }}>
+            <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Merge into another contact</h3>
+            <p style={{ fontSize: 13, color: "var(--text-secondary, #787878)", margin: "0 0 12px" }}>
+              Select the contact to keep. All invoices, payments and journal entries from <strong>{selected.shortName || selected.name}</strong> will be reassigned, and this contact will be deleted.
+            </p>
+            <input
+              type="text"
+              placeholder="Search by name or reg. number..."
+              value={mergeSearch}
+              onChange={e => setMergeSearch(e.target.value)}
+              className="table-search-input"
+              style={{ marginBottom: 8 }}
+              aria-label="Search merge target"
+            />
+            <div style={{ maxHeight: 200, overflowY: "auto" }}>
+              {mergeTargets.length === 0 ? (
+                <p style={{ fontSize: 13, color: "var(--text-tertiary, #A0A0A0)" }}>No contacts found</p>
+              ) : (
+                <table className="data-table">
+                  <thead><tr><th>Name</th><th>Type</th><th>Reg. number</th><th></th></tr></thead>
+                  <tbody>
+                    {mergeTargets.slice(0, 10).map((c: any) => (
+                      <tr key={c.id}>
+                        <td style={{ fontWeight: 500 }}>{c.shortName || c.name}</td>
+                        <td><span className="badge">{c.type}</span></td>
+                        <td className="mono">{c.registrationNumber || "—"}</td>
+                        <td style={{ textAlign: "right" }}>
+                          <button
+                            className="btn-secondary"
+                            style={{ fontSize: 12, padding: "4px 10px" }}
+                            onClick={() => handleMerge(c.id)}
+                            disabled={merging}
+                          >
+                            {merging ? "Merging..." : "Merge here"}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+            <button className="btn-secondary" style={{ marginTop: 8 }} onClick={() => setShowMerge(false)}>Cancel</button>
+          </div>
+        )}
 
         <div className="detail-layout">
           <div className="detail-sidebar">

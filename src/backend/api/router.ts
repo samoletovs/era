@@ -343,7 +343,7 @@ router.get("/companies/:companyId/items/:itemCode/transactions", async (req, res
     // Filter to entries that have lines referencing this item
     const result: any[] = [];
     for (const entry of entries) {
-      const matchingLines = (entry.lines || []).filter((l: any) => l.itemId === itemCode);
+      const matchingLines = (entry.lines || []).filter((l: any) => l.itemCode === itemCode || l.itemId === itemCode);
       if (matchingLines.length > 0) {
         result.push({ ...entry, lines: matchingLines });
       }

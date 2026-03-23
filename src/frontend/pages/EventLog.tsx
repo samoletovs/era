@@ -79,7 +79,7 @@ export function EventLog() {
     api.events(companyId, 200).then((d: any) => setEvents(d as any[])).catch(() => {}).finally(() => setLoading(false));
   }, [companyId]);
 
-  if (!companyId) return <div className="empty-state"><div className="icon">🏢</div><h3>No company selected</h3></div>;
+  if (!companyId) return <div className="empty-state"><div className="icon">🏢</div><h3>No company selected</h3><p>Add a company first to view events.</p></div>;
 
   const typeColors: Record<string, string> = {
     "entry.posted": "badge-posted", "entry.reversed": "badge-cancelled",

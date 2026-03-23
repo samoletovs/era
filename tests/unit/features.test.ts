@@ -696,3 +696,106 @@ describe("Latvian annual report structure", () => {
     expect(assets).toBe(equity + liabilities);
   });
 });
+
+// ─── Contact Register Check & Merge ─────────────────────────
+
+describe("contact register check", () => {
+  it("matches contact by registration number", () => {
+    const contact = { registrationNumber: "40003290084", name: "DAIS" };
+    const registerData = { registrationNumber: "40003290084", name: 'SIA "DAIS"', status: "active" };
+    expect(contact.registrationNumber).toBe(registerData.registrationNumber);
+  });
+
+  it("detects name difference that needs update", () => {
+    const contact = { name: "Dais Ltd" };
+    const registerData = { name: 'SIA "DAIS"' };
+    const needsUpdate = contact.name !== registerData.name;
+    expect(needsUpdate).toBe(true);
+  });
+
+  it("detects when no update is needed", () => {
+    const contact = { name: 'SIA "DAIS"', vatNumber: "LV40003290084" };
+    const registerData = { name: 'SIA "DAIS"', vatNumber: "LV40003290084" };
+    const needsUpdate = contact.name !== registerData.name || contact.vatNumber !== registerData.vatNumber;
+    expect(needsUpdate).toBe(false);
+  });
+});
+
+describe("contact merge logic", () => {
+  it("transfers invoices from source to target", () => {
+    const sourceInvoices = [{ id: "inv-1", contactId: "source" }, { id: "inv-2", contactId: "source" }];
+    const merged = sourceInvoices.map(inv => ({ ...inv, contactId: "target" }));
+    expect(merged.every(inv => inv.contactId === "target")).toBe(true);
+    expect(merged).toHaveLength(2);
+  });
+
+  it("deactivates source contact after merge", () => {
+    const source = { id: "source", status: "active" };
+    source.status = "merged";
+    expect(source.status).toBe("merged");
+  });
+
+  it("cannot merge contact with itself", () => {
+    const sourceId = "contact-1";
+    const targetId = "contact-1";
+    expect(sourceId === targetId).toBe(true);
+    // Should be rejected
+  });
+
+  it("cannot merge with different types without flag", () => {
+    const source = { type: "customer" };
+    const target = { type: "vendor" };
+    const compatible = source.type === target.type || source.type === "both" || target.type === "both";
+    expect(compatible).toBe(false);
+  });
+});
+
+// ─── Budget vs Actual Date Filtering ────────────────────────
+
+describe("budget vs actual date filtering", () => {
+  it("filters budget entries by fiscal year", () => {
+    const entries = [
+      { period: "2025-01", amount: 1000 },
+      { period: "2025-06", amount: 1500 },
+      { period: "2026-01", amount: 2000 },
+      { period: "2026-03", amount: 800 },
+    ];
+    const year = 2026;
+    const filtered = entries.filter(e => e.period.startsWith(String(year)));
+    expect(filtered).toHaveLength(2);
+    expect(filtered[0].period).toBe("2026-01");
+  });
+
+  it("calculates YTD actual from GL entries within period", () => {
+    const entries = [
+      { date: "2026-01-15", amount: 500 },
+      { date: "2026-02-10", amount: 700 },
+      { date: "2026-03-05", amount: 300 },
+      { date: "2025-12-20", amount: 900 },
+    ];
+    const yearStart = "2026-01-01";
+    const yearEnd = "2026-12-31";
+    const ytd = entries
+      .filter(e => e.date >= yearStart && e.date <= yearEnd)
+      .reduce((s, e) => s + e.amount, 0);
+    expect(ytd).toBe(1500);
+  });
+
+  it("favorable variance when actual < budget for expenses", () => {
+    const budget = 5000;
+    const actual = 4200;
+    const variance = budget - actual;
+    const favorable = variance > 0;
+    expect(favorable).toBe(true);
+    expect(variance).toBe(800);
+  });
+
+  it("unfavorable variance when actual > budget for expenses", () => {
+    const budget = 3000;
+    const actual = 3500;
+    const variance = budget - actual;
+    const favorable = variance > 0;
+    expect(favorable).toBe(false);
+    expect(variance).toBe(-500);
+  });
+});

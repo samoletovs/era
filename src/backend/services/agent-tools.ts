@@ -114,6 +114,7 @@ export const AGENT_TOOLS: ChatCompletionTool[] = [
                 unitPrice: { type: "number", description: "Net price per unit in EUR" },
                 vatRate: { type: "number", enum: [0, 5, 12, 21], description: "Latvian VAT rate %" },
                 accountCode: { type: "string", description: "GL account code (e.g. 5120 for service revenue, 6350 for professional services)" },
+                itemId: { type: "string", description: "Item code (e.g. ITEM-000001) to link this line to an inventory/service item" },
               },
               required: ["description", "quantity", "unitPrice", "vatRate", "accountCode"],
             },

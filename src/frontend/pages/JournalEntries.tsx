@@ -386,7 +386,7 @@ export function JournalEntries() {
   const isBalanced = Math.abs(formTotalDebit - formTotalCredit) < 0.005 && formTotalDebit > 0;
   const hasRequiredFields = formDesc.trim() && lines.filter(l => l.accountCode && (parseFloat(l.debit) > 0 || parseFloat(l.credit) > 0)).length >= 2;
 
-  if (!companyId) return <div className="empty-state"><div className="icon">🏢</div><h3>No company selected</h3></div>;
+  if (!companyId) return <div className="empty-state"><div className="icon">🏢</div><h3>No company selected</h3><p>Add a company first to create journal entries.</p></div>;
 
   // ─── Suggestion dropdown style ─────────────────────────
 

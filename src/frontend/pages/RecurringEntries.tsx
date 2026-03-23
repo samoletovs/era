@@ -232,7 +232,7 @@ export function RecurringEntries() {
     return list;
   }, [templates, search, sortKey, sortDir]);
 
-  if (!companyId) return <div className="empty-state"><div className="icon">🏢</div><h3>No company selected</h3></div>;
+  if (!companyId) return <div className="empty-state"><div className="icon">🏢</div><h3>No company selected</h3><p>Add a company first to manage recurring entries.</p></div>;
 
   const suggestionStyle: React.CSSProperties = {
     position: "absolute", top: "100%", left: 0, right: 0, zIndex: 10,

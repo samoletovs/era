@@ -151,7 +151,7 @@ export function FixedAssets() {
     setDisposing(false);
   }
 
-  if (!companyId) return <div className="empty-state"><div className="icon">🏢</div><h3>No company selected</h3></div>;
+  if (!companyId) return <div className="empty-state"><div className="icon">🏢</div><h3>No company selected</h3><p>Add a company first to manage fixed assets.</p></div>;
 
   // Detail view
   if (selected) {

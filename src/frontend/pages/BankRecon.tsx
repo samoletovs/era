@@ -298,7 +298,7 @@ export function BankRecon() {
     }
   }
 
-  if (!companyId) return <div className="empty-state"><div className="icon">🏢</div><h3>No company selected</h3></div>;
+  if (!companyId) return <div className="empty-state"><div className="icon">🏢</div><h3>No company selected</h3><p>Add a company first to manage bank reconciliation.</p></div>;
 
   // ─── Detail view ──────────────────────────────────────────
 
