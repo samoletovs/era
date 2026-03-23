@@ -158,13 +158,13 @@ export async function getCompany(id: string): Promise<Company | null> {
 
 export async function updateCompany(
   id: string,
-  updates: Partial<Pick<Company, "code" | "name" | "vatNumber" | "settings" | "bankAccounts" | "legalAddress">>
+  updates: Partial<Pick<Company, "code" | "name" | "shortName" | "vatNumber" | "settings" | "bankAccounts" | "legalAddress">>
 ): Promise<Company | null> {
   const company = await getCompany(id);
   if (!company) return null;
 
   Object.assign(company, updates, { updatedAt: new Date().toISOString() });
-  if (updates.name) {
+  if (updates.name && !updates.shortName) {
     company.shortName = generateShortName(updates.name);
   }
   const { resource } = await containers.companies().item(id, id).replace(company);

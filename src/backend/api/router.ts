@@ -4,7 +4,7 @@ import { createCompany, getCompany, updateCompany, deleteCompany, getCompanyStat
 import { postJournalEntry, reverseJournalEntry, getTrialBalance, GLError } from "../services/ledger.js";
 import { createInvoice, postInvoice, getInvoice, findDuplicateInvoice, cancelInvoice, getInvoicePostings, createCreditNote } from "../services/invoice.js";
 import { createAndPostPayment, listPayments } from "../services/payment.js";
-import { createContact, getContact, findContactByName } from "../services/contact.js";
+import { createContact, getContact, findContactByName, updateContact } from "../services/contact.js";
 import { createItem } from "../services/inventory.js";
 import { generateVatReturn, getBalanceSheet, getProfitAndLoss, generateVatDeclaration, generateAnnualReport, getAgingReport, markOverdueInvoices } from "../services/reporting.js";
 import { searchCompanyByName, searchCompanyByRegNumber } from "../services/company-lookup.js";
@@ -297,6 +297,19 @@ router.get("/companies/:companyId/contacts", async (req, res) => {
     res.json(response);
   } catch (err) {
     res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
+  }
+});
+
+router.patch("/companies/:companyId/contacts/:contactId", async (req, res) => {
+  try {
+    const contact = await updateContact(req.params.companyId, req.params.contactId, req.body);
+    if (!contact) {
+      res.status(404).json({ error: { code: "NOT_FOUND", message: "Contact not found" } });
+      return;
+    }
+    res.json({ data: contact } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "UPDATE_FAILED", message: String(err) } });
   }
 });
 

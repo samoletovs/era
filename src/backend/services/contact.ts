@@ -96,6 +96,22 @@ export async function findContactByName(companyId: string, name: string, registr
   return null;
 }
 
+export async function updateContact(
+  companyId: string,
+  contactId: string,
+  updates: Partial<Pick<Contact, "name" | "shortName" | "type" | "registrationNumber" | "vatNumber" | "email" | "phone" | "address" | "paymentTermsDays" | "isActive">>
+): Promise<Contact | null> {
+  const contact = await getContact(companyId, contactId);
+  if (!contact) return null;
+
+  Object.assign(contact, updates, { updatedAt: new Date().toISOString() });
+  if (updates.name && !updates.shortName) {
+    contact.shortName = generateShortName(updates.name);
+  }
+  const { resource } = await containers.contacts().item(contactId, companyId).replace(contact);
+  return resource ?? null;
+}
+
 export async function listContacts(companyId: string, type?: Contact["type"]): Promise<Contact[]> {
   const typeFilter = type && type !== "both" ? "AND (c.type = @type OR c.type = 'both')" : "";
   const params: { name: string; value: string }[] = [
