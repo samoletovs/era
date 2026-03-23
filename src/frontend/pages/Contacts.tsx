@@ -58,6 +58,17 @@ export function Contacts() {
   const [form, setForm] = useState<ContactForm>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
 
+  // Merge state
+  const [showMerge, setShowMerge] = useState(false);
+  const [mergeSearch, setMergeSearch] = useState("");
+  const [merging, setMerging] = useState(false);
+  const [mergeResult, setMergeResult] = useState<any>(null);
+
+  // Register check state
+  const [registerData, setRegisterData] = useState<any>(null);
+  const [checkingRegister, setCheckingRegister] = useState(false);
+  const [applyingRegister, setApplyingRegister] = useState(false);
+
   function loadContacts() {
     if (!companyId) return;
     api.contacts(companyId).then((data: any) => { setContacts(data); setLoading(false); }).catch(() => setLoading(false));

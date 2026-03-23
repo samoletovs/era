@@ -680,7 +680,8 @@ export function JournalEntries() {
               color: tab === key ? "var(--text-primary)" : "var(--text-secondary)",
               background: tab === key ? "var(--bg-subtle)" : "transparent",
               border: "1px solid var(--border)", borderRadius: key === "all" ? "6px 0 0 6px" : key === "recurring" ? "0 6px 6px 0" : 0,
-              borderRight: key !== "recurring" ? "none" : undefined,
+              marginLeft: key !== "all" ? -1 : undefined,
+              position: "relative", zIndex: tab === key ? 1 : 0,
               cursor: "pointer",
             }}
           >{label}</button>

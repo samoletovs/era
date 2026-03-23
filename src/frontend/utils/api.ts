@@ -61,6 +61,18 @@ export const api = {
   parseContactDescription: (companyId: string, description: string) =>
     apiFetch(`/companies/${companyId}/contacts/parse-description`, { method: "POST", body: JSON.stringify({ description }) }),
 
+  // Contact merge & register
+  mergeContacts: (companyId: string, sourceContactId: string, targetContactId: string) =>
+    apiFetch(`/companies/${companyId}/contacts/merge`, { method: "POST", body: JSON.stringify({ sourceContactId, targetContactId }) }),
+  findDuplicates: (companyId: string) =>
+    apiFetch(`/companies/${companyId}/contacts/duplicates`),
+  checkRegister: (companyId: string, contactId: string) =>
+    apiFetch(`/companies/${companyId}/contacts/${contactId}/check-register`),
+  applyRegister: (companyId: string, contactId: string, data: Record<string, unknown>) =>
+    apiFetch(`/companies/${companyId}/contacts/${contactId}/apply-register`, { method: "POST", body: JSON.stringify(data) }),
+  updateContact: (companyId: string, contactId: string, body: Record<string, unknown>) =>
+    apiFetch(`/companies/${companyId}/contacts/${contactId}`, { method: "PATCH", body: JSON.stringify(body) }),
+
   // Items
   items: (companyId: string) => apiFetch(`/companies/${companyId}/items`),
   createItem: (companyId: string, body: Record<string, unknown>) =>

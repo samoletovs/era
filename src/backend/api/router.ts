@@ -4,7 +4,7 @@ import { createCompany, getCompany, updateCompany, deleteCompany, getCompanyStat
 import { postJournalEntry, reverseJournalEntry, getTrialBalance, GLError } from "../services/ledger.js";
 import { createInvoice, postInvoice, getInvoice, findDuplicateInvoice, cancelInvoice, getInvoicePostings, createCreditNote } from "../services/invoice.js";
 import { createAndPostPayment, listPayments } from "../services/payment.js";
-import { createContact, getContact, findContactByName, updateContact } from "../services/contact.js";
+import { createContact, getContact, findContactByName, updateContact, mergeContacts, findDuplicateContacts, checkContactRegister, applyRegisterData } from "../services/contact.js";
 import { createItem } from "../services/inventory.js";
 import { generateVatReturn, getBalanceSheet, getProfitAndLoss, generateVatDeclaration, generateAnnualReport, getAgingReport, markOverdueInvoices } from "../services/reporting.js";
 import { searchCompanyByName, searchCompanyByRegNumber } from "../services/company-lookup.js";
@@ -710,6 +710,60 @@ router.post("/companies/:companyId/items", async (req, res) => {
     res.status(201).json({ data: item } as ApiResponse);
   } catch (err) {
     res.status(500).json({ error: { code: "CREATE_FAILED", message: String(err) } });
+  }
+});
+
+// ─── Contact Merge & Register ───────────────────────────────
+
+router.post("/companies/:companyId/contacts/merge", async (req, res) => {
+  try {
+    const { sourceContactId, targetContactId } = req.body;
+    if (!sourceContactId || !targetContactId) {
+      res.status(400).json({ error: { code: "VAL-001", message: "sourceContactId and targetContactId are required" } });
+      return;
+    }
+    const result = await mergeContacts(req.params.companyId, sourceContactId, targetContactId, req.user!.id);
+    res.json({ data: result } as ApiResponse);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    res.status(400).json({ error: { code: "BIZ-001", message } });
+  }
+});
+
+router.get("/companies/:companyId/contacts/duplicates", async (req, res) => {
+  try {
+    const groups = await findDuplicateContacts(req.params.companyId);
+    res.json({ data: groups } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "QUERY_FAILED", message: String(err) } });
+  }
+});
+
+router.get("/companies/:companyId/contacts/:contactId/check-register", async (req, res) => {
+  try {
+    const result = await checkContactRegister(req.params.companyId, req.params.contactId);
+    res.json({ data: result } as ApiResponse);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    res.status(400).json({ error: { code: "BIZ-001", message } });
+  }
+});
+
+router.post("/companies/:companyId/contacts/:contactId/apply-register", async (req, res) => {
+  try {
+    const updated = await applyRegisterData(
+      req.params.companyId,
+      req.params.contactId,
+      req.body,
+      req.user!.id
+    );
+    if (!updated) {
+      res.status(404).json({ error: { code: "NOT_FOUND", message: "Contact not found" } });
+      return;
+    }
+    res.json({ data: updated } as ApiResponse);
+  } catch (err) {
+    res.status(500).json({ error: { code: "SYS-001", message: String(err) } });
   }
 });
 

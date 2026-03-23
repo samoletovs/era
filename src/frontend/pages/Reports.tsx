@@ -143,16 +143,17 @@ function ProfitLoss({ data }: { data: any }) {
   return (
     <div className="metric-card">
       <h3 style={{ marginBottom: 16, fontSize: 16, fontWeight: 600 }}>Profit & loss — {data?.periodStart || ""} to {data?.periodEnd || ""}</h3>
-      <div className="label">Revenue</div>
-      <table className="data-table">
+      <table className="data-table report-table">
+        <colgroup>
+          <col style={{ width: 72 }} />
+          <col />
+          <col style={{ width: 140 }} />
+        </colgroup>
         <tbody>
+          <tr className="section-label-row"><td colSpan={3} className="label" style={{ paddingBottom: 4 }}>Revenue</td></tr>
           {revenue.map((r: any) => <tr key={r.code}><td className="mono">{r.code}</td><td>{r.name}</td><td className="num">{formatMoney(r.amount, fmt)}</td></tr>)}
           <tr className="total-row"><td></td><td><strong>Total revenue</strong></td><td className="num"><strong>{formatMoney(totalRevenue, fmt)}</strong></td></tr>
-        </tbody>
-      </table>
-      <div className="label" style={{ marginTop: 16 }}>Expenses</div>
-      <table className="data-table">
-        <tbody>
+          <tr className="section-label-row"><td colSpan={3} className="label" style={{ paddingTop: 20, paddingBottom: 4 }}>Expenses</td></tr>
           {expenses.map((e: any) => <tr key={e.code}><td className="mono">{e.code}</td><td>{e.name}</td><td className="num">{formatMoney(e.amount, fmt)}</td></tr>)}
           <tr className="total-row"><td></td><td><strong>Total expenses</strong></td><td className="num"><strong>{formatMoney(totalExpenses, fmt)}</strong></td></tr>
         </tbody>
@@ -171,21 +172,28 @@ function BalanceSheet({ data }: { data: any }) {
   const liabilities = data?.liabilities || [];
   const equity = data?.equity || [];
 
-  const Section = ({ title, items, total }: { title: string; items: any[]; total: number }) => (
+  const sectionRows = (title: string, items: any[], total: number, isFirst?: boolean) => (
     <>
-      <div className="label" style={{ marginTop: 16 }}>{title}</div>
-      <table className="data-table"><tbody>
-        {items.map((a: any, i: number) => <tr key={a.code || i}><td className="mono">{a.code}</td><td>{a.name}</td><td className="num">{formatMoney(a.balance, fmt)}</td></tr>)}
-        <tr className="total-row"><td></td><td><strong>Total {title.toLowerCase()}</strong></td><td className="num"><strong>{formatMoney(total, fmt)}</strong></td></tr>
-      </tbody></table>
+      <tr className="section-label-row"><td colSpan={3} className="label" style={{ paddingTop: isFirst ? 0 : 20, paddingBottom: 4 }}>{title}</td></tr>
+      {items.map((a: any, i: number) => <tr key={a.code || i}><td className="mono">{a.code}</td><td>{a.name}</td><td className="num">{formatMoney(a.balance, fmt)}</td></tr>)}
+      <tr className="total-row"><td></td><td><strong>Total {title.toLowerCase()}</strong></td><td className="num"><strong>{formatMoney(total, fmt)}</strong></td></tr>
     </>
   );
   return (
     <div className="metric-card">
       <h3 style={{ marginBottom: 16, fontSize: 16, fontWeight: 600 }}>Balance sheet — {data?.date || ""}</h3>
-      <Section title="Assets" items={assets} total={data?.totalAssets ?? 0} />
-      <Section title="Liabilities" items={liabilities} total={data?.totalLiabilities ?? 0} />
-      <Section title="Equity" items={equity} total={data?.totalEquity ?? 0} />
+      <table className="data-table report-table">
+        <colgroup>
+          <col style={{ width: 72 }} />
+          <col />
+          <col style={{ width: 140 }} />
+        </colgroup>
+        <tbody>
+          {sectionRows("Assets", assets, data?.totalAssets ?? 0, true)}
+          {sectionRows("Liabilities", liabilities, data?.totalLiabilities ?? 0)}
+          {sectionRows("Equity", equity, data?.totalEquity ?? 0)}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -301,7 +309,11 @@ function AnnualReport({ data }: { data: any }) {
       <div style={{ fontSize: "var(--text-sm)", color: "var(--text-secondary)", marginBottom: 16 }}>{data?.companyName} · Reg. {data?.registrationNumber}</div>
 
       <div className="label">Balance sheet (Latvian format)</div>
-      <table className="data-table" style={{ marginBottom: 20 }}>
+      <table className="data-table report-table" style={{ marginBottom: 20 }}>
+        <colgroup>
+          <col />
+          <col style={{ width: 140 }} />
+        </colgroup>
         <tbody>
           <tr><td>Long-term assets</td><td className="num">{formatMoney(bsLv.longTermAssets, fmt)}</td></tr>
           <tr><td>Current assets</td><td className="num">{formatMoney(bsLv.currentAssets, fmt)}</td></tr>
@@ -314,7 +326,11 @@ function AnnualReport({ data }: { data: any }) {
       </table>
 
       <div className="label">Profit & loss (Latvian format)</div>
-      <table className="data-table">
+      <table className="data-table report-table">
+        <colgroup>
+          <col />
+          <col style={{ width: 140 }} />
+        </colgroup>
         <tbody>
           <tr><td>Net turnover</td><td className="num">{formatMoney(lv.netTurnover, fmt)}</td></tr>
           <tr><td>Cost of goods sold</td><td className="num">{formatMoney(lv.costOfGoodsSold, fmt)}</td></tr>

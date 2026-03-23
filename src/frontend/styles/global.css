@@ -1038,6 +1038,20 @@ select.settings-input {
   font-variant-numeric: tabular-nums;
 }
 
+/* Report tables — fixed column layout for alignment across sections */
+.report-table {
+  table-layout: fixed;
+}
+
+.report-table .section-label-row td {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.report-table .section-label-row:hover td {
+  background: transparent;
+}
+
 .total-row td {
   border-top: 2px solid var(--border);
   border-bottom: none !important;

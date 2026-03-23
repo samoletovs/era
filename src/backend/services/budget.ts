@@ -65,6 +65,9 @@ export async function setBudget(input: {
 }
 
 export async function getBudgetVsActual(companyId: string, fiscalYear: number): Promise<BudgetVsActual[]> {
+  const yearStart = `${fiscalYear}-01-01`;
+  const yearEnd = `${fiscalYear}-12-31`;
+
   // Get budget entries
   const { resources: budgets } = await containers.ledger().items
     .query<BudgetEntry>({
@@ -76,13 +79,38 @@ export async function getBudgetVsActual(companyId: string, fiscalYear: number): 
     })
     .fetchAll();
 
-  // Get actual account balances (revenue + expense)
+  // Get account metadata (names, types)
   const { resources: accounts } = await containers.ledger().items
     .query<Account>({
       query: "SELECT * FROM c WHERE c.companyId = @cid AND (c.docType = 'account' OR (IS_DEFINED(c.code) AND IS_DEFINED(c.normalSide))) AND c.isPostable = true AND (c.type = 'revenue' OR c.type = 'expense') ORDER BY c.code",
       parameters: [{ name: "@cid", value: companyId }],
     })
     .fetchAll();
+
+  // Get actual amounts from journal entries within the fiscal year
+  const { resources: entries } = await containers.ledger().items
+    .query<any>({
+      query: "SELECT * FROM c WHERE c.companyId = @cid AND (c.docType = 'journal-entry' OR IS_DEFINED(c.entryNumber)) AND c.status = 'posted' AND c.date >= @from AND c.date <= @to",
+      parameters: [
+        { name: "@cid", value: companyId },
+        { name: "@from", value: yearStart },
+        { name: "@to", value: yearEnd },
+      ],
+    })
+    .fetchAll();
+
+  // Aggregate actuals from journal entries by account
+  const actualByAccount = new Map<string, number>();
+  for (const entry of entries) {
+    for (const line of (entry.lines || [])) {
+      const code = line.accountCode;
+      if (!code) continue;
+      if (!code.startsWith("5") && !code.startsWith("6")) continue;
+      const isRevenue = code.startsWith("5");
+      const amount = isRevenue ? (line.credit - line.debit) : (line.debit - line.credit);
+      actualByAccount.set(code, roundCurrency((actualByAccount.get(code) || 0) + amount));
+    }
+  }
 
   // Aggregate budgets by account
   const budgetByAccount = new Map<string, number>();
@@ -92,18 +120,18 @@ export async function getBudgetVsActual(companyId: string, fiscalYear: number): 
 
   // Build comparison
   const result: BudgetVsActual[] = [];
-  const allCodes = new Set([...budgetByAccount.keys(), ...accounts.map(a => a.code)]);
+  const allCodes = new Set([...budgetByAccount.keys(), ...actualByAccount.keys(), ...accounts.map(a => a.code)]);
 
   for (const code of allCodes) {
     const acct = accounts.find(a => a.code === code);
     const budget = budgetByAccount.get(code) || 0;
-    const actual = acct ? Math.abs(acct.balance) : 0;
+    const actual = Math.abs(actualByAccount.get(code) || 0);
     const variance = roundCurrency(budget - actual);
 
     result.push({
       accountCode: code,
       accountName: acct?.name || budgets.find(b => b.accountCode === code)?.accountName || code,
-      accountType: acct?.type || "expense",
+      accountType: acct?.type || (code.startsWith("5") ? "revenue" : "expense"),
       budget: roundCurrency(budget),
       actual: roundCurrency(actual),
       variance,
