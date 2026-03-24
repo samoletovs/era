@@ -67,6 +67,12 @@ export function FixedAssets() {
     });
   }
 
+  // AI-first: form fields only shown after AI has filled something
+  const assetFormFilled =
+    form.code.trim() !== "" ||
+    form.name.trim() !== "" ||
+    form.acquisitionCost.trim() !== "";
+
   // Period filter: show assets acquired in/before the selected period
   const filteredByPeriod = (
     depPeriod
@@ -351,9 +357,19 @@ export function FixedAssets() {
 
   return (
     <div>
-      <div className="coa-header">
-        <h2 className="page-title">Fixed assets</h2>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+      <div className="page-header-bar">
+        <h2 className="page-title" style={{ marginBottom: 0 }}>
+          Fixed assets
+        </h2>
+        <div
+          className="action-buttons"
+          style={{
+            display: "flex",
+            gap: 8,
+            alignItems: "center",
+            flexWrap: "wrap",
+          }}
+        >
           <input
             type="month"
             value={depPeriod}
@@ -400,123 +416,140 @@ export function FixedAssets() {
           className="settings-card"
           style={{ marginBottom: 20, maxWidth: 720 }}
         >
-          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>
-            Acquire new asset
-          </h3>
-          <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: assetFormFilled ? 16 : 0 }}>
             <AiInput
               placeholder="e.g. MacBook Pro laptop, €2500, 3 years useful life"
               onSubmit={handleAiDescribe}
               disabled={!companyId}
+              clearOnSubmit={false}
             />
           </div>
-          <div className="form-hint">
-            <span className="required-dot">*</span> Fill in code, name, and
-            cost. Other fields have sensible defaults you can adjust.
-          </div>
-          <div className="form-grid-3">
+          {assetFormFilled && (
             <div>
-              <div className="detail-label required">Code</div>
-              <input
-                value={form.code}
-                onChange={(e) => setForm({ ...form, code: e.target.value })}
-                placeholder="e.g. FA-001"
-                className="settings-input"
-              />
-            </div>
-            <div>
-              <div className="detail-label required">Name</div>
-              <input
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="e.g. Office equipment"
-                className="settings-input"
-              />
-            </div>
-            <div>
-              <div className="detail-label">GL account</div>
-              <select
-                value={form.assetAccountCode}
-                onChange={(e) =>
-                  setForm({ ...form, assetAccountCode: e.target.value })
-                }
-                className="settings-input"
-              >
-                <option value="1210">1210 — Land and buildings</option>
-                <option value="1220">1220 — Equipment and machinery</option>
-                <option value="1230">1230 — Other fixed assets</option>
-              </select>
-            </div>
-            <div>
-              <div className="detail-label">Acquisition date</div>
-              <input
-                type="date"
-                value={form.acquisitionDate}
-                onChange={(e) =>
-                  setForm({ ...form, acquisitionDate: e.target.value })
-                }
-                className="settings-input"
-              />
-            </div>
-            <div>
-              <div className="detail-label required">Cost (€)</div>
-              <input
-                type="number"
-                value={form.acquisitionCost}
-                onChange={(e) =>
-                  setForm({ ...form, acquisitionCost: e.target.value })
-                }
-                placeholder="e.g. 10000"
-                className="settings-input"
-              />
-            </div>
-            <div>
-              <div className="detail-label">Residual value (€)</div>
-              <input
-                type="number"
-                value={form.residualValue}
-                onChange={(e) =>
-                  setForm({ ...form, residualValue: e.target.value })
-                }
-                className="settings-input"
-              />
-              <span className="field-hint">Default: 0</span>
-            </div>
-            <div>
-              <div className="detail-label">Useful life (months)</div>
-              <input
-                type="number"
-                value={form.usefulLifeMonths}
-                onChange={(e) =>
-                  setForm({ ...form, usefulLifeMonths: e.target.value })
-                }
-                className="settings-input"
-              />
-              <span className="field-hint">Default: 60 (5 years)</span>
-            </div>
-          </div>
-          {error && (
-            <div
-              style={{
-                marginTop: 12,
-                padding: "8px 12px",
-                background: "var(--error-bg)",
-                color: "var(--error)",
-                borderRadius: "var(--radius-sm)",
-                fontSize: "var(--text-sm)",
-              }}
-            >
-              {error}
+              <div className="form-grid-3">
+                <div>
+                  <div className="detail-label required">Code</div>
+                  <input
+                    value={form.code}
+                    onChange={(e) => setForm({ ...form, code: e.target.value })}
+                    placeholder="e.g. FA-001"
+                    className="settings-input"
+                  />
+                </div>
+                <div>
+                  <div className="detail-label required">Name</div>
+                  <input
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    placeholder="e.g. Office equipment"
+                    className="settings-input"
+                  />
+                </div>
+                <div>
+                  <div className="detail-label">GL account</div>
+                  <select
+                    value={form.assetAccountCode}
+                    onChange={(e) =>
+                      setForm({ ...form, assetAccountCode: e.target.value })
+                    }
+                    className="settings-input"
+                  >
+                    <option value="1210">1210 — Land and buildings</option>
+                    <option value="1220">1220 — Equipment and machinery</option>
+                    <option value="1230">1230 — Other fixed assets</option>
+                  </select>
+                </div>
+                <div>
+                  <div className="detail-label">Acquisition date</div>
+                  <input
+                    type="date"
+                    value={form.acquisitionDate}
+                    onChange={(e) =>
+                      setForm({ ...form, acquisitionDate: e.target.value })
+                    }
+                    className="settings-input"
+                  />
+                </div>
+                <div>
+                  <div className="detail-label required">Cost (€)</div>
+                  <input
+                    type="number"
+                    value={form.acquisitionCost}
+                    onChange={(e) =>
+                      setForm({ ...form, acquisitionCost: e.target.value })
+                    }
+                    placeholder="e.g. 10000"
+                    className="settings-input"
+                  />
+                </div>
+                <div>
+                  <div className="detail-label">Residual value (€)</div>
+                  <input
+                    type="number"
+                    value={form.residualValue}
+                    onChange={(e) =>
+                      setForm({ ...form, residualValue: e.target.value })
+                    }
+                    className="settings-input"
+                  />
+                  <span className="field-hint">Default: 0</span>
+                </div>
+                <div>
+                  <div className="detail-label">Useful life (months)</div>
+                  <input
+                    type="number"
+                    value={form.usefulLifeMonths}
+                    onChange={(e) =>
+                      setForm({ ...form, usefulLifeMonths: e.target.value })
+                    }
+                    className="settings-input"
+                  />
+                  <span className="field-hint">Default: 60 (5 years)</span>
+                </div>
+              </div>
+              {error && (
+                <div
+                  style={{
+                    marginTop: 12,
+                    padding: "8px 12px",
+                    background: "var(--error-bg)",
+                    color: "var(--error)",
+                    borderRadius: "var(--radius-sm)",
+                    fontSize: "var(--text-sm)",
+                  }}
+                >
+                  {error}
+                </div>
+              )}
+              <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+                <button
+                  className="btn-primary"
+                  onClick={handleAcquire}
+                  disabled={saving}
+                >
+                  {saving ? "Posting..." : "Acquire & post to GL"}
+                </button>
+                <button
+                  className="btn-secondary"
+                  onClick={() => {
+                    setShowForm(false);
+                    setForm({
+                      code: "",
+                      name: "",
+                      assetAccountCode: "1220",
+                      acquisitionDate: new Date().toISOString().slice(0, 10),
+                      acquisitionCost: "",
+                      residualValue: "0",
+                      usefulLifeMonths: "60",
+                    });
+                    setError(null);
+                  }}
+                >
+                  Reset
+                </button>
+              </div>
             </div>
           )}
-          <button
-            className="btn-primary"
-            style={{ marginTop: 16 }}
-            onClick={handleAcquire}
-            disabled={saving}
-          >
-            {saving ? "Posting..." : "Acquire & post to GL"}
-          </button>
         </div>
       )}
 

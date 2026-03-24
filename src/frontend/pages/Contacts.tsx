@@ -508,6 +508,12 @@ export function Contacts() {
     }
   }
 
+  // AI-first: form fields only shown after AI has parsed or user has data
+  const contactFormFilled =
+    form.name.trim() !== "" ||
+    form.registrationNumber.trim() !== "" ||
+    form.email.trim() !== "";
+
   const filteredContacts = useMemo(
     () =>
       filter
@@ -1303,221 +1309,254 @@ export function Contacts() {
           className="settings-card"
           style={{ marginBottom: 20, maxWidth: "100%" }}
         >
-          <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: contactFormFilled ? 16 : 0 }}>
             <AiInput
               placeholder="e.g. 'Vendor SIA Apex, reg 40003112233, Riga, payment 45 days'"
               onSubmit={handleAiParse}
+              clearOnSubmit={false}
             />
           </div>
 
-          <div
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}
-          >
-            <div className="settings-field">
-              <label>Name</label>
-              <input
-                value={form.name}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, name: e.target.value }))
-                }
-              />
-            </div>
-            <div className="settings-field">
-              <label>Type</label>
-              <select
-                value={form.type}
-                onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    type: e.target.value as ContactForm["type"],
-                  }))
-                }
-                className="settings-input"
+          {contactFormFilled && (
+            <div>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 16,
+                }}
               >
-                <option value="customer">Customer</option>
-                <option value="vendor">Vendor</option>
-                <option value="both">Both</option>
-              </select>
-            </div>
+                <div className="settings-field">
+                  <label>Name</label>
+                  <input
+                    value={form.name}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, name: e.target.value }))
+                    }
+                  />
+                </div>
+                <div className="settings-field">
+                  <label>Type</label>
+                  <select
+                    value={form.type}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        type: e.target.value as ContactForm["type"],
+                      }))
+                    }
+                    className="settings-input"
+                  >
+                    <option value="customer">Customer</option>
+                    <option value="vendor">Vendor</option>
+                    <option value="both">Both</option>
+                  </select>
+                </div>
 
-            {/* Register verification row */}
-            <div className="settings-field" style={{ gridColumn: "1 / -1" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {/* Register verification row */}
+                <div
+                  className="settings-field"
+                  style={{ gridColumn: "1 / -1" }}
+                >
+                  <div
+                    style={{ display: "flex", alignItems: "center", gap: 8 }}
+                  >
+                    <button
+                      className="btn-secondary"
+                      style={{
+                        fontSize: "var(--text-sm)",
+                        padding: "4px 12px",
+                      }}
+                      onClick={handleFormVerify}
+                      disabled={
+                        formVerifyStatus === "searching" ||
+                        (!form.name.trim() && !form.registrationNumber.trim())
+                      }
+                      type="button"
+                    >
+                      {formVerifyStatus === "searching"
+                        ? "Searching..."
+                        : "🔍 Verify in register"}
+                    </button>
+                    {formVerifyStatus === "found" && (
+                      <span
+                        style={{ fontSize: "var(--text-sm)", color: "#34C759" }}
+                      >
+                        ✓ Verified — fields updated from {formVerifySource}
+                      </span>
+                    )}
+                    {formVerifyStatus === "not-found" && (
+                      <span
+                        style={{
+                          fontSize: "var(--text-sm)",
+                          color: "var(--text-tertiary)",
+                        }}
+                      >
+                        Not found in register — enter details manually
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="settings-field">
+                  <label>Registration number</label>
+                  <input
+                    value={form.registrationNumber}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        registrationNumber: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="settings-field">
+                  <label>VAT number</label>
+                  <input
+                    value={form.vatNumber}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, vatNumber: e.target.value }))
+                    }
+                    placeholder="LV40003290084"
+                  />
+                </div>
+                <div className="settings-field">
+                  <label>Email</label>
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, email: e.target.value }))
+                    }
+                  />
+                </div>
+                <div className="settings-field">
+                  <label>Phone</label>
+                  <input
+                    value={form.phone}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, phone: e.target.value }))
+                    }
+                  />
+                </div>
+                <div
+                  className="settings-field"
+                  style={{ gridColumn: "1 / -1" }}
+                >
+                  <label>Street address</label>
+                  <input
+                    value={form.addressLine1}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, addressLine1: e.target.value }))
+                    }
+                  />
+                </div>
+                <div className="settings-field">
+                  <label>City</label>
+                  <input
+                    value={form.city}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, city: e.target.value }))
+                    }
+                  />
+                </div>
+                <div className="settings-field">
+                  <label>Postal code</label>
+                  <input
+                    value={form.postalCode}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, postalCode: e.target.value }))
+                    }
+                  />
+                </div>
+                <div className="settings-field">
+                  <label>Country</label>
+                  <input
+                    value={form.country}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, country: e.target.value }))
+                    }
+                  />
+                </div>
+                <div className="settings-field">
+                  <label>Payment terms (days)</label>
+                  <input
+                    type="number"
+                    value={form.paymentTermsDays}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        paymentTermsDays: e.target.value,
+                      }))
+                    }
+                    min={0}
+                  />
+                </div>
+                <div className="settings-field">
+                  <label>IBAN</label>
+                  <input
+                    value={form.iban}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, iban: e.target.value }))
+                    }
+                    placeholder="LV00HABA0551000000000"
+                  />
+                </div>
+                <div className="settings-field">
+                  <label>SWIFT / BIC</label>
+                  <input
+                    value={form.swift}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, swift: e.target.value }))
+                    }
+                  />
+                </div>
+                <div
+                  className="settings-field"
+                  style={{ gridColumn: "1 / -1" }}
+                >
+                  <label>Bank name</label>
+                  <input
+                    value={form.bankName}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, bankName: e.target.value }))
+                    }
+                  />
+                </div>
+                <div
+                  className="settings-field"
+                  style={{ gridColumn: "1 / -1" }}
+                >
+                  <label>Notes</label>
+                  <input
+                    value={form.notes}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, notes: e.target.value }))
+                    }
+                  />
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+                <button
+                  className="btn-primary"
+                  onClick={handleSave}
+                  disabled={saving || !form.name.trim()}
+                >
+                  {saving ? "Saving..." : "Save contact"}
+                </button>
                 <button
                   className="btn-secondary"
-                  style={{ fontSize: "var(--text-sm)", padding: "4px 12px" }}
-                  onClick={handleFormVerify}
-                  disabled={
-                    formVerifyStatus === "searching" ||
-                    (!form.name.trim() && !form.registrationNumber.trim())
-                  }
-                  type="button"
+                  onClick={() => {
+                    setForm(EMPTY_FORM);
+                    setShowForm(false);
+                    setFormVerifyStatus(null);
+                  }}
                 >
-                  {formVerifyStatus === "searching"
-                    ? "Searching..."
-                    : "🔍 Verify in register"}
+                  Reset
                 </button>
-                {formVerifyStatus === "found" && (
-                  <span
-                    style={{ fontSize: "var(--text-sm)", color: "#34C759" }}
-                  >
-                    ✓ Verified — fields updated from {formVerifySource}
-                  </span>
-                )}
-                {formVerifyStatus === "not-found" && (
-                  <span
-                    style={{
-                      fontSize: "var(--text-sm)",
-                      color: "var(--text-tertiary)",
-                    }}
-                  >
-                    Not found in register — enter details manually
-                  </span>
-                )}
               </div>
             </div>
-
-            <div className="settings-field">
-              <label>Registration number</label>
-              <input
-                value={form.registrationNumber}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, registrationNumber: e.target.value }))
-                }
-              />
-            </div>
-            <div className="settings-field">
-              <label>VAT number</label>
-              <input
-                value={form.vatNumber}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, vatNumber: e.target.value }))
-                }
-                placeholder="LV40003290084"
-              />
-            </div>
-            <div className="settings-field">
-              <label>Email</label>
-              <input
-                type="email"
-                value={form.email}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, email: e.target.value }))
-                }
-              />
-            </div>
-            <div className="settings-field">
-              <label>Phone</label>
-              <input
-                value={form.phone}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, phone: e.target.value }))
-                }
-              />
-            </div>
-            <div className="settings-field" style={{ gridColumn: "1 / -1" }}>
-              <label>Street address</label>
-              <input
-                value={form.addressLine1}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, addressLine1: e.target.value }))
-                }
-              />
-            </div>
-            <div className="settings-field">
-              <label>City</label>
-              <input
-                value={form.city}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, city: e.target.value }))
-                }
-              />
-            </div>
-            <div className="settings-field">
-              <label>Postal code</label>
-              <input
-                value={form.postalCode}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, postalCode: e.target.value }))
-                }
-              />
-            </div>
-            <div className="settings-field">
-              <label>Country</label>
-              <input
-                value={form.country}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, country: e.target.value }))
-                }
-              />
-            </div>
-            <div className="settings-field">
-              <label>Payment terms (days)</label>
-              <input
-                type="number"
-                value={form.paymentTermsDays}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, paymentTermsDays: e.target.value }))
-                }
-                min={0}
-              />
-            </div>
-            <div className="settings-field">
-              <label>IBAN</label>
-              <input
-                value={form.iban}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, iban: e.target.value }))
-                }
-                placeholder="LV00HABA0551000000000"
-              />
-            </div>
-            <div className="settings-field">
-              <label>SWIFT / BIC</label>
-              <input
-                value={form.swift}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, swift: e.target.value }))
-                }
-              />
-            </div>
-            <div className="settings-field" style={{ gridColumn: "1 / -1" }}>
-              <label>Bank name</label>
-              <input
-                value={form.bankName}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, bankName: e.target.value }))
-                }
-              />
-            </div>
-            <div className="settings-field" style={{ gridColumn: "1 / -1" }}>
-              <label>Notes</label>
-              <input
-                value={form.notes}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, notes: e.target.value }))
-                }
-              />
-            </div>
-          </div>
-          <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-            <button
-              className="btn-primary"
-              onClick={handleSave}
-              disabled={saving || !form.name.trim()}
-            >
-              {saving ? "Saving..." : "Save contact"}
-            </button>
-            <button
-              className="btn-secondary"
-              onClick={() => {
-                setForm(EMPTY_FORM);
-                setShowForm(false);
-              }}
-            >
-              Cancel
-            </button>
-          </div>
+          )}
         </div>
       )}
 

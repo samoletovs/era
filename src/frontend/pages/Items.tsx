@@ -134,6 +134,13 @@ export function Items() {
 
   // ─── AI Describe ──────────────────────────────────────────
 
+  // AI-first: form fields only shown after AI has filled something
+  const itemFormFilled =
+    form.name.trim() !== "" ||
+    form.description.trim() !== "" ||
+    form.costPrice !== "0" ||
+    form.sellingPrice !== "0";
+
   async function handleAiDescribe(desc: string) {
     if (!companyId) return;
     const fields = (await api.parseItemDescription(companyId, desc)) as any;
@@ -199,10 +206,96 @@ export function Items() {
       </div>
     );
 
+  // Detail view
+  if (selected) {
+    return (
+      <div>
+        <button
+          className="btn-secondary"
+          style={{ marginBottom: 16 }}
+          onClick={() => setSelected(null)}
+        >
+          ← Back to list
+        </button>
+        <h2 className="page-title">{selected.name}</h2>
+
+        <div className="detail-layout">
+          <div className="detail-sidebar">
+            <div className="settings-card">
+              <div className="onboarding-details">
+                <div className="detail-row">
+                  <span className="detail-label">Code</span>
+                  <span className="mono">{selected.code}</span>
+                </div>
+                <div className="detail-row">
+                  <span className="detail-label">Type</span>
+                  <span className="badge">{selected.type}</span>
+                </div>
+                {selected.description && (
+                  <div className="detail-row">
+                    <span className="detail-label">Description</span>
+                    <span>{selected.description}</span>
+                  </div>
+                )}
+                <div className="detail-row">
+                  <span className="detail-label">Unit</span>
+                  <span>{selected.unitOfMeasure}</span>
+                </div>
+                <div className="detail-row">
+                  <span className="detail-label">Cost price</span>
+                  <span>{formatMoney(selected.costPrice, fmt)}</span>
+                </div>
+                <div className="detail-row">
+                  <span className="detail-label">Selling price</span>
+                  <span>{formatMoney(selected.sellingPrice, fmt)}</span>
+                </div>
+                <div className="detail-row">
+                  <span className="detail-label">VAT rate</span>
+                  <span>{selected.vatRate}%</span>
+                </div>
+                {selected.type !== "service" && (
+                  <div className="detail-row">
+                    <span className="detail-label">On hand</span>
+                    <span>{selected.quantityOnHand}</span>
+                  </div>
+                )}
+                <div className="detail-row">
+                  <span className="detail-label">Purchase account</span>
+                  <span className="mono">{selected.purchaseAccountCode}</span>
+                </div>
+                <div className="detail-row">
+                  <span className="detail-label">Sales account</span>
+                  <span className="mono">{selected.salesAccountCode}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ flex: 1 }}>
+            <div className="settings-card">
+              <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>
+                GL postings
+              </h3>
+              <GlPostings
+                entries={itemEntries}
+                loading={loadingEntries}
+                emptyMessage="No transactions for this item"
+                formatMoney={formatMoney}
+                fmt={fmt}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
-      <div className="coa-header">
-        <h2 className="page-title">Items</h2>
+      <div className="page-header-bar">
+        <h2 className="page-title" style={{ marginBottom: 0 }}>
+          Items
+        </h2>
         <button className="btn-primary" onClick={() => setShowForm((f) => !f)}>
           {showForm ? "Cancel" : "+ Add item"}
         </button>
@@ -212,168 +305,176 @@ export function Items() {
       {showForm && (
         <div className="settings-card" style={{ marginBottom: 20 }}>
           {/* AI description bar */}
-          <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: itemFormFilled ? 16 : 0 }}>
             <AiInput
               placeholder="e.g. Consulting service, €120/hour, for IT services"
               onSubmit={handleAiDescribe}
               disabled={!companyId}
+              clearOnSubmit={false}
             />
           </div>
 
-          {/* Form fields */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-              gap: 12,
-            }}
-          >
-            <div style={{ gridColumn: "span 2" }}>
-              <label style={labelStyle}>Name</label>
-              <input
-                type="text"
-                value={form.name}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, name: e.target.value }))
-                }
-                className="form-input"
-                style={{ width: "100%" }}
-                aria-label="Item name"
-              />
-            </div>
-            <div style={{ gridColumn: "span 2" }}>
-              <label style={labelStyle}>Description</label>
-              <input
-                type="text"
-                value={form.description}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, description: e.target.value }))
-                }
-                className="form-input"
-                style={{ width: "100%" }}
-                aria-label="Item description"
-              />
-            </div>
+          {itemFormFilled && (
             <div>
-              <label style={labelStyle}>Type</label>
-              <select
-                value={form.type}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, type: e.target.value as any }))
-                }
-                className="table-filter-select"
-                aria-label="Item type"
+              {/* Form fields */}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                  gap: 12,
+                }}
               >
-                <option value="product">Product</option>
-                <option value="service">Service</option>
-              </select>
-            </div>
-            <div>
-              <label style={labelStyle}>Unit of measure</label>
-              <input
-                type="text"
-                value={form.unitOfMeasure}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, unitOfMeasure: e.target.value }))
-                }
-                className="form-input"
-                style={{ width: "100%" }}
-                aria-label="Unit of measure"
-              />
-            </div>
-            <div>
-              <label style={labelStyle}>Cost price (EUR)</label>
-              <input
-                type="number"
-                step="0.01"
-                value={form.costPrice}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, costPrice: e.target.value }))
-                }
-                className="form-input"
-                style={{ width: "100%" }}
-                aria-label="Cost price"
-              />
-            </div>
-            <div>
-              <label style={labelStyle}>Selling price (EUR)</label>
-              <input
-                type="number"
-                step="0.01"
-                value={form.sellingPrice}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, sellingPrice: e.target.value }))
-                }
-                className="form-input"
-                style={{ width: "100%" }}
-                aria-label="Selling price"
-              />
-            </div>
-            <div>
-              <label style={labelStyle}>VAT rate (%)</label>
-              <select
-                value={form.vatRate}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, vatRate: e.target.value }))
-                }
-                className="table-filter-select"
-                aria-label="VAT rate"
-              >
-                <option value="21">21% — standard</option>
-                <option value="12">12% — reduced</option>
-                <option value="5">5% — super-reduced</option>
-                <option value="0">0% — exempt</option>
-              </select>
-            </div>
-            <div>
-              <label style={labelStyle}>Purchase account</label>
-              <input
-                type="text"
-                value={form.purchaseAccountCode}
-                onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    purchaseAccountCode: e.target.value,
-                  }))
-                }
-                className="form-input"
-                style={{ width: "100%" }}
-                aria-label="Purchase account code"
-              />
-            </div>
-            <div>
-              <label style={labelStyle}>Sales account</label>
-              <input
-                type="text"
-                value={form.salesAccountCode}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, salesAccountCode: e.target.value }))
-                }
-                className="form-input"
-                style={{ width: "100%" }}
-                aria-label="Sales account code"
-              />
-            </div>
-          </div>
+                <div style={{ gridColumn: "span 2" }}>
+                  <label style={labelStyle}>Name</label>
+                  <input
+                    type="text"
+                    value={form.name}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, name: e.target.value }))
+                    }
+                    className="form-input"
+                    style={{ width: "100%" }}
+                    aria-label="Item name"
+                  />
+                </div>
+                <div style={{ gridColumn: "span 2" }}>
+                  <label style={labelStyle}>Description</label>
+                  <input
+                    type="text"
+                    value={form.description}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, description: e.target.value }))
+                    }
+                    className="form-input"
+                    style={{ width: "100%" }}
+                    aria-label="Item description"
+                  />
+                </div>
+                <div>
+                  <label style={labelStyle}>Type</label>
+                  <select
+                    value={form.type}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, type: e.target.value as any }))
+                    }
+                    className="table-filter-select"
+                    aria-label="Item type"
+                  >
+                    <option value="product">Product</option>
+                    <option value="service">Service</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={labelStyle}>Unit of measure</label>
+                  <input
+                    type="text"
+                    value={form.unitOfMeasure}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, unitOfMeasure: e.target.value }))
+                    }
+                    className="form-input"
+                    style={{ width: "100%" }}
+                    aria-label="Unit of measure"
+                  />
+                </div>
+                <div>
+                  <label style={labelStyle}>Cost price (EUR)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={form.costPrice}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, costPrice: e.target.value }))
+                    }
+                    className="form-input"
+                    style={{ width: "100%" }}
+                    aria-label="Cost price"
+                  />
+                </div>
+                <div>
+                  <label style={labelStyle}>Selling price (EUR)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={form.sellingPrice}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, sellingPrice: e.target.value }))
+                    }
+                    className="form-input"
+                    style={{ width: "100%" }}
+                    aria-label="Selling price"
+                  />
+                </div>
+                <div>
+                  <label style={labelStyle}>VAT rate (%)</label>
+                  <select
+                    value={form.vatRate}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, vatRate: e.target.value }))
+                    }
+                    className="table-filter-select"
+                    aria-label="VAT rate"
+                  >
+                    <option value="21">21% — standard</option>
+                    <option value="12">12% — reduced</option>
+                    <option value="5">5% — super-reduced</option>
+                    <option value="0">0% — exempt</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={labelStyle}>Purchase account</label>
+                  <input
+                    type="text"
+                    value={form.purchaseAccountCode}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        purchaseAccountCode: e.target.value,
+                      }))
+                    }
+                    className="form-input"
+                    style={{ width: "100%" }}
+                    aria-label="Purchase account code"
+                  />
+                </div>
+                <div>
+                  <label style={labelStyle}>Sales account</label>
+                  <input
+                    type="text"
+                    value={form.salesAccountCode}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        salesAccountCode: e.target.value,
+                      }))
+                    }
+                    className="form-input"
+                    style={{ width: "100%" }}
+                    aria-label="Sales account code"
+                  />
+                </div>
+              </div>
 
-          <div style={{ marginTop: 16, display: "flex", gap: 8 }}>
-            <button
-              className="btn-primary"
-              onClick={handleSave}
-              disabled={saving || !form.name.trim()}
-            >
-              {saving ? "Saving..." : "Save item"}
-            </button>
-            <button
-              className="btn-secondary"
-              onClick={() => {
-                setShowForm(false);
-                setForm(EMPTY_FORM);
-              }}
-            >
-              Cancel
-            </button>
-          </div>
+              <div style={{ marginTop: 16, display: "flex", gap: 8 }}>
+                <button
+                  className="btn-primary"
+                  onClick={handleSave}
+                  disabled={saving || !form.name.trim()}
+                >
+                  {saving ? "Saving..." : "Save item"}
+                </button>
+                <button
+                  className="btn-secondary"
+                  onClick={() => {
+                    setShowForm(false);
+                    setForm(EMPTY_FORM);
+                  }}
+                >
+                  Reset
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -422,73 +523,6 @@ export function Items() {
             initialSort={{ columnId: "code", direction: "asc" }}
           />
         </>
-      )}
-
-      {/* Item detail panel */}
-      {selected && (
-        <div className="settings-card" style={{ marginTop: 16 }}>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: 12,
-            }}
-          >
-            <h3 style={{ fontSize: 14, fontWeight: 600 }}>{selected.name}</h3>
-            <button
-              className="btn-secondary"
-              style={{ fontSize: "var(--text-sm)", padding: "2px 10px" }}
-              onClick={() => setSelected(null)}
-            >
-              ✕
-            </button>
-          </div>
-          <div className="onboarding-details">
-            <div className="detail-row">
-              <span className="detail-label">Code</span>
-              <span className="mono">{selected.code}</span>
-            </div>
-            <div className="detail-row">
-              <span className="detail-label">Type</span>
-              <span className="badge">{selected.type}</span>
-            </div>
-            {selected.description && (
-              <div className="detail-row">
-                <span className="detail-label">Description</span>
-                <span>{selected.description}</span>
-              </div>
-            )}
-            <div className="detail-row">
-              <span className="detail-label">Unit</span>
-              <span>{selected.unitOfMeasure}</span>
-            </div>
-            <div className="detail-row">
-              <span className="detail-label">Cost price</span>
-              <span>{formatMoney(selected.costPrice, fmt)}</span>
-            </div>
-            <div className="detail-row">
-              <span className="detail-label">Selling price</span>
-              <span>{formatMoney(selected.sellingPrice, fmt)}</span>
-            </div>
-            <div className="detail-row">
-              <span className="detail-label">VAT rate</span>
-              <span>{selected.vatRate}%</span>
-            </div>
-            {selected.type !== "service" && (
-              <div className="detail-row">
-                <span className="detail-label">On hand</span>
-                <span>{selected.quantityOnHand}</span>
-              </div>
-            )}
-          </div>
-          <GlPostings
-            entries={itemEntries}
-            loading={loadingEntries}
-            emptyMessage="No transactions for this item"
-            formatMoney={formatMoney}
-            fmt={fmt}
-          />
-        </div>
       )}
     </div>
   );

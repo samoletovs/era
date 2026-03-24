@@ -636,6 +636,13 @@ export function JournalEntries() {
         l.accountCode && (parseFloat(l.debit) > 0 || parseFloat(l.credit) > 0),
     ).length >= 2;
 
+  // AI-first: form fields only shown after AI has filled something
+  const formFilled =
+    formDesc.trim() !== "" ||
+    lines.some(
+      (l) => l.accountCode !== "" || l.debit !== "" || l.credit !== "",
+    );
+
   if (!companyId)
     return (
       <div className="empty-state">
@@ -697,8 +704,10 @@ export function JournalEntries() {
 
   return (
     <div>
-      <div className="coa-header">
-        <h2 className="page-title">Journal entries</h2>
+      <div className="page-header-bar">
+        <h2 className="page-title" style={{ marginBottom: 0 }}>
+          Journal entries
+        </h2>
         <button className="btn-primary" onClick={() => setShowForm(!showForm)}>
           {showForm ? "Cancel" : "+ New entry"}
         </button>
@@ -707,423 +716,428 @@ export function JournalEntries() {
       {/* ─── Create Form ─────────────────────────────────── */}
       {showForm && (
         <div className="settings-card" style={{ marginBottom: 20 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>
-            New journal entry
-          </h3>
-
-          {/* AI quick fill */}
-          <div style={{ marginBottom: 16 }}>
+          {/* AI description input — always visible */}
+          <div style={{ marginBottom: formFilled ? 16 : 0 }}>
             <AiInput
               placeholder="e.g. 'Monthly rent 1200 EUR from bank' or 'Pay vendor Acme 500 EUR'"
               onSubmit={async (text) => handleAiFill(text)}
+              clearOnSubmit={false}
             />
           </div>
 
-          <div style={{ borderTop: "1px solid #E8E8E8", paddingTop: 16 }}>
-            {/* Header fields */}
-            <div className="form-grid-2">
-              <div>
-                <div className="detail-label required">Description</div>
-                <input
-                  value={formDesc}
-                  onChange={(e) => setFormDesc(e.target.value)}
-                  placeholder="Entry description"
-                  className="settings-input"
-                />
-              </div>
-              {!isRecurring && (
+          {formFilled && (
+            <div>
+              {/* Header fields */}
+              <div className="form-grid-2">
                 <div>
-                  <div className="detail-label required">Posting date</div>
+                  <div className="detail-label required">Description</div>
                   <input
-                    type="date"
-                    value={formDate}
-                    onChange={(e) => setFormDate(e.target.value)}
+                    value={formDesc}
+                    onChange={(e) => setFormDesc(e.target.value)}
+                    placeholder="Entry description"
                     className="settings-input"
                   />
                 </div>
-              )}
-            </div>
-
-            {/* Recurring toggle */}
-            <div
-              style={{
-                margin: "16px 0",
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-              }}
-            >
-              <label
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  cursor: "pointer",
-                  fontSize: 13,
-                  fontWeight: 500,
-                  color: "var(--text-body)",
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={isRecurring}
-                  onChange={(e) => {
-                    setIsRecurring(e.target.checked);
-                    if (e.target.checked)
-                      setNextRunDate(getNextRunDate(frequency));
-                  }}
-                  style={{
-                    width: 16,
-                    height: 16,
-                    accentColor: "var(--accent)",
-                  }}
-                />
-                Make recurring
-              </label>
-              {isRecurring && (
-                <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                  <select
-                    value={frequency}
-                    onChange={(e) => {
-                      setFrequency(e.target.value);
-                      setNextRunDate(getNextRunDate(e.target.value));
-                    }}
-                    className="settings-input"
-                    style={{ width: "auto" }}
-                  >
-                    <option value="monthly">Monthly</option>
-                    <option value="quarterly">Quarterly</option>
-                    <option value="yearly">Yearly</option>
-                  </select>
-                  <div
-                    style={{ display: "flex", alignItems: "center", gap: 4 }}
-                  >
-                    <span
-                      style={{ fontSize: 12, color: "var(--text-secondary)" }}
-                    >
-                      Next:
-                    </span>
+                {!isRecurring && (
+                  <div>
+                    <div className="detail-label required">Posting date</div>
                     <input
                       type="date"
-                      value={nextRunDate}
-                      onChange={(e) => setNextRunDate(e.target.value)}
+                      value={formDate}
+                      onChange={(e) => setFormDate(e.target.value)}
                       className="settings-input"
-                      style={{ width: "auto" }}
                     />
                   </div>
-                </div>
-              )}
-            </div>
-
-            {/* Journal lines */}
-            <div style={{ marginTop: 8 }}>
-              <div className="detail-label" style={{ marginBottom: 8 }}>
-                Lines
+                )}
               </div>
-              <table className="data-table" style={{ marginBottom: 8 }}>
-                <thead>
-                  <tr>
-                    <th style={{ width: 110 }}>Type</th>
-                    <th style={{ width: 160 }}>Entity / Account</th>
-                    <th>GL account</th>
-                    <th style={{ width: 120 }}>Debit</th>
-                    <th style={{ width: 120 }}>Credit</th>
-                    <th style={{ width: 32 }}></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {lines.map((line) => {
-                    const needsEntity =
-                      line.accountType !== "ledger" &&
-                      line.accountType !== "bank";
-                    const isBankType = line.accountType === "bank";
-                    const entityOpts = getEntityOptions(line.accountType);
-                    const fieldId = `line-${line.key}`;
 
-                    return (
-                      <tr key={line.key}>
-                        {/* Account type */}
-                        <td>
-                          <select
-                            value={line.accountType}
-                            onChange={(e) =>
-                              handleAccountTypeChange(
-                                line.key,
-                                e.target.value as JournalLineAccountType,
-                              )
-                            }
-                            className="settings-input"
-                            style={{ fontSize: 12, padding: "4px 6px" }}
-                            aria-label="Account type"
-                          >
-                            {(
-                              Object.keys(
-                                ACCOUNT_TYPE_LABELS,
-                              ) as JournalLineAccountType[]
-                            ).map((t) => (
-                              <option key={t} value={t}>
-                                {ACCOUNT_TYPE_LABELS[t]}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
+              {/* Recurring toggle */}
+              <div
+                style={{
+                  margin: "16px 0",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                }}
+              >
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    cursor: "pointer",
+                    fontSize: 13,
+                    fontWeight: 500,
+                    color: "var(--text-body)",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isRecurring}
+                    onChange={(e) => {
+                      setIsRecurring(e.target.checked);
+                      if (e.target.checked)
+                        setNextRunDate(getNextRunDate(frequency));
+                    }}
+                    style={{
+                      width: 16,
+                      height: 16,
+                      accentColor: "var(--accent)",
+                    }}
+                  />
+                  Make recurring
+                </label>
+                {isRecurring && (
+                  <div
+                    style={{ display: "flex", gap: 12, alignItems: "center" }}
+                  >
+                    <select
+                      value={frequency}
+                      onChange={(e) => {
+                        setFrequency(e.target.value);
+                        setNextRunDate(getNextRunDate(e.target.value));
+                      }}
+                      className="settings-input"
+                      style={{ width: "auto" }}
+                    >
+                      <option value="monthly">Monthly</option>
+                      <option value="quarterly">Quarterly</option>
+                      <option value="yearly">Yearly</option>
+                    </select>
+                    <div
+                      style={{ display: "flex", alignItems: "center", gap: 4 }}
+                    >
+                      <span
+                        style={{ fontSize: 12, color: "var(--text-secondary)" }}
+                      >
+                        Next:
+                      </span>
+                      <input
+                        type="date"
+                        value={nextRunDate}
+                        onChange={(e) => setNextRunDate(e.target.value)}
+                        className="settings-input"
+                        style={{ width: "auto" }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
 
-                        {/* Entity or bank selector */}
-                        <td>
-                          {needsEntity ? (
+              {/* Journal lines */}
+              <div style={{ marginTop: 8 }}>
+                <div className="detail-label" style={{ marginBottom: 8 }}>
+                  Lines
+                </div>
+                <table className="data-table" style={{ marginBottom: 8 }}>
+                  <thead>
+                    <tr>
+                      <th style={{ width: 110 }}>Type</th>
+                      <th style={{ width: 160 }}>Entity / Account</th>
+                      <th>GL account</th>
+                      <th style={{ width: 120 }}>Debit</th>
+                      <th style={{ width: 120 }}>Credit</th>
+                      <th style={{ width: 32 }}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {lines.map((line) => {
+                      const needsEntity =
+                        line.accountType !== "ledger" &&
+                        line.accountType !== "bank";
+                      const isBankType = line.accountType === "bank";
+                      const entityOpts = getEntityOptions(line.accountType);
+                      const fieldId = `line-${line.key}`;
+
+                      return (
+                        <tr key={line.key}>
+                          {/* Account type */}
+                          <td>
                             <select
-                              value={line.entityId}
-                              onChange={(e) => {
-                                const opt = entityOpts.find(
-                                  (o) => o.id === e.target.value,
-                                );
-                                handleEntitySelect(
+                              value={line.accountType}
+                              onChange={(e) =>
+                                handleAccountTypeChange(
                                   line.key,
-                                  line,
-                                  e.target.value,
-                                  opt?.label || "",
-                                );
-                              }}
+                                  e.target.value as JournalLineAccountType,
+                                )
+                              }
                               className="settings-input"
                               style={{ fontSize: 12, padding: "4px 6px" }}
-                              aria-label={`Select ${ACCOUNT_TYPE_LABELS[line.accountType]}`}
+                              aria-label="Account type"
                             >
-                              <option value="">Select...</option>
-                              {entityOpts.map((o) => (
-                                <option key={o.id} value={o.id}>
-                                  {o.label}
+                              {(
+                                Object.keys(
+                                  ACCOUNT_TYPE_LABELS,
+                                ) as JournalLineAccountType[]
+                              ).map((t) => (
+                                <option key={t} value={t}>
+                                  {ACCOUNT_TYPE_LABELS[t]}
                                 </option>
                               ))}
                             </select>
-                          ) : isBankType ? (
-                            <select
-                              value={line.accountCode}
-                              onChange={(e) => {
-                                const acc = bankAccounts.find(
-                                  (a) => a.code === e.target.value,
-                                );
-                                updateLine(line.key, {
-                                  accountCode: e.target.value,
-                                  accountName: acc?.name || "",
-                                });
-                              }}
-                              className="settings-input"
-                              style={{ fontSize: 12, padding: "4px 6px" }}
-                              aria-label="Select bank account"
-                            >
-                              <option value="">Select bank...</option>
-                              {bankAccounts.map((a) => (
-                                <option key={a.code} value={a.code}>
-                                  {a.code} — {a.name}
-                                </option>
-                              ))}
-                            </select>
-                          ) : (
-                            <span
-                              style={{
-                                fontSize: 12,
-                                color: "var(--text-tertiary)",
-                              }}
-                            >
-                              —
-                            </span>
-                          )}
-                        </td>
+                          </td>
 
-                        {/* GL account (auto-filled for non-ledger types, editable for ledger) */}
-                        <td style={{ position: "relative" }}>
-                          {line.accountType === "ledger" ? (
-                            <>
-                              <input
-                                value={line.accountCode}
-                                onChange={(e) =>
-                                  handleAccountCodeChange(
+                          {/* Entity or bank selector */}
+                          <td>
+                            {needsEntity ? (
+                              <select
+                                value={line.entityId}
+                                onChange={(e) => {
+                                  const opt = entityOpts.find(
+                                    (o) => o.id === e.target.value,
+                                  );
+                                  handleEntitySelect(
                                     line.key,
+                                    line,
                                     e.target.value,
-                                  )
-                                }
-                                onFocus={() => setFocusField(fieldId)}
-                                onBlur={() =>
-                                  setTimeout(() => setFocusField(""), 150)
-                                }
-                                placeholder="Code or name"
+                                    opt?.label || "",
+                                  );
+                                }}
                                 className="settings-input"
                                 style={{ fontSize: 12, padding: "4px 6px" }}
-                                aria-label="GL account"
-                              />
-                              {focusField === fieldId &&
-                                suggestions.length > 0 && (
-                                  <div style={suggestionStyle}>
-                                    {suggestions.map((a) => (
-                                      <div
-                                        key={a.code}
-                                        style={suggestionItemStyle}
-                                        onMouseDown={() =>
-                                          selectAccount(line.key, a)
-                                        }
-                                      >
-                                        <span className="mono">{a.code}</span>
-                                        <span
-                                          style={{
-                                            color: "var(--text-secondary)",
-                                            marginLeft: 8,
-                                          }}
+                                aria-label={`Select ${ACCOUNT_TYPE_LABELS[line.accountType]}`}
+                              >
+                                <option value="">Select...</option>
+                                {entityOpts.map((o) => (
+                                  <option key={o.id} value={o.id}>
+                                    {o.label}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : isBankType ? (
+                              <select
+                                value={line.accountCode}
+                                onChange={(e) => {
+                                  const acc = bankAccounts.find(
+                                    (a) => a.code === e.target.value,
+                                  );
+                                  updateLine(line.key, {
+                                    accountCode: e.target.value,
+                                    accountName: acc?.name || "",
+                                  });
+                                }}
+                                className="settings-input"
+                                style={{ fontSize: 12, padding: "4px 6px" }}
+                                aria-label="Select bank account"
+                              >
+                                <option value="">Select bank...</option>
+                                {bankAccounts.map((a) => (
+                                  <option key={a.code} value={a.code}>
+                                    {a.code} — {a.name}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <span
+                                style={{
+                                  fontSize: 12,
+                                  color: "var(--text-tertiary)",
+                                }}
+                              >
+                                —
+                              </span>
+                            )}
+                          </td>
+
+                          {/* GL account (auto-filled for non-ledger types, editable for ledger) */}
+                          <td style={{ position: "relative" }}>
+                            {line.accountType === "ledger" ? (
+                              <>
+                                <input
+                                  value={line.accountCode}
+                                  onChange={(e) =>
+                                    handleAccountCodeChange(
+                                      line.key,
+                                      e.target.value,
+                                    )
+                                  }
+                                  onFocus={() => setFocusField(fieldId)}
+                                  onBlur={() =>
+                                    setTimeout(() => setFocusField(""), 150)
+                                  }
+                                  placeholder="Code or name"
+                                  className="settings-input"
+                                  style={{ fontSize: 12, padding: "4px 6px" }}
+                                  aria-label="GL account"
+                                />
+                                {focusField === fieldId &&
+                                  suggestions.length > 0 && (
+                                    <div style={suggestionStyle}>
+                                      {suggestions.map((a) => (
+                                        <div
+                                          key={a.code}
+                                          style={suggestionItemStyle}
+                                          onMouseDown={() =>
+                                            selectAccount(line.key, a)
+                                          }
                                         >
-                                          {a.name}
-                                        </span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                            </>
-                          ) : (
-                            <span className="mono" style={{ fontSize: 12 }}>
-                              {line.accountCode
-                                ? `${line.accountCode} ${line.accountName}`
-                                : "Auto-filled"}
-                            </span>
-                          )}
-                        </td>
+                                          <span className="mono">{a.code}</span>
+                                          <span
+                                            style={{
+                                              color: "var(--text-secondary)",
+                                              marginLeft: 8,
+                                            }}
+                                          >
+                                            {a.name}
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                              </>
+                            ) : (
+                              <span className="mono" style={{ fontSize: 12 }}>
+                                {line.accountCode
+                                  ? `${line.accountCode} ${line.accountName}`
+                                  : "Auto-filled"}
+                              </span>
+                            )}
+                          </td>
 
-                        {/* Debit */}
-                        <td>
-                          <input
-                            type="number"
-                            value={line.debit}
-                            onChange={(e) =>
-                              updateLine(line.key, {
-                                debit: e.target.value,
-                                credit: e.target.value ? "" : line.credit,
-                              })
-                            }
-                            placeholder="0.00"
-                            className="settings-input"
-                            style={{
-                              fontSize: 12,
-                              padding: "4px 6px",
-                              textAlign: "right",
-                            }}
-                            step="0.01"
-                            min="0"
-                            aria-label="Debit amount"
-                          />
-                        </td>
-
-                        {/* Credit */}
-                        <td>
-                          <input
-                            type="number"
-                            value={line.credit}
-                            onChange={(e) =>
-                              updateLine(line.key, {
-                                credit: e.target.value,
-                                debit: e.target.value ? "" : line.debit,
-                              })
-                            }
-                            placeholder="0.00"
-                            className="settings-input"
-                            style={{
-                              fontSize: 12,
-                              padding: "4px 6px",
-                              textAlign: "right",
-                            }}
-                            step="0.01"
-                            min="0"
-                            aria-label="Credit amount"
-                          />
-                        </td>
-
-                        {/* Remove */}
-                        <td>
-                          {lines.length > 2 && (
-                            <button
-                              onClick={() => removeLine(line.key)}
+                          {/* Debit */}
+                          <td>
+                            <input
+                              type="number"
+                              value={line.debit}
+                              onChange={(e) =>
+                                updateLine(line.key, {
+                                  debit: e.target.value,
+                                  credit: e.target.value ? "" : line.credit,
+                                })
+                              }
+                              placeholder="0.00"
+                              className="settings-input"
                               style={{
-                                background: "none",
-                                border: "none",
-                                cursor: "pointer",
-                                color: "var(--text-tertiary)",
-                                fontSize: 16,
+                                fontSize: 12,
+                                padding: "4px 6px",
+                                textAlign: "right",
                               }}
-                              aria-label="Remove line"
-                            >
-                              ×
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-                <tfoot>
-                  <tr>
-                    <td
-                      colSpan={3}
-                      style={{
-                        textAlign: "right",
-                        fontWeight: 500,
-                        fontSize: 12,
-                      }}
-                    >
-                      Total
-                    </td>
-                    <td
-                      className="num"
-                      style={{ fontSize: 12, fontWeight: 500 }}
-                    >
-                      {formatMoney(formTotalDebit, fmt)}
-                    </td>
-                    <td
-                      className="num"
-                      style={{ fontSize: 12, fontWeight: 500 }}
-                    >
-                      {formatMoney(formTotalCredit, fmt)}
-                    </td>
-                    <td></td>
-                  </tr>
-                </tfoot>
-              </table>
+                              step="0.01"
+                              min="0"
+                              aria-label="Debit amount"
+                            />
+                          </td>
 
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                          {/* Credit */}
+                          <td>
+                            <input
+                              type="number"
+                              value={line.credit}
+                              onChange={(e) =>
+                                updateLine(line.key, {
+                                  credit: e.target.value,
+                                  debit: e.target.value ? "" : line.debit,
+                                })
+                              }
+                              placeholder="0.00"
+                              className="settings-input"
+                              style={{
+                                fontSize: 12,
+                                padding: "4px 6px",
+                                textAlign: "right",
+                              }}
+                              step="0.01"
+                              min="0"
+                              aria-label="Credit amount"
+                            />
+                          </td>
+
+                          {/* Remove */}
+                          <td>
+                            {lines.length > 2 && (
+                              <button
+                                onClick={() => removeLine(line.key)}
+                                style={{
+                                  background: "none",
+                                  border: "none",
+                                  cursor: "pointer",
+                                  color: "var(--text-tertiary)",
+                                  fontSize: 16,
+                                }}
+                                aria-label="Remove line"
+                              >
+                                ×
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td
+                        colSpan={3}
+                        style={{
+                          textAlign: "right",
+                          fontWeight: 500,
+                          fontSize: 12,
+                        }}
+                      >
+                        Total
+                      </td>
+                      <td
+                        className="num"
+                        style={{ fontSize: 12, fontWeight: 500 }}
+                      >
+                        {formatMoney(formTotalDebit, fmt)}
+                      </td>
+                      <td
+                        className="num"
+                        style={{ fontSize: 12, fontWeight: 500 }}
+                      >
+                        {formatMoney(formTotalCredit, fmt)}
+                      </td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
+
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <button
+                    className="btn-secondary"
+                    style={{ fontSize: 12, padding: "4px 12px" }}
+                    onClick={addLine}
+                  >
+                    + Add line
+                  </button>
+                  {!isBalanced && formTotalDebit > 0 && (
+                    <span style={{ fontSize: 12, color: "var(--error)" }}>
+                      Entry is not balanced (difference:{" "}
+                      {formatMoney(
+                        Math.abs(formTotalDebit - formTotalCredit),
+                        fmt,
+                      )}
+                      )
+                    </span>
+                  )}
+                  {isBalanced && (
+                    <span style={{ fontSize: 12, color: "var(--success)" }}>
+                      ✓ Balanced
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Submit */}
+              <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
                 <button
-                  className="btn-secondary"
-                  style={{ fontSize: 12, padding: "4px 12px" }}
-                  onClick={addLine}
+                  className="btn-primary"
+                  onClick={handleSubmit}
+                  disabled={creating || !hasRequiredFields || !isBalanced}
                 >
-                  + Add line
+                  {creating
+                    ? "Saving..."
+                    : isRecurring
+                      ? "Create recurring entry"
+                      : "Post entry"}
                 </button>
-                {!isBalanced && formTotalDebit > 0 && (
-                  <span style={{ fontSize: 12, color: "var(--error)" }}>
-                    Entry is not balanced (difference:{" "}
-                    {formatMoney(
-                      Math.abs(formTotalDebit - formTotalCredit),
-                      fmt,
-                    )}
-                    )
-                  </span>
-                )}
-                {isBalanced && (
-                  <span style={{ fontSize: 12, color: "var(--success)" }}>
-                    ✓ Balanced
-                  </span>
-                )}
+                <button className="btn-secondary" onClick={resetForm}>
+                  Reset
+                </button>
               </div>
             </div>
-
-            {/* Submit */}
-            <button
-              className="btn-primary"
-              style={{ marginTop: 16 }}
-              onClick={handleSubmit}
-              disabled={creating || !hasRequiredFields || !isBalanced}
-            >
-              {creating
-                ? "Saving..."
-                : isRecurring
-                  ? "Create recurring entry"
-                  : "Post entry"}
-            </button>
-          </div>
+          )}
         </div>
       )}
 
