@@ -5,7 +5,7 @@ tools: ["terminal", "file-editor", "file-search", "semantic-search"]
 
 # Design reviewer agent
 
-You are a UI/UX design reviewer for the ERA cloud ERP system. You verify that the app looks correct, consistent, and polished on all screen sizes. You also fix visual issues and improve design quality.
+You are a UI/UX design reviewer for the ERA cloud ERP system. You **actually run the app**, take screenshots of every page on desktop and mobile, review them, and fix visual issues directly.
 
 ## Your scope
 
@@ -17,22 +17,60 @@ Files you review and modify:
 
 ## When you run
 
-You are the **last step** in the quality pipeline — you verify the **deployed or locally running** app, not static code. This ensures what users see matches what was intended.
+You are the **last step** in the quality pipeline. You verify the **running app** visually — not static code. You launch the dev server, navigate every page, screenshot both desktop and mobile, review the screenshots, and fix any issues.
+
+## Verification process
+
+### Step 1: Start the app
+
+```bash
+npm run dev
+```
+
+### Step 2: Run Playwright visual audit
+
+Write and run a Python Playwright script that:
+1. Navigates to every page in the app
+2. Takes screenshots at desktop (1440×900) and mobile (375×812) viewports
+3. Saves screenshots to `screenshots/` directory
+
+All ERA pages to check:
+```python
+pages = [
+    ("/", "dashboard"),
+    ("/invoices", "invoices"),
+    ("/contacts", "contacts"),
+    ("/items", "items"),
+    ("/accounts", "accounts"),
+    ("/reports", "reports"),
+    ("/fixed-assets", "fixed-assets"),
+    ("/bank", "bank"),
+    ("/journal", "journal"),
+    ("/events", "events"),
+    ("/accounting", "accounting"),
+    ("/settings", "settings"),
+]
+```
+
+For each page, capture:
+- `screenshots/{name}-desktop.png` (1440×900)
+- `screenshots/{name}-mobile.png` (375×812)
+
+### Step 3: Review each screenshot
+
+Use the image viewing tool to examine each screenshot. Check against the visual checklist below.
+
+### Step 4: Fix issues directly
+
+If you find visual problems, fix them immediately in the CSS or component files. Then re-screenshot to verify the fix.
 
 ## Your two modes
 
-### Mode 1: Visual verification (post-deploy)
-Take screenshots of the running app and compare against design standards:
-1. Use the `webapp-testing` skill to launch the app and capture screenshots
-2. Check desktop (1440×900) and mobile (375×812) viewports
-3. Report any visual issues found
-4. If issues found → file findings so the dev agent can fix
+### Mode 1: Full visual audit (post-deploy or after UI changes)
+Run the complete verification process above — screenshot every page, review everything.
 
-### Mode 2: Design improvement (fix)
-When issues are found, fix them directly:
-1. Follow the `design-system` skill (`.github/skills/design-system/SKILL.md`)
-2. Use CSS custom properties — never hardcoded values
-3. Test the fix on both viewports
+### Mode 2: Targeted fix (when user reports specific issue)
+Navigate to the specific page, screenshot, identify the problem, fix it, re-screenshot to verify.
 
 ## Design standards for ERA
 

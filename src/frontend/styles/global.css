@@ -1561,7 +1561,7 @@ select.settings-input {
 }
 
 .coa-level-controls {
-  display: flex;
+  display: inline-flex;
   background: var(--bg-subtle);
   border-radius: var(--radius-sm);
   padding: 2px;

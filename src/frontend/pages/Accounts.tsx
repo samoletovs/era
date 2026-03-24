@@ -44,6 +44,8 @@ export function Accounts() {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [search, setSearch] = useState("");
+  const [sortBalance, setSortBalance] = useState<"" | "asc" | "desc">("");
   const [asOfDate, setAsOfDate] = useState(() =>
     new Date().toISOString().slice(0, 10),
   );
@@ -90,7 +92,9 @@ export function Accounts() {
     api
       .accountTransactions(companyId, code, asOfDate)
       .then((data: any) => {
-        setTransactions(data.transactions || []);
+        // API returns { transactions: [...], balance } — handle both wrapped and unwrapped
+        const txns = Array.isArray(data) ? data : data?.transactions || [];
+        setTransactions(txns);
         setTxLoading(false);
       })
       .catch(() => {
@@ -102,7 +106,39 @@ export function Accounts() {
   const totals = useMemo(() => computeSubtotals(accounts), [accounts]);
 
   const visibleAccounts = useMemo(() => {
-    return accounts.filter((a: any) => {
+    const q = search.trim().toLowerCase();
+
+    // When searching, flatten to show matching accounts + their ancestors
+    if (q) {
+      const matchingCodes = new Set<string>();
+      for (const a of accounts) {
+        if (
+          a.code.toLowerCase().includes(q) ||
+          a.name.toLowerCase().includes(q) ||
+          (a.type || "").toLowerCase().includes(q)
+        ) {
+          matchingCodes.add(a.code);
+          let parent = a.parentCode;
+          while (parent) {
+            matchingCodes.add(parent);
+            const parentAcct = accounts.find((p: any) => p.code === parent);
+            parent = parentAcct?.parentCode;
+          }
+        }
+      }
+      let result = accounts.filter((a: any) => matchingCodes.has(a.code));
+      if (sortBalance) {
+        result = [...result].sort((a, b) => {
+          const ba = totals.get(a.code) ?? 0;
+          const bb = totals.get(b.code) ?? 0;
+          return sortBalance === "asc" ? ba - bb : bb - ba;
+        });
+      }
+      return result;
+    }
+
+    // Normal tree mode — respect collapse state
+    let result = accounts.filter((a: any) => {
       if (a.level === 1) return true;
       let parent = a.parentCode;
       while (parent) {
@@ -112,7 +148,17 @@ export function Accounts() {
       }
       return true;
     });
-  }, [accounts, collapsed]);
+
+    if (sortBalance) {
+      result = [...result].sort((a, b) => {
+        const ba = totals.get(a.code) ?? 0;
+        const bb = totals.get(b.code) ?? 0;
+        return sortBalance === "asc" ? ba - bb : bb - ba;
+      });
+    }
+
+    return result;
+  }, [accounts, collapsed, search, totals, sortBalance]);
 
   const toggleCollapse = (code: string) => {
     setCollapsed((prev) => {
@@ -147,7 +193,7 @@ export function Accounts() {
   return (
     <div>
       <div className="coa-header">
-        <h2 className="page-title">Accounts</h2>
+        <h2 className="page-title">Main accounts</h2>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <div className="coa-date-filter">
             <label className="detail-label" htmlFor="coa-date">
@@ -194,6 +240,29 @@ export function Accounts() {
           )}
         </div>
       </div>
+      {!loading && accounts.length > 0 && (
+        <div className="filter-bar" style={{ marginBottom: 12 }}>
+          <input
+            type="text"
+            placeholder="Search accounts..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="table-search-input"
+            aria-label="Search accounts"
+          />
+          {search && (
+            <span
+              style={{
+                fontSize: "var(--text-sm)",
+                color: "var(--text-tertiary)",
+              }}
+            >
+              {visibleAccounts.filter((a: any) => a.isPostable).length} accounts
+            </span>
+          )}
+        </div>
+      )}
+
       {loading ? (
         <p style={{ color: "#A0A0A0" }}>Loading...</p>
       ) : (
@@ -205,7 +274,22 @@ export function Accounts() {
                 <th>Code</th>
                 <th>Name</th>
                 <th className="hide-mobile">Type</th>
-                <th>Balance</th>
+                <th
+                  className={`sortable-th${sortBalance ? " sorted" : ""}`}
+                  onClick={() =>
+                    setSortBalance((prev) =>
+                      prev === "" ? "desc" : prev === "desc" ? "asc" : "",
+                    )
+                  }
+                  style={{ textAlign: "right" }}
+                >
+                  Balance
+                  {sortBalance && (
+                    <span className="sort-indicator">
+                      {sortBalance === "asc" ? " ▲" : " ▼"}
+                    </span>
+                  )}
+                </th>
               </tr>
             </thead>
             <tbody>

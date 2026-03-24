@@ -62,13 +62,14 @@ Every issue follows this pipeline:
 ```
 1. PLAN     — Orchestrator triages, classifies, assigns to dev agent
 2. BUILD    — Dev agent (@backend-dev / @frontend-dev / @infra-dev) implements
-3. REVIEW   — @code-reviewer checks conventions, security, correctness
-     ↳ If rejected → back to BUILD with feedback
+3. REVIEW   — @code-reviewer checks and FIXES issues (security, types, conventions)
+     ↳ Fixes directly — no back-and-forth, no asking permission
 4. TEST     — @qa writes/runs tests for the reviewed code
      ↳ If failures → back to BUILD with test failures
 5. DEPLOY   — @deploy runs pre-flight, builds, deploys, verifies health, notifies
-6. VERIFY   — @design-reviewer checks the running app visually (if UI changed)
-     ↳ If visual issues → back to BUILD with screenshots
+6. VERIFY   — @design-reviewer launches app with Playwright, screenshots every page
+              on desktop (1440×900) and mobile (375×812), reviews and FIXES visual issues
+     ↳ Fixes directly, re-screenshots to confirm
 ```
 
 **Skip rules:**
