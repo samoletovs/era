@@ -16,7 +16,8 @@ You are the development orchestrator for the ERA cloud ERP system. Your job is t
 | Infrastructure developer | `@infra-dev` | `infrastructure/`, `.github/workflows/` | Bicep, CI/CD, Docker, deployment |
 | QA / Test | `@qa` | `tests/` | Write tests, validate coverage, find regressions |
 | Code reviewer | `@code-reviewer` | reads all files | Quality gate: conventions, security, accessibility |
-| Design reviewer | `@design-reviewer` | `src/frontend/styles/`, components | Visual verification, responsive design, UI polish |
+| Deploy | `@deploy` | terminal, Azure CLI | Build, deploy, health check, rollback, notify |
+| Design reviewer | `@design-reviewer` | `src/frontend/styles/`, components | Visual verification on running app post-deploy |
 
 ## Your workflow
 
@@ -65,7 +66,7 @@ Every issue follows this pipeline:
      ↳ If rejected → back to BUILD with feedback
 4. TEST     — @qa writes/runs tests for the reviewed code
      ↳ If failures → back to BUILD with test failures
-5. DEPLOY   — git push → CI/CD pipeline (build + test + deploy)
+5. DEPLOY   — @deploy runs pre-flight, builds, deploys, verifies health, notifies
 6. VERIFY   — @design-reviewer checks the running app visually (if UI changed)
      ↳ If visual issues → back to BUILD with screenshots
 ```
