@@ -15,12 +15,15 @@ import type {
   NumberSequence,
   DateFormat,
   DateTimeFormat,
-  ExchangeRateType,
-  ExchangeRateSource,
   CurrencySettings,
+  CustomRateSource,
   CompanySharingEntry,
 } from "@shared/types";
-import { DEFAULT_SEQUENCES, SEQUENCE_LABELS } from "@shared/types";
+import {
+  DEFAULT_SEQUENCES,
+  SEQUENCE_LABELS,
+  SYSTEM_RATE_SOURCES,
+} from "@shared/types";
 
 export function Settings() {
   const { companyId, setCompanyId, refreshCompanies } = useApp();
@@ -50,12 +53,12 @@ export function Settings() {
   // Currency settings state
   const [accountingCurrency, setAccountingCurrency] = useState("EUR");
   const [reportingCurrency, setReportingCurrency] = useState("");
-  const [accountingRateType, setAccountingRateType] =
-    useState<ExchangeRateType>("daily");
-  const [reportingRateType, setReportingRateType] =
-    useState<ExchangeRateType>("monthly-average");
-  const [exchangeRateSource, setExchangeRateSource] =
-    useState<ExchangeRateSource>("ecb");
+  const [accountingRateSource, setAccountingRateSource] = useState("ecb");
+  const [reportingRateSource, setReportingRateSource] = useState("ecb");
+  const [customRateSources, setCustomRateSources] = useState<
+    CustomRateSource[]
+  >([]);
+  const [newSourceName, setNewSourceName] = useState("");
 
   // Sharing state
   const [sharingList, setSharingList] = useState<CompanySharingEntry[]>([]);
@@ -95,9 +98,9 @@ export function Settings() {
       if (cs) {
         setAccountingCurrency(cs.accountingCurrency || "EUR");
         setReportingCurrency(cs.reportingCurrency || "");
-        setAccountingRateType(cs.accountingRateType || "daily");
-        setReportingRateType(cs.reportingRateType || "monthly-average");
-        setExchangeRateSource(cs.exchangeRateSource || "ecb");
+        setAccountingRateSource(cs.accountingRateSource || "ecb");
+        setReportingRateSource(cs.reportingRateSource || "ecb");
+        setCustomRateSources(cs.customRateSources || []);
       }
     });
 
@@ -189,11 +192,12 @@ export function Settings() {
           currency: {
             accountingCurrency,
             reportingCurrency: reportingCurrency || undefined,
-            accountingRateType,
-            reportingRateType: reportingCurrency
-              ? reportingRateType
+            accountingRateSource,
+            reportingRateSource: reportingCurrency
+              ? reportingRateSource
               : undefined,
-            exchangeRateSource,
+            customRateSources:
+              customRateSources.length > 0 ? customRateSources : undefined,
           } as CurrencySettings,
         },
       });
@@ -345,8 +349,9 @@ export function Settings() {
           >
             Configure accounting and reporting currencies. Transaction currency
             is set per document (invoice, payment) and can be any currency.
-            Exchange rates can be imported automatically from ECB or Bank of
-            Latvia.
+            Daily rates are imported automatically from the selected source.
+            Closing rates and monthly averages are derived from daily rates per
+            IAS 21.
           </p>
 
           <div className="settings-grid">
@@ -398,7 +403,7 @@ export function Settings() {
             className="section-title"
             style={{ marginTop: 20, marginBottom: 12 }}
           >
-            Exchange rate types
+            Exchange rate sources
           </h3>
           <p
             style={{
@@ -407,75 +412,181 @@ export function Settings() {
               marginBottom: 12,
             }}
           >
-            Different rate types allow daily rates for accounting and monthly
-            averages for reporting — like D365 F&O exchange rate types.
+            System sources (ECB, Bank of Latvia) import rates automatically at
+            ~16:00 CET daily and are shared across all companies. Custom sources
+            allow manual rate entry. Previous day&apos;s rate applies for
+            today&apos;s transactions.
           </p>
           <div className="settings-grid">
             <div className="settings-field">
-              <label>Accounting rate type</label>
+              <label>Accounting currency rate source</label>
               <select
-                value={accountingRateType}
-                onChange={(e) =>
-                  setAccountingRateType(e.target.value as ExchangeRateType)
-                }
+                value={accountingRateSource}
+                onChange={(e) => setAccountingRateSource(e.target.value)}
                 className="settings-input"
               >
-                <option value="daily">Daily (spot rate)</option>
-                <option value="monthly-average">Monthly average</option>
-                <option value="closing">Closing rate</option>
-                <option value="group">Group rate</option>
+                {SYSTEM_RATE_SOURCES.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+                {customRateSources.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
               </select>
               <span className="field-hint">
-                Rate type used when converting transaction currency to
+                Source for daily rates when converting transaction currency to
                 accounting currency
               </span>
             </div>
             {reportingCurrency && (
               <div className="settings-field">
-                <label>Reporting rate type</label>
+                <label>Reporting currency rate source</label>
                 <select
-                  value={reportingRateType}
-                  onChange={(e) =>
-                    setReportingRateType(e.target.value as ExchangeRateType)
-                  }
+                  value={reportingRateSource}
+                  onChange={(e) => setReportingRateSource(e.target.value)}
                   className="settings-input"
                 >
-                  <option value="daily">Daily (spot rate)</option>
-                  <option value="monthly-average">Monthly average</option>
-                  <option value="closing">Closing rate</option>
-                  <option value="group">Group rate</option>
+                  {SYSTEM_RATE_SOURCES.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                  {customRateSources.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
                 </select>
                 <span className="field-hint">
-                  Rate type used when converting transaction currency to
+                  Source for daily rates when converting transaction currency to
                   reporting currency
                 </span>
               </div>
             )}
-            <div className="settings-field">
-              <label>Exchange rate source</label>
-              <select
-                value={exchangeRateSource}
-                onChange={(e) =>
-                  setExchangeRateSource(e.target.value as ExchangeRateSource)
-                }
-                className="settings-input"
-              >
-                <option value="ecb">European Central Bank (ECB)</option>
-                <option value="latvian-bank">Bank of Latvia</option>
-                <option value="manual">Manual entry</option>
-              </select>
-            </div>
           </div>
+
+          <h3
+            className="section-title"
+            style={{ marginTop: 20, marginBottom: 12 }}
+          >
+            Custom rate sources
+          </h3>
+          <p
+            style={{
+              fontSize: 12,
+              color: "var(--text-secondary)",
+              marginBottom: 12,
+            }}
+          >
+            Create custom sources for manual rate entry. These are shared across
+            your companies. You can have up to 5 custom sources.
+          </p>
+          {customRateSources.length > 0 && (
+            <div style={{ marginBottom: 12 }}>
+              {customRateSources.map((src) => (
+                <div
+                  key={src.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "8px 0",
+                    borderBottom: "1px solid var(--border)",
+                  }}
+                >
+                  <span style={{ flex: 1, fontSize: 14 }}>{src.name}</span>
+                  <button
+                    onClick={() => {
+                      const isUsed =
+                        accountingRateSource === src.id ||
+                        reportingRateSource === src.id;
+                      if (isUsed) return;
+                      setCustomRateSources((prev) =>
+                        prev.filter((s) => s.id !== src.id),
+                      );
+                    }}
+                    disabled={
+                      accountingRateSource === src.id ||
+                      reportingRateSource === src.id
+                    }
+                    style={{
+                      padding: "4px 10px",
+                      fontSize: 12,
+                      borderRadius: 6,
+                      border: "1px solid var(--border)",
+                      background: "var(--bg-card)",
+                      color: "var(--text-secondary)",
+                      cursor:
+                        accountingRateSource === src.id ||
+                        reportingRateSource === src.id
+                          ? "not-allowed"
+                          : "pointer",
+                      opacity:
+                        accountingRateSource === src.id ||
+                        reportingRateSource === src.id
+                          ? 0.45
+                          : 1,
+                    }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {customRateSources.length < 5 && (
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <input
+                type="text"
+                value={newSourceName}
+                onChange={(e) => setNewSourceName(e.target.value)}
+                placeholder="Source name, e.g. Internal treasury"
+                className="settings-input"
+                style={{ flex: 1, maxWidth: 300 }}
+                maxLength={40}
+              />
+              <button
+                onClick={() => {
+                  const trimmed = newSourceName.trim();
+                  if (!trimmed) return;
+                  const id = crypto.randomUUID();
+                  setCustomRateSources((prev) => [
+                    ...prev,
+                    { id, name: trimmed },
+                  ]);
+                  setNewSourceName("");
+                }}
+                disabled={!newSourceName.trim()}
+                style={{
+                  padding: "8px 16px",
+                  fontSize: 13,
+                  borderRadius: 8,
+                  border: "1px solid var(--border)",
+                  background: "var(--bg-card)",
+                  color: "var(--text-body)",
+                  cursor: newSourceName.trim() ? "pointer" : "not-allowed",
+                  opacity: newSourceName.trim() ? 1 : 0.45,
+                }}
+              >
+                Add source
+              </button>
+            </div>
+          )}
 
           <p
             style={{
               fontSize: 11,
               color: "var(--text-tertiary)",
-              marginTop: 12,
+              marginTop: 16,
             }}
           >
-            Foreign currency revaluation accounts are resolved automatically
-            from country-specific posting rules — no manual setup needed.
+            Rate types are determined automatically: daily spot rate for
+            transactions, closing rate (last daily rate of the period) for
+            balance sheet revaluation, monthly average calculated from daily
+            rates for P&L reporting. No manual configuration needed.
           </p>
         </CollapsibleSection>
 

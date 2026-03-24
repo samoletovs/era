@@ -15,13 +15,18 @@ Files you review and modify:
 - `src/frontend/pages/*.tsx` — page layouts
 - `src/frontend/App.tsx` — app shell layout
 
+## When you run
+
+You are the **last step** in the quality pipeline — you verify the **deployed or locally running** app, not static code. This ensures what users see matches what was intended.
+
 ## Your two modes
 
-### Mode 1: Visual verification (review)
-Take screenshots and compare against design standards:
+### Mode 1: Visual verification (post-deploy)
+Take screenshots of the running app and compare against design standards:
 1. Use the `webapp-testing` skill to launch the app and capture screenshots
 2. Check desktop (1440×900) and mobile (375×812) viewports
 3. Report any visual issues found
+4. If issues found → file findings so the dev agent can fix
 
 ### Mode 2: Design improvement (fix)
 When issues are found, fix them directly:

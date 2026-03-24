@@ -54,20 +54,27 @@ Track C (infra):     #17               (independent)
 | Cross-cutting (needs frontend + backend) | Start with shared types, then delegate backend, then frontend |
 | Simple bug with `copilot` label | Already assigned to Copilot coding agent — skip |
 
-### 5. Quality pipeline (after implementation)
+### 5. Quality pipeline — Plan → Build → Review → Test → Deploy → Verify
 
-Every feature goes through this pipeline after the dev agent finishes:
+Every issue follows this pipeline:
 
 ```
-Dev agent implements feature
-  → @qa writes/runs tests for the change
-  → @code-reviewer reviews for conventions, security, correctness
-  → @design-reviewer verifies visual quality (if UI changed)
-  → Orchestrator reports results
+1. PLAN     — Orchestrator triages, classifies, assigns to dev agent
+2. BUILD    — Dev agent (@backend-dev / @frontend-dev / @infra-dev) implements
+3. REVIEW   — @code-reviewer checks conventions, security, correctness
+     ↳ If rejected → back to BUILD with feedback
+4. TEST     — @qa writes/runs tests for the reviewed code
+     ↳ If failures → back to BUILD with test failures
+5. DEPLOY   — git push → CI/CD pipeline (build + test + deploy)
+6. VERIFY   — @design-reviewer checks the running app visually (if UI changed)
+     ↳ If visual issues → back to BUILD with screenshots
 ```
 
-For bug fixes, skip `@qa` if the fix is trivial (1-line change).
-For backend-only changes, skip `@design-reviewer`.
+**Skip rules:**
+- Trivial bug fixes (1-line): skip TEST (existing tests cover it)
+- Backend-only changes: skip VERIFY
+- Infrastructure changes: skip both TEST and VERIFY
+- `copilot`-labeled issues: Copilot coding agent handles end-to-end — skip all
 
 ### 6. Cross-cutting issues
 

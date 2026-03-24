@@ -526,15 +526,21 @@ describe("business event log", () => {
 
 describe("multi-currency architecture", () => {
   it("exchange rate types are valid", () => {
-    const validTypes = ["daily", "monthly-average", "closing", "budget", "group"];
-    expect(validTypes).toHaveLength(5);
+    const validTypes = ["daily", "budget"];
+    expect(validTypes).toHaveLength(2);
     expect(validTypes).toContain("daily");
-    expect(validTypes).toContain("closing");
+    expect(validTypes).toContain("budget");
   });
 
-  it("exchange rate sources are valid", () => {
-    const validSources = ["ecb", "latvian-bank", "manual"];
-    expect(validSources).toHaveLength(3);
+  it("system exchange rate sources are valid", () => {
+    const systemSources = ["ecb", "latvian-bank"];
+    expect(systemSources).toHaveLength(2);
+  });
+
+  it("custom rate sources have id and name", () => {
+    const custom = { id: "abc-123", name: "Internal treasury" };
+    expect(custom.id).toBeTruthy();
+    expect(custom.name).toBeTruthy();
   });
 
   it("converts transaction currency to accounting currency", () => {

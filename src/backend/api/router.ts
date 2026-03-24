@@ -2145,8 +2145,27 @@ router.post("/exchange-rates", async (req, res) => {
 router.post("/exchange-rates/import-ecb", async (req, res) => {
   try {
     const date = req.body.date || new Date().toISOString().slice(0, 10);
-    const rateType = req.body.rateType || "daily";
-    const result = await importEcbRates(date, rateType);
+    const result = await importSystemRates("ecb", date);
+    res.json({ data: result } as ApiResponse);
+  } catch (err) {
+    handleGLError(err, res);
+  }
+});
+
+router.post("/exchange-rates/import-system", async (req, res) => {
+  try {
+    const { source, date } = req.body;
+    if (!source || !["ecb", "latvian-bank"].includes(source)) {
+      res.status(400).json({
+        error: {
+          code: "VAL-001",
+          message: "source must be 'ecb' or 'latvian-bank'",
+        },
+      });
+      return;
+    }
+    const effectiveDate = date || new Date().toISOString().slice(0, 10);
+    const result = await importSystemRates(source, effectiveDate);
     res.json({ data: result } as ApiResponse);
   } catch (err) {
     handleGLError(err, res);
