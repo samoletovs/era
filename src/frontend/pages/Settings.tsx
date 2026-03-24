@@ -56,10 +56,6 @@ export function Settings() {
     useState<ExchangeRateType>("monthly-average");
   const [exchangeRateSource, setExchangeRateSource] =
     useState<ExchangeRateSource>("ecb");
-  const [unrealizedGainAccount, setUnrealizedGainAccount] = useState("");
-  const [unrealizedLossAccount, setUnrealizedLossAccount] = useState("");
-  const [realizedGainAccount, setRealizedGainAccount] = useState("");
-  const [realizedLossAccount, setRealizedLossAccount] = useState("");
 
   // Sharing state
   const [sharingList, setSharingList] = useState<CompanySharingEntry[]>([]);
@@ -102,10 +98,6 @@ export function Settings() {
         setAccountingRateType(cs.accountingRateType || "daily");
         setReportingRateType(cs.reportingRateType || "monthly-average");
         setExchangeRateSource(cs.exchangeRateSource || "ecb");
-        setUnrealizedGainAccount(cs.unrealizedGainAccount || "");
-        setUnrealizedLossAccount(cs.unrealizedLossAccount || "");
-        setRealizedGainAccount(cs.realizedGainAccount || "");
-        setRealizedLossAccount(cs.realizedLossAccount || "");
       }
     });
 
@@ -202,10 +194,6 @@ export function Settings() {
               ? reportingRateType
               : undefined,
             exchangeRateSource,
-            unrealizedGainAccount: unrealizedGainAccount || undefined,
-            unrealizedLossAccount: unrealizedLossAccount || undefined,
-            realizedGainAccount: realizedGainAccount || undefined,
-            realizedLossAccount: realizedLossAccount || undefined,
           } as CurrencySettings,
         },
       });
@@ -479,80 +467,6 @@ export function Settings() {
             </div>
           </div>
 
-          <h3
-            className="section-title"
-            style={{ marginTop: 20, marginBottom: 12 }}
-          >
-            Revaluation accounts
-          </h3>
-          <p
-            style={{
-              fontSize: 12,
-              color: "var(--text-secondary)",
-              marginBottom: 12,
-            }}
-          >
-            GL accounts for foreign currency revaluation gain/loss entries.
-            Required for month-end currency revaluation.
-          </p>
-          <div className="settings-grid">
-            <div className="settings-field">
-              <label>Unrealized gain account</label>
-              <input
-                value={unrealizedGainAccount}
-                onChange={(e) =>
-                  setUnrealizedGainAccount(
-                    e.target.value.replace(/[^0-9]/g, "").slice(0, 4),
-                  )
-                }
-                placeholder="e.g. 8110"
-                className="settings-input"
-                style={{ maxWidth: 120 }}
-              />
-            </div>
-            <div className="settings-field">
-              <label>Unrealized loss account</label>
-              <input
-                value={unrealizedLossAccount}
-                onChange={(e) =>
-                  setUnrealizedLossAccount(
-                    e.target.value.replace(/[^0-9]/g, "").slice(0, 4),
-                  )
-                }
-                placeholder="e.g. 8120"
-                className="settings-input"
-                style={{ maxWidth: 120 }}
-              />
-            </div>
-            <div className="settings-field">
-              <label>Realized gain account</label>
-              <input
-                value={realizedGainAccount}
-                onChange={(e) =>
-                  setRealizedGainAccount(
-                    e.target.value.replace(/[^0-9]/g, "").slice(0, 4),
-                  )
-                }
-                placeholder="e.g. 8130"
-                className="settings-input"
-                style={{ maxWidth: 120 }}
-              />
-            </div>
-            <div className="settings-field">
-              <label>Realized loss account</label>
-              <input
-                value={realizedLossAccount}
-                onChange={(e) =>
-                  setRealizedLossAccount(
-                    e.target.value.replace(/[^0-9]/g, "").slice(0, 4),
-                  )
-                }
-                placeholder="e.g. 8140"
-                className="settings-input"
-                style={{ maxWidth: 120 }}
-              />
-            </div>
-          </div>
           <p
             style={{
               fontSize: 11,
@@ -560,9 +474,8 @@ export function Settings() {
               marginTop: 12,
             }}
           >
-            Foreign currency revaluation runs automatically as a step in the
-            month-end close process. Accounts flagged for revaluation are
-            adjusted using the closing exchange rate.
+            Foreign currency revaluation accounts are resolved automatically
+            from country-specific posting rules — no manual setup needed.
           </p>
         </CollapsibleSection>
 
@@ -806,7 +719,7 @@ export function Settings() {
 
         {/* Block 5: Company sharing — only visible for owners */}
         {isOwner && (
-          <CollapsibleSection title="Team access" defaultExpanded={false}>
+          <CollapsibleSection title="Team access" defaultExpanded={true}>
             <p
               style={{
                 fontSize: 12,

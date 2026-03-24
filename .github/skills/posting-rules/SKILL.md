@@ -179,5 +179,39 @@ Key LV account codes:
 | 2420 | Bank accounts | Payment receipt/disbursement |
 | 4220 | Trade payables | Purchase invoice AP |
 | 4230 | VAT payable | Output VAT on sales |
+| 5220 | Foreign exchange gains | FX revaluation gain |
+| 6420 | Foreign exchange losses | FX revaluation loss |
 
 LV VAT rates: 21% (standard), 12% (reduced), 5% (super-reduced), 0% (zero).
+
+## FX Revaluation Rules
+
+Every country MUST include an `fx-revaluation` rule that defines where FX gains
+and losses post. The currency revaluation service resolves these accounts
+automatically from the posting rules — **no manual settings needed**.
+
+Amount expressions for FX revaluation rules:
+- `revaluation.gain` — unrealized FX gain amount
+- `revaluation.loss` — unrealized FX loss amount
+
+Example (Latvia):
+```typescript
+{
+  id: "lv-fx-revaluation-v1",
+  country: "LV",
+  documentType: "fx-revaluation",
+  name: "Latvia — Foreign currency revaluation",
+  description: "Unrealized FX gain: CR 5220. Unrealized FX loss: DR 6420.",
+  version: 1,
+  conditions: [],
+  lines: [
+    { accountCode: "5220", accountName: "Foreign exchange gains", side: "credit", amountExpr: "revaluation.gain" },
+    { accountCode: "6420", accountName: "Foreign exchange losses", side: "debit", amountExpr: "revaluation.loss" },
+  ],
+  effectiveFrom: "2024-01-01",
+  ...base,
+}
+```
+
+This design follows ERA's **zero-config principle**: users never configure GL accounts
+for revaluation — the system derives them from the country's legislation and CoA.

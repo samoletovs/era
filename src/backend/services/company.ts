@@ -173,8 +173,7 @@ export async function createCompany(
     nextInvoiceNumber: 1,
     currency: {
       accountingCurrency: "EUR",
-      accountingRateType: "daily",
-      exchangeRateSource: "ecb",
+      accountingRateSource: "ecb",
     },
   };
 

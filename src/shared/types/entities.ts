@@ -133,44 +133,52 @@ export interface BankAccount {
 // Accounting currency   — company's statutory/local currency for GL & authority reporting
 // Reporting currency    — optional group/consolidation currency (independent conversion from transaction currency)
 //
-// Exchange rate types allow different rates for different purposes:
-//   daily          — spot/current rate (default for accounting)
-//   monthly-average — averaged over the month (common for reporting)
-//   closing        — period-end rate for balance sheet revaluation
-//   budget         — rates used in budget/forecast scenarios
-//   group          — intercompany rates set by parent
+// Exchange rate types:
+//   daily  — spot/current rate from the exchange rate source (default for all transactions)
+//   budget — rates set manually for budget/forecast scenarios
+//
+// Closing rate = the daily rate on the last business day of the period (auto-derived)
+// Monthly average = calculated from stored daily rates (auto-derived)
+// No user selection needed — the system determines which rate to use per IAS 21.
 
-export type ExchangeRateType =
-  | "daily"
-  | "monthly-average"
-  | "closing"
-  | "budget"
-  | "group";
+export type ExchangeRateType = "daily" | "budget";
+
+// System rate sources (shared globally across all users and companies):
+//   "ecb"          — European Central Bank, auto-imported ~16:00 CET daily
+//   "latvian-bank" — Bank of Latvia (mirrors ECB for EUR, adds LVL legacy pairs)
+// Custom sources are user-defined, identified by UUID, stored in company settings.
+export type SystemRateSource = "ecb" | "latvian-bank";
+
+export const SYSTEM_RATE_SOURCES: { id: SystemRateSource; name: string }[] = [
+  { id: "ecb", name: "European Central Bank (ECB)" },
+  { id: "latvian-bank", name: "Bank of Latvia" },
+];
+
+export interface CustomRateSource {
+  id: string; // UUID
+  name: string; // user-defined label, e.g. "Internal treasury", "Group rates"
+}
 
 export interface CurrencySettings {
   accountingCurrency: string; // ISO 4217, required — set at company creation
   reportingCurrency?: string; // ISO 4217, optional — for group consolidation
-  accountingRateType: ExchangeRateType; // rate type used for transaction → accounting conversion
-  reportingRateType?: ExchangeRateType; // rate type used for transaction → reporting conversion
-  exchangeRateSource: ExchangeRateSource; // where rates are imported from
-  unrealizedGainAccount?: string; // GL account code for unrealized FX gains (e.g. "8110")
-  unrealizedLossAccount?: string; // GL account code for unrealized FX losses (e.g. "8120")
-  realizedGainAccount?: string; // GL account code for realized FX gains (e.g. "8130")
-  realizedLossAccount?: string; // GL account code for realized FX losses (e.g. "8140")
+  accountingRateSource: string; // source ID: "ecb" | "latvian-bank" | custom UUID
+  reportingRateSource?: string; // source ID: "ecb" | "latvian-bank" | custom UUID
+  customRateSources?: CustomRateSource[]; // user-defined manual sources (max 5)
+  // FX gain/loss accounts are resolved automatically from posting rules (documentType: "fx-revaluation")
+  // No manual configuration needed — the system uses country-specific rules
 }
-
-export type ExchangeRateSource = "ecb" | "latvian-bank" | "manual";
 
 export interface ExchangeRate {
   id: string;
   docType?: "exchange-rate"; // Cosmos discriminator
   fromCurrency: string; // ISO 4217
   toCurrency: string; // ISO 4217
-  rateType: ExchangeRateType; // which rate set this belongs to
+  rateType: ExchangeRateType; // "daily" for imported/manual, "budget" for forecasts
   rate: number; // 1 fromCurrency = rate toCurrency
   effectiveDate: string; // ISO date
-  source: ExchangeRateSource;
-  companyId?: string; // null = shared across companies
+  source: string; // "ecb" | "latvian-bank" | custom source UUID
+  companyId?: string; // null = shared (system sources), companyId for custom sources
   createdAt: string;
 }
 
@@ -462,7 +470,8 @@ export interface PostingRule {
     | "purchase-invoice"
     | "incoming-payment"
     | "outgoing-payment"
-    | "manual-entry";
+    | "manual-entry"
+    | "fx-revaluation";
   name: string;
   description: string;
   version: number;

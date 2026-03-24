@@ -112,6 +112,7 @@ import {
   saveExchangeRate,
   getExchangeRate,
   importEcbRates,
+  importSystemRates,
   runForeignCurrencyRevaluation,
 } from "../services/currency-revaluation.js";
 import { containers } from "../services/cosmos.js";
@@ -412,14 +413,12 @@ router.get("/companies/:companyId/sharing", async (req, res) => {
       (c) => c.companyId === companyId,
     )?.role;
     if (callerRole !== "owner") {
-      res
-        .status(403)
-        .json({
-          error: {
-            code: "AUTH-003",
-            message: "Only the company owner can manage sharing",
-          },
-        });
+      res.status(403).json({
+        error: {
+          code: "AUTH-003",
+          message: "Only the company owner can manage sharing",
+        },
+      });
       return;
     }
 
@@ -462,22 +461,18 @@ router.post("/companies/:companyId/sharing", async (req, res) => {
     const { email, role } = req.body as { email?: string; role?: string };
 
     if (!email || typeof email !== "string" || !email.includes("@")) {
-      res
-        .status(400)
-        .json({
-          error: { code: "VAL-001", message: "Valid email is required" },
-        });
+      res.status(400).json({
+        error: { code: "VAL-001", message: "Valid email is required" },
+      });
       return;
     }
     if (!role || !["accountant", "viewer"].includes(role)) {
-      res
-        .status(400)
-        .json({
-          error: {
-            code: "VAL-001",
-            message: "Role must be 'accountant' or 'viewer'",
-          },
-        });
+      res.status(400).json({
+        error: {
+          code: "VAL-001",
+          message: "Role must be 'accountant' or 'viewer'",
+        },
+      });
       return;
     }
 
@@ -490,14 +485,12 @@ router.post("/companies/:companyId/sharing", async (req, res) => {
       (c) => c.companyId === companyId,
     )?.role;
     if (callerRole !== "owner") {
-      res
-        .status(403)
-        .json({
-          error: {
-            code: "AUTH-003",
-            message: "Only the company owner can share",
-          },
-        });
+      res.status(403).json({
+        error: {
+          code: "AUTH-003",
+          message: "Only the company owner can share",
+        },
+      });
       return;
     }
 
@@ -550,11 +543,9 @@ router.post("/companies/:companyId/sharing", async (req, res) => {
 
     // Don't allow sharing with yourself
     if (targetUser.id === req.user!.id) {
-      res
-        .status(400)
-        .json({
-          error: { code: "BIZ-001", message: "Cannot share with yourself" },
-        });
+      res.status(400).json({
+        error: { code: "BIZ-001", message: "Cannot share with yourself" },
+      });
       return;
     }
 
@@ -594,14 +585,12 @@ router.patch("/companies/:companyId/sharing/:userId", async (req, res) => {
     const { role } = req.body as { role?: string };
 
     if (!role || !["accountant", "viewer"].includes(role)) {
-      res
-        .status(400)
-        .json({
-          error: {
-            code: "VAL-001",
-            message: "Role must be 'accountant' or 'viewer'",
-          },
-        });
+      res.status(400).json({
+        error: {
+          code: "VAL-001",
+          message: "Role must be 'accountant' or 'viewer'",
+        },
+      });
       return;
     }
 
@@ -614,14 +603,12 @@ router.patch("/companies/:companyId/sharing/:userId", async (req, res) => {
       (c) => c.companyId === companyId,
     )?.role;
     if (callerRole !== "owner") {
-      res
-        .status(403)
-        .json({
-          error: {
-            code: "AUTH-003",
-            message: "Only the company owner can update sharing",
-          },
-        });
+      res.status(403).json({
+        error: {
+          code: "AUTH-003",
+          message: "Only the company owner can update sharing",
+        },
+      });
       return;
     }
 
@@ -641,14 +628,12 @@ router.patch("/companies/:companyId/sharing/:userId", async (req, res) => {
       (c) => c.companyId === companyId,
     );
     if (!companyRole || companyRole.role === "owner") {
-      res
-        .status(404)
-        .json({
-          error: {
-            code: "NOT_FOUND",
-            message: "No sharing entry found for this user",
-          },
-        });
+      res.status(404).json({
+        error: {
+          code: "NOT_FOUND",
+          message: "No sharing entry found for this user",
+        },
+      });
       return;
     }
 
@@ -675,14 +660,12 @@ router.delete("/companies/:companyId/sharing/:userId", async (req, res) => {
       (c) => c.companyId === companyId,
     )?.role;
     if (callerRole !== "owner") {
-      res
-        .status(403)
-        .json({
-          error: {
-            code: "AUTH-003",
-            message: "Only the company owner can remove sharing",
-          },
-        });
+      res.status(403).json({
+        error: {
+          code: "AUTH-003",
+          message: "Only the company owner can remove sharing",
+        },
+      });
       return;
     }
 
@@ -702,11 +685,9 @@ router.delete("/companies/:companyId/sharing/:userId", async (req, res) => {
       (c) => c.companyId === companyId,
     );
     if (idx === -1 || targetUser.companies[idx].role === "owner") {
-      res
-        .status(404)
-        .json({
-          error: { code: "NOT_FOUND", message: "No sharing entry found" },
-        });
+      res.status(404).json({
+        error: { code: "NOT_FOUND", message: "No sharing entry found" },
+      });
       return;
     }
 

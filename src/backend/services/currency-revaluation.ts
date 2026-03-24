@@ -8,8 +8,16 @@ import { v4 as uuidv4 } from "uuid";
 import { containers } from "./cosmos.js";
 import { postJournalEntry, GLError } from "./ledger.js";
 import { emitEvent } from "./events.js";
+import { getActiveRule } from "./posting-rules.js";
 import { cacheGet, cacheSet, CACHE_KEYS, CACHE_TTL } from "./cache.js";
-import type { Account, Company, ExchangeRate, ExchangeRateType, JournalLine } from "@shared/types";
+import type {
+  Account,
+  Company,
+  ExchangeRate,
+  ExchangeRateType,
+  JournalLine,
+} from "@shared/types";
+import type { SystemRateSource } from "@shared/types";
 
 function roundCurrency(n: number): number {
   return Math.round(n * 100) / 100;
@@ -26,17 +34,22 @@ export async function getExchangeRate(
   toCurrency: string,
   rateType: ExchangeRateType,
   effectiveDate: string,
-  companyId?: string
+  companyId?: string,
 ): Promise<number> {
   if (fromCurrency === toCurrency) return 1;
 
   // Check cache first
-  const cacheKey = CACHE_KEYS.exchangeRate(fromCurrency, toCurrency, effectiveDate);
+  const cacheKey = CACHE_KEYS.exchangeRate(
+    fromCurrency,
+    toCurrency,
+    effectiveDate,
+  );
   const cached = cacheGet<number>(cacheKey);
   if (cached !== undefined) return cached;
 
-  const { resources } = await containers.ledger().items
-    .query<ExchangeRate>({
+  const { resources } = await containers
+    .ledger()
+    .items.query<ExchangeRate>({
       query: `SELECT TOP 1 * FROM c
               WHERE c.docType = 'exchange-rate'
                 AND c.fromCurrency = @from
@@ -59,8 +72,9 @@ export async function getExchangeRate(
   }
 
   // Fallback: try the reverse direction
-  const { resources: reverse } = await containers.ledger().items
-    .query<ExchangeRate>({
+  const { resources: reverse } = await containers
+    .ledger()
+    .items.query<ExchangeRate>({
       query: `SELECT TOP 1 * FROM c
               WHERE c.docType = 'exchange-rate'
                 AND c.fromCurrency = @to
@@ -85,15 +99,26 @@ export async function getExchangeRate(
 
   // Fallback: try "daily" rate type if requested type not found
   if (rateType !== "daily") {
-    return getExchangeRate(fromCurrency, toCurrency, "daily", effectiveDate, companyId);
+    return getExchangeRate(
+      fromCurrency,
+      toCurrency,
+      "daily",
+      effectiveDate,
+      companyId,
+    );
   }
 
-  throw new GLError("RATE_NOT_FOUND", `No exchange rate found for ${fromCurrency}→${toCurrency} (${rateType}) on or before ${effectiveDate}`);
+  throw new GLError(
+    "RATE_NOT_FOUND",
+    `No exchange rate found for ${fromCurrency}→${toCurrency} (${rateType}) on or before ${effectiveDate}`,
+  );
 }
 
 // ─── Save Exchange Rate ─────────────────────────────────────
 
-export async function saveExchangeRate(rate: Omit<ExchangeRate, "id" | "createdAt">): Promise<ExchangeRate> {
+export async function saveExchangeRate(
+  rate: Omit<ExchangeRate, "id" | "createdAt">,
+): Promise<ExchangeRate> {
   const record: ExchangeRate = {
     id: uuidv4(),
     docType: "exchange-rate",
@@ -110,13 +135,34 @@ export async function saveExchangeRate(rate: Omit<ExchangeRate, "id" | "createdA
  * Import daily exchange rates from the European Central Bank.
  * ECB publishes rates as 1 EUR = X foreign currency.
  */
-export async function importEcbRates(
+/**
+ * Import daily exchange rates from a system source (ECB or Bank of Latvia).
+ * ECB publishes rates at ~16:00 CET. Previous day's rate is used for today (standard practice).
+ * Bank of Latvia mirrors ECB rates for EUR-based pairs.
+ * System-source rates are shared globally — no companyId needed.
+ */
+export async function importSystemRates(
+  source: SystemRateSource,
   date: string,
-  rateType: ExchangeRateType = "daily"
-): Promise<{ imported: number; date: string }> {
+): Promise<{ imported: number; date: string; source: string }> {
+  if (source === "ecb" || source === "latvian-bank") {
+    // Both use the ECB XML feed; Bank of Latvia mirrors ECB since Latvia joined EUR in 2014
+    return importEcbXml(date, source);
+  }
+  throw new GLError("INVALID_SOURCE", `Unknown system rate source: ${source}`);
+}
+
+async function importEcbXml(
+  date: string,
+  source: SystemRateSource,
+): Promise<{ imported: number; date: string; source: string }> {
   const url = "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml";
   const response = await fetch(url);
-  if (!response.ok) throw new GLError("ECB_FETCH_FAILED", `ECB rate fetch failed: ${response.status}`);
+  if (!response.ok)
+    throw new GLError(
+      "ECB_FETCH_FAILED",
+      `ECB rate fetch failed: ${response.status}`,
+    );
 
   const xml = await response.text();
   const rateRegex = /currency='([A-Z]{3})'\s+rate='([\d.]+)'/g;
@@ -130,16 +176,24 @@ export async function importEcbRates(
       await saveExchangeRate({
         fromCurrency: "EUR",
         toCurrency: currency,
-        rateType,
+        rateType: "daily",
         rate,
         effectiveDate: date,
-        source: "ecb",
+        source,
       });
       imported++;
     }
   }
 
-  return { imported, date };
+  return { imported, date, source };
+}
+
+/** @deprecated Use importSystemRates("ecb", date) instead */
+export async function importEcbRates(
+  date: string,
+  rateType: ExchangeRateType = "daily",
+): Promise<{ imported: number; date: string }> {
+  return importSystemRates("ecb", date);
 }
 
 // ─── Foreign Currency Revaluation ───────────────────────────
@@ -159,7 +213,7 @@ export interface RevaluationDetail {
   foreignBalance: number;
   currentAccountingBalance: number;
   revaluedAccountingBalance: number;
-  adjustmentAmount: number;    // positive = gain, negative = loss
+  adjustmentAmount: number; // positive = gain, negative = loss
   closingRate: number;
 }
 
@@ -178,29 +232,54 @@ export interface RevaluationDetail {
 export async function runForeignCurrencyRevaluation(
   companyId: string,
   period: string,
-  actor: string
+  actor: string,
 ): Promise<RevaluationResult> {
   // Load company settings
-  const { resource: company } = await containers.companies()
-    .item(companyId, companyId).read<Company>();
+  const { resource: company } = await containers
+    .companies()
+    .item(companyId, companyId)
+    .read<Company>();
   if (!company) throw new GLError("NOT_FOUND", "Company not found");
 
   const currencySettings = company.settings.currency;
   if (!currencySettings) {
-    return { accountsRevalued: 0, totalUnrealizedGain: 0, totalUnrealizedLoss: 0, details: [] };
+    return {
+      accountsRevalued: 0,
+      totalUnrealizedGain: 0,
+      totalUnrealizedLoss: 0,
+      details: [],
+    };
   }
 
   const accountingCurrency = currencySettings.accountingCurrency;
-  const gainAccount = currencySettings.unrealizedGainAccount;
-  const lossAccount = currencySettings.unrealizedLossAccount;
 
-  if (!gainAccount || !lossAccount) {
-    throw new GLError("CONFIG_MISSING", "Unrealized gain/loss GL accounts must be configured in currency settings before running revaluation");
+  // Resolve FX gain/loss accounts from posting rules (zero-config: no manual setup needed)
+  const fxRule = await getActiveRule(company.country || "LV", "fx-revaluation");
+  if (!fxRule) {
+    throw new GLError(
+      "CONFIG_MISSING",
+      `No FX revaluation posting rule found for country ${company.country || "LV"}. Add a rule with documentType 'fx-revaluation'.`,
+    );
   }
+  const gainLine = fxRule.lines.find(
+    (l) => l.amountExpr === "revaluation.gain",
+  );
+  const lossLine = fxRule.lines.find(
+    (l) => l.amountExpr === "revaluation.loss",
+  );
+  if (!gainLine || !lossLine) {
+    throw new GLError(
+      "CONFIG_MISSING",
+      "FX revaluation posting rule must define lines for 'revaluation.gain' and 'revaluation.loss'",
+    );
+  }
+  const gainAccount = gainLine.accountCode;
+  const lossAccount = lossLine.accountCode;
 
   // 1. Get accounts flagged for revaluation
-  const { resources: accounts } = await containers.ledger().items
-    .query<Account>({
+  const { resources: accounts } = await containers
+    .ledger()
+    .items.query<Account>({
       query: `SELECT * FROM c
               WHERE c.companyId = @cid
                 AND c.docType = 'account'
@@ -211,7 +290,12 @@ export async function runForeignCurrencyRevaluation(
     .fetchAll();
 
   if (accounts.length === 0) {
-    return { accountsRevalued: 0, totalUnrealizedGain: 0, totalUnrealizedLoss: 0, details: [] };
+    return {
+      accountsRevalued: 0,
+      totalUnrealizedGain: 0,
+      totalUnrealizedLoss: 0,
+      details: [],
+    };
   }
 
   // Calculate period-end date
@@ -228,8 +312,9 @@ export async function runForeignCurrencyRevaluation(
     if (!foreignCurrency || foreignCurrency === accountingCurrency) continue;
 
     // Get all posted journal lines for this account that have foreign currency
-    const { resources: entries } = await containers.ledger().items
-      .query<any>({
+    const { resources: entries } = await containers
+      .ledger()
+      .items.query<any>({
         query: `SELECT * FROM c
                 WHERE c.companyId = @cid
                   AND c.docType = 'journal-entry'
@@ -247,15 +332,18 @@ export async function runForeignCurrencyRevaluation(
     let accountingBalance = 0;
 
     for (const entry of entries) {
-      for (const line of (entry.lines || [])) {
+      for (const line of entry.lines || []) {
         if (line.accountCode !== account.code) continue;
         if (line.currencyCode === foreignCurrency) {
           const foreignAmount = line.amountInCurrency || 0;
           const netDebitCredit = line.debit - line.credit;
           // Foreign balance tracks the transaction currency amounts
-          foreignBalance += foreignAmount !== 0
-            ? (line.debit > 0 ? Math.abs(foreignAmount) : -Math.abs(foreignAmount))
-            : netDebitCredit;
+          foreignBalance +=
+            foreignAmount !== 0
+              ? line.debit > 0
+                ? Math.abs(foreignAmount)
+                : -Math.abs(foreignAmount)
+              : netDebitCredit;
           accountingBalance += netDebitCredit;
         }
       }
@@ -263,13 +351,13 @@ export async function runForeignCurrencyRevaluation(
 
     if (foreignBalance === 0) continue;
 
-    // 3. Get closing exchange rate
+    // 3. Get closing exchange rate (= daily rate on period-end date, per IAS 21)
     const closingRate = await getExchangeRate(
       foreignCurrency,
       accountingCurrency,
-      "closing",
+      "daily",
       periodEndDate,
-      companyId
+      companyId,
     );
 
     // 4. Calculate what accounting balance should be at closing rate
@@ -330,8 +418,16 @@ export async function runForeignCurrencyRevaluation(
 
   const result: RevaluationResult = {
     accountsRevalued: details.length,
-    totalUnrealizedGain: roundCurrency(details.filter(d => d.adjustmentAmount > 0).reduce((s, d) => s + d.adjustmentAmount, 0)),
-    totalUnrealizedLoss: roundCurrency(details.filter(d => d.adjustmentAmount < 0).reduce((s, d) => s + Math.abs(d.adjustmentAmount), 0)),
+    totalUnrealizedGain: roundCurrency(
+      details
+        .filter((d) => d.adjustmentAmount > 0)
+        .reduce((s, d) => s + d.adjustmentAmount, 0),
+    ),
+    totalUnrealizedLoss: roundCurrency(
+      details
+        .filter((d) => d.adjustmentAmount < 0)
+        .reduce((s, d) => s + Math.abs(d.adjustmentAmount), 0),
+    ),
     details,
   };
 

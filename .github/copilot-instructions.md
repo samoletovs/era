@@ -31,6 +31,16 @@ npm run lint          # Lint all source files
 - Inter font family for UI (per design-system skill)
 - See `README.md` for module overview and architecture
 
+## Design Principle: Zero-Config, Agent-Driven
+
+ERA is a future ERP run by AI agents. Users provide facts, the system decides how to process them.
+
+- **Never add a settings field** for something that can be derived from country legislation or posting rules
+- **Posting rules** (in `src/shared/rules/{cc}.ts`) encode all accounting logic — GL accounts, VAT treatment, FX gain/loss accounts
+- When building a new feature, ask: "Can the system figure this out automatically?" If yes, use rules, not settings
+- Every feature should be operable by an AI agent end-to-end — minimize required user interaction
+- New country = new posting rules file, not new settings UI
+
 ## Git
 
 - GitHub account: `samoletovs`
