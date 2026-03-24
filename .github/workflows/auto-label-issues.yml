@@ -10,7 +10,7 @@ jobs:
     permissions:
       issues: write
     steps:
-      - name: Label and assign based on issue content
+      - name: Label, prioritize, normalize, and assign
         uses: actions/github-script@v7
         with:
           script: |
@@ -69,7 +69,22 @@ jobs:
               }
             }
 
-            // ── Step 3: Apply labels ──
+            // ── Step 3: Priority detection ──
+            const highPriority = ['crash', 'cannot', 'broken', 'error', 'fail', 'block',
+              'data loss', 'wrong amount', 'wrong balance', 'security', 'urgent',
+              'critical', 'not working', 'blank screen', 'white screen', '500'];
+            const lowPriority = ['nice to have', 'minor', 'cosmetic', 'typo',
+              'suggestion', 'maybe', 'could', 'would be nice', 'small'];
+
+            if (highPriority.some(kw => fullText.includes(kw))) {
+              labelsToAdd.push('priority:high');
+            } else if (lowPriority.some(kw => fullText.includes(kw))) {
+              labelsToAdd.push('priority:low');
+            } else {
+              labelsToAdd.push('priority:medium');
+            }
+
+            // ── Step 4: Apply labels ──
             if (labelsToAdd.length > 0) {
               await github.rest.issues.addLabels({
                 owner: context.repo.owner,
@@ -80,7 +95,42 @@ jobs:
               console.log(`Labels applied: ${labelsToAdd.join(', ')}`);
             }
 
-            // ── Step 4: Auto-assign copilot for simple bug fixes ──
+            // ── Step 5: Normalize freeform feedback into structured format ──
+            // If submitted via the in-app button (has "Submitted via in-app feedback"),
+            // reformat the body into a structured template
+            const isInAppFeedback = body.includes('Submitted via in-app feedback');
+            if (isInAppFeedback) {
+              const pageMatch = body.match(/Page: `([^`]+)`/);
+              const page = pageMatch ? pageMatch[1] : 'unknown';
+              // Extract the user's message (between the heading and the divider)
+              const msgMatch = body.match(/## .+\n\n([\s\S]*?)\n\n---/);
+              const userMessage = msgMatch ? msgMatch[1].trim() : body;
+
+              const typeLabel = typeMatch ? typeMatch.label : 'feedback';
+              const sections = [
+                `### Description`,
+                userMessage,
+                ``,
+                `### Context`,
+                `- **Page**: \`${page}\``,
+                `- **Type**: ${typeLabel}`,
+                `- **Area**: ${labelsToAdd.find(l => l.startsWith('area:')) || 'auto-detect'}`,
+                `- **Priority**: ${labelsToAdd.find(l => l.startsWith('priority:')) || 'medium'}`,
+                ``,
+                `---`,
+                `*Auto-formatted from in-app feedback*`,
+              ].join('\n');
+
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: sections,
+              });
+              console.log('Normalized freeform feedback into structured format');
+            }
+
+            // ── Step 6: Auto-assign copilot for simple bug fixes ──
             // Copilot coding agent works best with well-scoped issues
             const isBug = labelsToAdd.includes('bug') || labelsToAdd.includes('ui/ux');
             const isShort = (issue.body || '').length < 500;

@@ -1,0 +1,28 @@
+name: "🎨 UI/UX improvement"
+description: "Something looks wrong or could look better"
+labels: ["ui/ux"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: What's the issue?
+      description: Describe what looks off or what could be improved visually.
+      placeholder: "The table columns are too wide on mobile and I have to scroll horizontally..."
+    validations:
+      required: true
+  - type: input
+    id: page
+    attributes:
+      label: Page / URL
+      description: Which page is affected?
+      placeholder: "/contacts"
+  - type: dropdown
+    id: device
+    attributes:
+      label: Device
+      options:
+        - Desktop
+        - Mobile
+        - Both
+    validations:
+      required: false

@@ -1,0 +1,28 @@
+name: "🐛 Bug report"
+description: "Something isn't working correctly"
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the bug — what did you expect vs what actually happened?
+      placeholder: "When I click the save button on the invoice form, nothing happens..."
+    validations:
+      required: true
+  - type: input
+    id: page
+    attributes:
+      label: Page / URL
+      description: Which page were you on?
+      placeholder: "/invoices"
+  - type: dropdown
+    id: device
+    attributes:
+      label: Device
+      options:
+        - Desktop
+        - Mobile
+        - Both
+    validations:
+      required: false
