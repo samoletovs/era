@@ -486,4 +486,47 @@ export const api = {
     apiFetch(`/companies/${companyId}/sharing/${userId}`, {
       method: "DELETE",
     }),
+
+  // Exchange rates
+  exchangeRates: (opts?: {
+    source?: string;
+    rateType?: string;
+    fromDate?: string;
+    toDate?: string;
+    baseCurrency?: string;
+    limit?: number;
+  }) => {
+    const params = new URLSearchParams();
+    if (opts?.source) params.set("source", opts.source);
+    if (opts?.rateType) params.set("rateType", opts.rateType);
+    if (opts?.fromDate) params.set("fromDate", opts.fromDate);
+    if (opts?.toDate) params.set("toDate", opts.toDate);
+    if (opts?.baseCurrency) params.set("baseCurrency", opts.baseCurrency);
+    if (opts?.limit) params.set("limit", String(opts.limit));
+    const qs = params.toString();
+    return apiFetch<import("@shared/types").ExchangeRate[]>(
+      `/exchange-rates/list${qs ? `?${qs}` : ""}`,
+    );
+  },
+  createExchangeRate: (body: {
+    fromCurrency: string;
+    toCurrency: string;
+    rate: number;
+    effectiveDate: string;
+    source: string;
+    rateType?: string;
+    companyId?: string;
+  }) =>
+    apiFetch<import("@shared/types").ExchangeRate>("/exchange-rates", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  importSystemRates: (source: string, date?: string) =>
+    apiFetch<{ imported: number; date: string; source: string }>(
+      "/exchange-rates/import-system",
+      {
+        method: "POST",
+        body: JSON.stringify({ source, date }),
+      },
+    ),
 };

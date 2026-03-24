@@ -17,6 +17,7 @@ import type {
   DateTimeFormat,
   CurrencySettings,
   CustomRateSource,
+  ExchangeRate,
   CompanySharingEntry,
 } from "@shared/types";
 import {
@@ -55,10 +56,27 @@ export function Settings() {
   const [reportingCurrency, setReportingCurrency] = useState("");
   const [accountingRateSource, setAccountingRateSource] = useState("ecb");
   const [reportingRateSource, setReportingRateSource] = useState("ecb");
+  const [budgetRateSource, setBudgetRateSource] = useState("");
   const [customRateSources, setCustomRateSources] = useState<
     CustomRateSource[]
   >([]);
   const [newSourceName, setNewSourceName] = useState("");
+
+  // Exchange rates table state
+  const [ratesViewSource, setRatesViewSource] = useState("");
+  const [ratesViewDate, setRatesViewDate] = useState(
+    new Date().toISOString().slice(0, 10),
+  );
+  const [rates, setRates] = useState<ExchangeRate[]>([]);
+  const [ratesLoading, setRatesLoading] = useState(false);
+  const [newRateFrom, setNewRateFrom] = useState("EUR");
+  const [newRateTo, setNewRateTo] = useState("USD");
+  const [newRateValue, setNewRateValue] = useState("");
+  const [newRateDate, setNewRateDate] = useState(
+    new Date().toISOString().slice(0, 10),
+  );
+  const [newRateType, setNewRateType] = useState<"daily" | "budget">("daily");
+  const [rateSaving, setRateSaving] = useState(false);
 
   // Sharing state
   const [sharingList, setSharingList] = useState<CompanySharingEntry[]>([]);
@@ -100,6 +118,7 @@ export function Settings() {
         setReportingCurrency(cs.reportingCurrency || "");
         setAccountingRateSource(cs.accountingRateSource || "ecb");
         setReportingRateSource(cs.reportingRateSource || "ecb");
+        setBudgetRateSource(cs.budgetRateSource || "");
         setCustomRateSources(cs.customRateSources || []);
       }
     });
@@ -196,6 +215,7 @@ export function Settings() {
             reportingRateSource: reportingCurrency
               ? reportingRateSource
               : undefined,
+            budgetRateSource: budgetRateSource || undefined,
             customRateSources:
               customRateSources.length > 0 ? customRateSources : undefined,
           } as CurrencySettings,
@@ -413,9 +433,9 @@ export function Settings() {
             }}
           >
             System sources (ECB, Bank of Latvia) import rates automatically at
-            ~16:00 CET daily and are shared across all companies. Custom sources
-            allow manual rate entry. Previous day&apos;s rate applies for
-            today&apos;s transactions.
+            ~16:00 CET daily — rates released today apply to next business day.
+            Custom sources allow manual rate entry and are shared across your
+            companies.
           </p>
           <div className="settings-grid">
             <div className="settings-field">
@@ -466,6 +486,29 @@ export function Settings() {
                 </span>
               </div>
             )}
+            <div className="settings-field">
+              <label>Budget rate source (optional)</label>
+              <select
+                value={budgetRateSource}
+                onChange={(e) => setBudgetRateSource(e.target.value)}
+                className="settings-input"
+              >
+                <option value="">Same as accounting</option>
+                {SYSTEM_RATE_SOURCES.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+                {customRateSources.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+              <span className="field-hint">
+                Source for exchange rates used in budget and forecast scenarios
+              </span>
+            </div>
           </div>
 
           <h3
@@ -486,55 +529,47 @@ export function Settings() {
           </p>
           {customRateSources.length > 0 && (
             <div style={{ marginBottom: 12 }}>
-              {customRateSources.map((src) => (
-                <div
-                  key={src.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    padding: "8px 0",
-                    borderBottom: "1px solid var(--border)",
-                  }}
-                >
-                  <span style={{ flex: 1, fontSize: 14 }}>{src.name}</span>
-                  <button
-                    onClick={() => {
-                      const isUsed =
-                        accountingRateSource === src.id ||
-                        reportingRateSource === src.id;
-                      if (isUsed) return;
-                      setCustomRateSources((prev) =>
-                        prev.filter((s) => s.id !== src.id),
-                      );
-                    }}
-                    disabled={
-                      accountingRateSource === src.id ||
-                      reportingRateSource === src.id
-                    }
+              {customRateSources.map((src) => {
+                const isUsed =
+                  accountingRateSource === src.id ||
+                  reportingRateSource === src.id ||
+                  budgetRateSource === src.id;
+                return (
+                  <div
+                    key={src.id}
                     style={{
-                      padding: "4px 10px",
-                      fontSize: 12,
-                      borderRadius: 6,
-                      border: "1px solid var(--border)",
-                      background: "var(--bg-card)",
-                      color: "var(--text-secondary)",
-                      cursor:
-                        accountingRateSource === src.id ||
-                        reportingRateSource === src.id
-                          ? "not-allowed"
-                          : "pointer",
-                      opacity:
-                        accountingRateSource === src.id ||
-                        reportingRateSource === src.id
-                          ? 0.45
-                          : 1,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      padding: "8px 0",
+                      borderBottom: "1px solid var(--border)",
                     }}
                   >
-                    Remove
-                  </button>
-                </div>
-              ))}
+                    <span style={{ flex: 1, fontSize: 14 }}>{src.name}</span>
+                    <button
+                      onClick={() => {
+                        if (isUsed) return;
+                        setCustomRateSources((prev) =>
+                          prev.filter((s) => s.id !== src.id),
+                        );
+                      }}
+                      disabled={isUsed}
+                      style={{
+                        padding: "4px 10px",
+                        fontSize: 12,
+                        borderRadius: 6,
+                        border: "1px solid var(--border)",
+                        background: "var(--bg-card)",
+                        color: "var(--text-secondary)",
+                        cursor: isUsed ? "not-allowed" : "pointer",
+                        opacity: isUsed ? 0.45 : 1,
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           )}
           {customRateSources.length < 5 && (
@@ -576,6 +611,439 @@ export function Settings() {
             </div>
           )}
 
+          <h3
+            className="section-title"
+            style={{ marginTop: 24, marginBottom: 12 }}
+          >
+            Exchange rates
+          </h3>
+          <p
+            style={{
+              fontSize: 12,
+              color: "var(--text-secondary)",
+              marginBottom: 12,
+            }}
+          >
+            View imported and manually entered rates. For custom sources, you
+            can add rates directly below.
+          </p>
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              alignItems: "flex-end",
+              flexWrap: "wrap",
+              marginBottom: 12,
+            }}
+          >
+            <div className="settings-field" style={{ marginBottom: 0 }}>
+              <label>Source</label>
+              <select
+                value={ratesViewSource}
+                onChange={(e) => setRatesViewSource(e.target.value)}
+                className="settings-input"
+                style={{ minWidth: 180 }}
+              >
+                <option value="">All sources</option>
+                {SYSTEM_RATE_SOURCES.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+                {customRateSources.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="settings-field" style={{ marginBottom: 0 }}>
+              <label>Date</label>
+              <input
+                type="date"
+                value={ratesViewDate}
+                onChange={(e) => setRatesViewDate(e.target.value)}
+                className="settings-input"
+              />
+            </div>
+            <button
+              onClick={async () => {
+                setRatesLoading(true);
+                try {
+                  const data = await api.exchangeRates({
+                    source: ratesViewSource || undefined,
+                    fromDate: ratesViewDate,
+                    toDate: ratesViewDate,
+                    limit: 100,
+                  });
+                  setRates(data);
+                } catch {
+                  setRates([]);
+                } finally {
+                  setRatesLoading(false);
+                }
+              }}
+              style={{
+                padding: "8px 16px",
+                fontSize: 13,
+                borderRadius: 8,
+                border: "1px solid var(--border)",
+                background: "var(--bg-card)",
+                color: "var(--text-body)",
+                cursor: "pointer",
+                height: 38,
+              }}
+            >
+              {ratesLoading ? "Loading..." : "Load rates"}
+            </button>
+          </div>
+
+          {rates.length > 0 && (
+            <div
+              style={{
+                border: "1px solid var(--border)",
+                borderRadius: 8,
+                overflow: "hidden",
+                marginBottom: 16,
+              }}
+            >
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  fontSize: 13,
+                }}
+              >
+                <thead>
+                  <tr
+                    style={{
+                      background: "var(--bg-subtle)",
+                      borderBottom: "1px solid var(--border)",
+                    }}
+                  >
+                    <th
+                      style={{
+                        padding: "8px 12px",
+                        textAlign: "left",
+                        fontWeight: 500,
+                        color: "var(--text-secondary)",
+                      }}
+                    >
+                      From
+                    </th>
+                    <th
+                      style={{
+                        padding: "8px 12px",
+                        textAlign: "left",
+                        fontWeight: 500,
+                        color: "var(--text-secondary)",
+                      }}
+                    >
+                      To
+                    </th>
+                    <th
+                      style={{
+                        padding: "8px 12px",
+                        textAlign: "right",
+                        fontWeight: 500,
+                        color: "var(--text-secondary)",
+                      }}
+                    >
+                      Rate
+                    </th>
+                    <th
+                      style={{
+                        padding: "8px 12px",
+                        textAlign: "left",
+                        fontWeight: 500,
+                        color: "var(--text-secondary)",
+                      }}
+                    >
+                      Date
+                    </th>
+                    <th
+                      style={{
+                        padding: "8px 12px",
+                        textAlign: "left",
+                        fontWeight: 500,
+                        color: "var(--text-secondary)",
+                      }}
+                    >
+                      Type
+                    </th>
+                    <th
+                      style={{
+                        padding: "8px 12px",
+                        textAlign: "left",
+                        fontWeight: 500,
+                        color: "var(--text-secondary)",
+                      }}
+                    >
+                      Source
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rates.map((r) => (
+                    <tr
+                      key={r.id}
+                      style={{ borderBottom: "1px solid var(--border)" }}
+                    >
+                      <td
+                        style={{ padding: "6px 12px", fontFamily: "monospace" }}
+                      >
+                        {r.fromCurrency}
+                      </td>
+                      <td
+                        style={{ padding: "6px 12px", fontFamily: "monospace" }}
+                      >
+                        {r.toCurrency}
+                      </td>
+                      <td
+                        style={{
+                          padding: "6px 12px",
+                          textAlign: "right",
+                          fontFamily: "monospace",
+                        }}
+                      >
+                        {r.rate}
+                      </td>
+                      <td
+                        style={{
+                          padding: "6px 12px",
+                          color: "var(--text-secondary)",
+                        }}
+                      >
+                        {r.effectiveDate}
+                      </td>
+                      <td
+                        style={{
+                          padding: "6px 12px",
+                          color: "var(--text-secondary)",
+                        }}
+                      >
+                        {r.rateType}
+                      </td>
+                      <td
+                        style={{
+                          padding: "6px 12px",
+                          color: "var(--text-secondary)",
+                        }}
+                      >
+                        {SYSTEM_RATE_SOURCES.find((s) => s.id === r.source)
+                          ?.name ||
+                          customRateSources.find((s) => s.id === r.source)
+                            ?.name ||
+                          r.source}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {rates.length === 0 && !ratesLoading && (
+            <p
+              style={{
+                fontSize: 12,
+                color: "var(--text-tertiary)",
+                marginBottom: 16,
+              }}
+            >
+              No rates loaded. Select a source and date, then click &quot;Load
+              rates&quot;.
+            </p>
+          )}
+
+          {customRateSources.length > 0 && (
+            <>
+              <h3
+                className="section-title"
+                style={{ marginTop: 8, marginBottom: 12 }}
+              >
+                Add manual rate
+              </h3>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 8,
+                  alignItems: "flex-end",
+                  flexWrap: "wrap",
+                  marginBottom: 8,
+                }}
+              >
+                <div
+                  className="settings-field"
+                  style={{ marginBottom: 0, flex: "0 0 auto" }}
+                >
+                  <label>Source</label>
+                  <select
+                    value={
+                      customRateSources.find((s) => s.id === ratesViewSource)
+                        ? ratesViewSource
+                        : customRateSources[0]?.id || ""
+                    }
+                    onChange={(e) => setRatesViewSource(e.target.value)}
+                    className="settings-input"
+                    style={{ minWidth: 160 }}
+                  >
+                    {customRateSources.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div
+                  className="settings-field"
+                  style={{ marginBottom: 0, flex: "0 0 auto" }}
+                >
+                  <label>Type</label>
+                  <select
+                    value={newRateType}
+                    onChange={(e) =>
+                      setNewRateType(e.target.value as "daily" | "budget")
+                    }
+                    className="settings-input"
+                    style={{ minWidth: 100 }}
+                  >
+                    <option value="daily">Daily</option>
+                    <option value="budget">Budget</option>
+                  </select>
+                </div>
+                <div
+                  className="settings-field"
+                  style={{ marginBottom: 0, flex: "0 0 auto" }}
+                >
+                  <label>From</label>
+                  <input
+                    value={newRateFrom}
+                    onChange={(e) =>
+                      setNewRateFrom(e.target.value.toUpperCase().slice(0, 3))
+                    }
+                    className="settings-input"
+                    style={{ width: 64, fontFamily: "monospace" }}
+                    maxLength={3}
+                  />
+                </div>
+                <div
+                  className="settings-field"
+                  style={{ marginBottom: 0, flex: "0 0 auto" }}
+                >
+                  <label>To</label>
+                  <input
+                    value={newRateTo}
+                    onChange={(e) =>
+                      setNewRateTo(e.target.value.toUpperCase().slice(0, 3))
+                    }
+                    className="settings-input"
+                    style={{ width: 64, fontFamily: "monospace" }}
+                    maxLength={3}
+                  />
+                </div>
+                <div
+                  className="settings-field"
+                  style={{ marginBottom: 0, flex: "0 0 auto" }}
+                >
+                  <label>Rate</label>
+                  <input
+                    type="number"
+                    step="0.000001"
+                    value={newRateValue}
+                    onChange={(e) => setNewRateValue(e.target.value)}
+                    className="settings-input"
+                    style={{ width: 120, fontFamily: "monospace" }}
+                    placeholder="1.0872"
+                  />
+                </div>
+                <div
+                  className="settings-field"
+                  style={{ marginBottom: 0, flex: "0 0 auto" }}
+                >
+                  <label>Date</label>
+                  <input
+                    type="date"
+                    value={newRateDate}
+                    onChange={(e) => setNewRateDate(e.target.value)}
+                    className="settings-input"
+                  />
+                </div>
+                <button
+                  onClick={async () => {
+                    const rateNum = parseFloat(newRateValue);
+                    if (
+                      !newRateFrom ||
+                      !newRateTo ||
+                      !rateNum ||
+                      rateNum <= 0 ||
+                      !newRateDate
+                    )
+                      return;
+                    const sourceId = customRateSources.find(
+                      (s) => s.id === ratesViewSource,
+                    )
+                      ? ratesViewSource
+                      : customRateSources[0]?.id;
+                    if (!sourceId) return;
+                    setRateSaving(true);
+                    try {
+                      await api.createExchangeRate({
+                        fromCurrency: newRateFrom,
+                        toCurrency: newRateTo,
+                        rate: rateNum,
+                        effectiveDate: newRateDate,
+                        source: sourceId,
+                        rateType: newRateType,
+                        companyId: companyId || undefined,
+                      });
+                      setNewRateValue("");
+                      const data = await api.exchangeRates({
+                        source: sourceId,
+                        fromDate: newRateDate,
+                        toDate: newRateDate,
+                        limit: 100,
+                      });
+                      setRates(data);
+                      setRatesViewSource(sourceId);
+                      setRatesViewDate(newRateDate);
+                    } catch {
+                      // ignore
+                    } finally {
+                      setRateSaving(false);
+                    }
+                  }}
+                  disabled={
+                    rateSaving || !newRateValue || parseFloat(newRateValue) <= 0
+                  }
+                  style={{
+                    padding: "8px 16px",
+                    fontSize: 13,
+                    borderRadius: 8,
+                    border: "1px solid var(--border)",
+                    background: "var(--bg-card)",
+                    color: "var(--text-body)",
+                    cursor:
+                      rateSaving ||
+                      !newRateValue ||
+                      parseFloat(newRateValue) <= 0
+                        ? "not-allowed"
+                        : "pointer",
+                    opacity:
+                      rateSaving ||
+                      !newRateValue ||
+                      parseFloat(newRateValue) <= 0
+                        ? 0.45
+                        : 1,
+                    height: 38,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {rateSaving ? "Saving..." : "Add rate"}
+                </button>
+              </div>
+            </>
+          )}
+
           <p
             style={{
               fontSize: 11,
@@ -583,10 +1051,10 @@ export function Settings() {
               marginTop: 16,
             }}
           >
-            Rate types are determined automatically: daily spot rate for
-            transactions, closing rate (last daily rate of the period) for
-            balance sheet revaluation, monthly average calculated from daily
-            rates for P&L reporting. No manual configuration needed.
+            Daily spot rate is used for transactions. Closing rate (last daily
+            rate of the period) is used for balance sheet revaluation. Monthly
+            average is calculated from daily rates for P&L reporting. Budget
+            rates are used for forecasts.
           </p>
         </CollapsibleSection>
 

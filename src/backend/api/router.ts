@@ -111,7 +111,7 @@ import {
 import {
   saveExchangeRate,
   getExchangeRate,
-  importEcbRates,
+  listExchangeRates,
   importSystemRates,
   runForeignCurrencyRevaluation,
 } from "../services/currency-revaluation.js";
@@ -353,7 +353,7 @@ router.patch(
   validate(UpdateCompanySchema),
   async (req, res) => {
     try {
-      const company = await updateCompany(req.params.id, req.body);
+      const company = await updateCompany(req.params.id as string, req.body);
       if (!company) {
         res
           .status(404)
@@ -2084,6 +2084,24 @@ router.get("/companies/:companyId/events", async (req, res) => {
 });
 
 // ─── Exchange Rates & Currency Revaluation ──────────────────
+
+router.get("/exchange-rates/list", async (req, res) => {
+  try {
+    const { source, rateType, fromDate, toDate, baseCurrency, limit } =
+      req.query;
+    const rates = await listExchangeRates({
+      source: source as string | undefined,
+      rateType: rateType as "daily" | "budget" | undefined,
+      fromDate: fromDate as string | undefined,
+      toDate: toDate as string | undefined,
+      baseCurrency: baseCurrency as string | undefined,
+      limit: limit ? Number(limit) : undefined,
+    });
+    res.json({ data: rates } as ApiResponse);
+  } catch (err) {
+    handleGLError(err, res);
+  }
+});
 
 router.get("/exchange-rates", async (req, res) => {
   try {

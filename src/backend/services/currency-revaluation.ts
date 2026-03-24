@@ -114,6 +114,51 @@ export async function getExchangeRate(
   );
 }
 
+// ─── List Exchange Rates ────────────────────────────────────
+
+export async function listExchangeRates(opts: {
+  source?: string;
+  rateType?: ExchangeRateType;
+  fromDate?: string;
+  toDate?: string;
+  baseCurrency?: string;
+  limit?: number;
+}): Promise<ExchangeRate[]> {
+  const conditions = ["c.docType = 'exchange-rate'"];
+  const params: { name: string; value: string | number }[] = [];
+
+  if (opts.source) {
+    conditions.push("c.source = @source");
+    params.push({ name: "@source", value: opts.source });
+  }
+  if (opts.rateType) {
+    conditions.push("c.rateType = @rateType");
+    params.push({ name: "@rateType", value: opts.rateType });
+  }
+  if (opts.fromDate) {
+    conditions.push("c.effectiveDate >= @fromDate");
+    params.push({ name: "@fromDate", value: opts.fromDate });
+  }
+  if (opts.toDate) {
+    conditions.push("c.effectiveDate <= @toDate");
+    params.push({ name: "@toDate", value: opts.toDate });
+  }
+  if (opts.baseCurrency) {
+    conditions.push("c.fromCurrency = @baseCurrency");
+    params.push({ name: "@baseCurrency", value: opts.baseCurrency });
+  }
+
+  const limit = opts.limit || 200;
+  const query = `SELECT TOP ${limit} * FROM c WHERE ${conditions.join(" AND ")} ORDER BY c.effectiveDate DESC, c.toCurrency ASC`;
+
+  const { resources } = await containers
+    .ledger()
+    .items.query<ExchangeRate>({ query, parameters: params })
+    .fetchAll();
+
+  return resources;
+}
+
 // ─── Save Exchange Rate ─────────────────────────────────────
 
 export async function saveExchangeRate(
@@ -191,7 +236,7 @@ async function importEcbXml(
 /** @deprecated Use importSystemRates("ecb", date) instead */
 export async function importEcbRates(
   date: string,
-  rateType: ExchangeRateType = "daily",
+  _rateType: ExchangeRateType = "daily",
 ): Promise<{ imported: number; date: string }> {
   return importSystemRates("ecb", date);
 }

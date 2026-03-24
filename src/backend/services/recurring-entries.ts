@@ -12,6 +12,7 @@ import type { JournalLine, JournalEntry } from "@shared/types";
 export interface RecurringTemplate {
   id: string;
   companyId: string;
+  docType?: "recurring-template";
   name: string;
   description: string;
   lines: JournalLine[];
@@ -38,7 +39,7 @@ export async function createRecurringTemplate(input: {
   const template: RecurringTemplate = {
     id: uuidv4(),
     companyId: input.companyId,
-    docType: "recurring-template" as any,
+    docType: "recurring-template",
     name: input.name,
     description: input.description,
     lines: input.lines,
@@ -52,10 +53,14 @@ export async function createRecurringTemplate(input: {
   return template;
 }
 
-export async function listRecurringTemplates(companyId: string): Promise<RecurringTemplate[]> {
-  const { resources } = await containers.documents().items
-    .query<RecurringTemplate>({
-      query: "SELECT * FROM c WHERE c.companyId = @cid AND c.docType = 'recurring-template' ORDER BY c.name",
+export async function listRecurringTemplates(
+  companyId: string,
+): Promise<RecurringTemplate[]> {
+  const { resources } = await containers
+    .documents()
+    .items.query<RecurringTemplate>({
+      query:
+        "SELECT * FROM c WHERE c.companyId = @cid AND c.docType = 'recurring-template' ORDER BY c.name",
       parameters: [{ name: "@cid", value: companyId }],
     })
     .fetchAll();
@@ -68,10 +73,12 @@ export async function executeRecurringTemplate(
   companyId: string,
   templateId: string,
   date: string,
-  createdBy: string
+  createdBy: string,
 ): Promise<JournalEntry> {
-  const { resource: template } = await containers.documents()
-    .item(templateId, companyId).read<RecurringTemplate>();
+  const { resource: template } = await containers
+    .documents()
+    .item(templateId, companyId)
+    .read<RecurringTemplate>();
 
   if (!template) throw new Error("Template not found");
   if (!template.isActive) throw new Error("Template is inactive");
@@ -90,7 +97,8 @@ export async function executeRecurringTemplate(
   template.lastRunDate = date;
   const next = new Date(date);
   if (template.frequency === "monthly") next.setMonth(next.getMonth() + 1);
-  else if (template.frequency === "quarterly") next.setMonth(next.getMonth() + 3);
+  else if (template.frequency === "quarterly")
+    next.setMonth(next.getMonth() + 3);
   else next.setFullYear(next.getFullYear() + 1);
   template.nextRunDate = next.toISOString().slice(0, 10);
   await containers.documents().item(templateId, companyId).replace(template);

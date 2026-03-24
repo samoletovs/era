@@ -16,7 +16,7 @@ export interface FiscalPeriod {
   id: string;
   companyId: string;
   docType: "fiscal-period";
-  period: string;           // "2026-03"
+  period: string; // "2026-03"
   year: number;
   month: number;
   status: "open" | "closed" | "on-hold";
@@ -24,11 +24,16 @@ export interface FiscalPeriod {
   closedBy?: string;
 }
 
-export async function getPeriodStatus(companyId: string, period: string): Promise<FiscalPeriod | null> {
+export async function getPeriodStatus(
+  companyId: string,
+  period: string,
+): Promise<FiscalPeriod | null> {
   try {
-    const { resources } = await containers.ledger().items
-      .query<FiscalPeriod>({
-        query: "SELECT * FROM c WHERE c.companyId = @cid AND c.period = @period AND (c.docType = 'fiscal-period' OR (IS_DEFINED(c.status) AND IS_DEFINED(c.period) AND NOT IS_DEFINED(c.entryNumber) AND NOT IS_DEFINED(c.code)))",
+    const { resources } = await containers
+      .ledger()
+      .items.query<FiscalPeriod>({
+        query:
+          "SELECT * FROM c WHERE c.companyId = @cid AND c.period = @period AND (c.docType = 'fiscal-period' OR (IS_DEFINED(c.status) AND IS_DEFINED(c.period) AND NOT IS_DEFINED(c.entryNumber) AND NOT IS_DEFINED(c.code)))",
         parameters: [
           { name: "@cid", value: companyId },
           { name: "@period", value: period },
@@ -41,29 +46,36 @@ export async function getPeriodStatus(companyId: string, period: string): Promis
   }
 }
 
-export async function closePeriod(companyId: string, period: string, closedBy: string): Promise<FiscalPeriod> {
-  let fp = await getPeriodStatus(companyId, period);
+export async function closePeriod(
+  companyId: string,
+  period: string,
+  closedBy: string,
+): Promise<FiscalPeriod> {
+  let fp: FiscalPeriod | null = await getPeriodStatus(companyId, period);
   const now = new Date().toISOString();
 
   if (fp) {
-    if (fp.status === "closed") throw new GLError("ALREADY_CLOSED", `Period ${period} is already closed`);
+    if (fp.status === "closed")
+      throw new GLError("ALREADY_CLOSED", `Period ${period} is already closed`);
     fp.status = "closed";
     fp.closedAt = now;
     fp.closedBy = closedBy;
     await containers.ledger().item(fp.id, companyId).replace(fp);
   } else {
-    const [y, m] = period.split("-").map(Number);
     fp = {
       id: `${companyId}-period-${period}`,
       companyId,
+      docType: "fiscal-period",
       period,
-      year: y,
-      month: m,
+      year: Number(period.split("-")[0]),
+      month: Number(period.split("-")[1]),
       status: "closed",
       closedAt: now,
       closedBy,
     };
-    await containers.ledger().items.create(fp);
+    await containers
+      .ledger()
+      .items.create(fp as unknown as Record<string, unknown>);
   }
 
   await emitEvent({
@@ -73,13 +85,18 @@ export async function closePeriod(companyId: string, period: string, closedBy: s
     data: { period },
   });
 
-  return fp;
+  return fp!;
 }
 
-export async function reopenPeriod(companyId: string, period: string, openedBy: string): Promise<FiscalPeriod> {
+export async function reopenPeriod(
+  companyId: string,
+  period: string,
+  openedBy: string,
+): Promise<FiscalPeriod> {
   const fp = await getPeriodStatus(companyId, period);
   if (!fp) throw new GLError("NOT_FOUND", `Period ${period} not found`);
-  if (fp.status === "open") throw new GLError("ALREADY_OPEN", `Period ${period} is already open`);
+  if (fp.status === "open")
+    throw new GLError("ALREADY_OPEN", `Period ${period} is already open`);
 
   fp.status = "open";
   fp.closedAt = undefined;
@@ -101,12 +118,14 @@ export async function reopenPeriod(companyId: string, period: string, openedBy: 
 export async function yearEndClose(
   companyId: string,
   fiscalYear: number,
-  createdBy: string
+  createdBy: string,
 ): Promise<{ closingEntry: any; periodsClosedCount: number }> {
   // 1. Get all revenue and expense accounts with balances
-  const { resources: accounts } = await containers.ledger().items
-    .query<Account>({
-      query: "SELECT * FROM c WHERE c.companyId = @cid AND (c.docType = 'account' OR (IS_DEFINED(c.code) AND IS_DEFINED(c.normalSide))) AND c.isPostable = true AND c.balance != 0 AND (c.type = 'revenue' OR c.type = 'expense')",
+  const { resources: accounts } = await containers
+    .ledger()
+    .items.query<Account>({
+      query:
+        "SELECT * FROM c WHERE c.companyId = @cid AND (c.docType = 'account' OR (IS_DEFINED(c.code) AND IS_DEFINED(c.normalSide))) AND c.isPostable = true AND c.balance != 0 AND (c.type = 'revenue' OR c.type = 'expense')",
       parameters: [{ name: "@cid", value: companyId }],
     })
     .fetchAll();
@@ -196,7 +215,11 @@ export async function yearEndClose(
     type: "year-end.closed",
     actor: createdBy,
     journalEntryId: closingEntry.id,
-    data: { fiscalYear, netResult: roundCurrency(netResult), periodsClosedCount },
+    data: {
+      fiscalYear,
+      netResult: roundCurrency(netResult),
+      periodsClosedCount,
+    },
   });
 
   return { closingEntry, periodsClosedCount };

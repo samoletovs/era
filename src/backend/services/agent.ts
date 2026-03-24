@@ -3,13 +3,37 @@ import type { ChatCompletionMessageParam } from "openai/resources/chat/completio
 import { AGENT_TOOLS } from "./agent-tools.js";
 import { createCompany } from "./company.js";
 import { createContact, listContacts, findContactByName } from "./contact.js";
-import { createInvoice, postInvoice, listInvoices, createCreditNote } from "./invoice.js";
+import {
+  createInvoice,
+  postInvoice,
+  listInvoices,
+  createCreditNote,
+} from "./invoice.js";
 import { createAndPostPayment } from "./payment.js";
-import { postJournalEntry, getTrialBalance, getAccountBalance } from "./ledger.js";
+import {
+  postJournalEntry,
+  getTrialBalance,
+  getAccountBalance,
+} from "./ledger.js";
+import type { JournalLine } from "@shared/types";
 import { createItem, listItems } from "./inventory.js";
-import { generateVatReturn, getBalanceSheet, getProfitAndLoss, generateVatDeclaration, generateAnnualReport, getAgingReport } from "./reporting.js";
-import { searchCompanyByName, searchCompanyByRegNumber } from "./company-lookup.js";
-import { runMonthEnd, runYearEnd, checkCompanyHealth } from "./autonomous-tasks.js";
+import {
+  generateVatReturn,
+  getBalanceSheet,
+  getProfitAndLoss,
+  generateVatDeclaration,
+  generateAnnualReport,
+  getAgingReport,
+} from "./reporting.js";
+import {
+  searchCompanyByName,
+  searchCompanyByRegNumber,
+} from "./company-lookup.js";
+import {
+  runMonthEnd,
+  runYearEnd,
+  checkCompanyHealth,
+} from "./autonomous-tasks.js";
 import { acquireAsset } from "./fixed-assets.js";
 import { createRecurringTemplate } from "./recurring-entries.js";
 import { getBudgetVsActual } from "./budget.js";
@@ -82,7 +106,11 @@ Be concise, action-oriented, and proactive. You ARE the accountant — own the b
 
 // ─── Tool Executor ──────────────────────────────────────────
 
-async function executeTool(name: string, args: Record<string, unknown>, userId: string): Promise<unknown> {
+async function executeTool(
+  name: string,
+  args: Record<string, unknown>,
+  userId: string,
+): Promise<unknown> {
   switch (name) {
     case "lookup_company": {
       const query = args.query as string;
@@ -99,7 +127,12 @@ async function executeTool(name: string, args: Record<string, unknown>, userId: 
         name: args.name as string,
         registrationNumber: args.registrationNumber as string,
         vatNumber: args.vatNumber as string | undefined,
-        legalAddress: args.address as { line1: string; city: string; postalCode: string; country: string },
+        legalAddress: args.address as {
+          line1: string;
+          city: string;
+          postalCode: string;
+          country: string;
+        },
         createdBy: userId,
       });
 
@@ -107,9 +140,14 @@ async function executeTool(name: string, args: Record<string, unknown>, userId: 
       const contact = await findContactByName(
         args.companyId as string,
         args.name as string,
-        args.registrationNumber as string | undefined
+        args.registrationNumber as string | undefined,
       );
-      return contact || { found: false, message: `No contact found matching '${args.name}'. You need to create one first.` };
+      return (
+        contact || {
+          found: false,
+          message: `No contact found matching '${args.name}'. You need to create one first.`,
+        }
+      );
     }
 
     case "create_contact":
@@ -121,7 +159,12 @@ async function executeTool(name: string, args: Record<string, unknown>, userId: 
         vatNumber: args.vatNumber as string | undefined,
         email: args.email as string | undefined,
         phone: args.phone as string | undefined,
-        address: args.address as { line1: string; city: string; postalCode: string; country: string },
+        address: args.address as {
+          line1: string;
+          city: string;
+          postalCode: string;
+          country: string;
+        },
         createdBy: userId,
       });
 
@@ -133,12 +176,22 @@ async function executeTool(name: string, args: Record<string, unknown>, userId: 
         contactName: args.contactName as string,
         date: args.date as string,
         dueDate: args.dueDate as string,
-        lines: args.lines as Array<{ description: string; quantity: number; unitPrice: number; vatRate: number; accountCode: string }>,
+        lines: args.lines as Array<{
+          description: string;
+          quantity: number;
+          unitPrice: number;
+          vatRate: number;
+          accountCode: string;
+        }>,
         createdBy: userId,
       });
 
     case "post_invoice":
-      return postInvoice(args.companyId as string, args.invoiceId as string, userId);
+      return postInvoice(
+        args.companyId as string,
+        args.invoiceId as string,
+        userId,
+      );
 
     case "record_payment":
       return createAndPostPayment({
@@ -148,9 +201,14 @@ async function executeTool(name: string, args: Record<string, unknown>, userId: 
         contactName: args.contactName as string,
         date: args.date as string,
         amount: args.amount as number,
-        bankAccountIban: (args.bankAccountIban as string) || "LV00HABA0000000000000",
+        bankAccountIban:
+          (args.bankAccountIban as string) || "LV00HABA0000000000000",
         reference: args.reference as string,
-        invoiceAllocations: args.invoiceAllocations as Array<{ invoiceId: string; invoiceNumber: string; amount: number }>,
+        invoiceAllocations: args.invoiceAllocations as Array<{
+          invoiceId: string;
+          invoiceNumber: string;
+          amount: number;
+        }>,
         createdBy: userId,
       });
 
@@ -158,23 +216,32 @@ async function executeTool(name: string, args: Record<string, unknown>, userId: 
       return getTrialBalance(args.companyId as string);
 
     case "list_invoices":
-      return listInvoices(args.companyId as string, args.type as "sales" | "purchase" | undefined);
+      return listInvoices(
+        args.companyId as string,
+        args.type as "sales" | "purchase" | undefined,
+      );
 
     case "list_contacts":
-      return listContacts(args.companyId as string, args.type as "customer" | "vendor" | "both" | undefined);
+      return listContacts(
+        args.companyId as string,
+        args.type as "customer" | "vendor" | "both" | undefined,
+      );
 
     case "post_journal_entry":
       return postJournalEntry({
         companyId: args.companyId as string,
         date: args.date as string,
         description: args.description as string,
-        lines: args.lines as Array<{ accountType?: string; accountCode: string; accountName: string; debit: number; credit: number; description?: string; contactId?: string; contactName?: string; fixedAssetId?: string; itemId?: string }>,
+        lines: args.lines as JournalLine[],
         sourceType: "manual",
         createdBy: userId,
       });
 
     case "get_account_balance": {
-      const balance = await getAccountBalance(args.companyId as string, args.accountCode as string);
+      const balance = await getAccountBalance(
+        args.companyId as string,
+        args.accountCode as string,
+      );
       return { accountCode: args.accountCode, balance };
     }
 
@@ -202,7 +269,7 @@ async function executeTool(name: string, args: Record<string, unknown>, userId: 
         args.companyId as string,
         args.year as number,
         args.month as number,
-        userId
+        userId,
       );
 
     case "get_balance_sheet":
@@ -214,10 +281,18 @@ async function executeTool(name: string, args: Record<string, unknown>, userId: 
     // ─── Autonomous / Agentic Tools ───────────────────────
 
     case "run_month_end":
-      return runMonthEnd(args.companyId as string, args.period as string, userId);
+      return runMonthEnd(
+        args.companyId as string,
+        args.period as string,
+        userId,
+      );
 
     case "run_year_end":
-      return runYearEnd(args.companyId as string, args.fiscalYear as number, userId);
+      return runYearEnd(
+        args.companyId as string,
+        args.fiscalYear as number,
+        userId,
+      );
 
     case "check_company_health":
       return checkCompanyHealth(args.companyId as string);
@@ -231,16 +306,25 @@ async function executeTool(name: string, args: Record<string, unknown>, userId: 
       });
 
     case "generate_invoice_pdf":
-      return { pdfUrl: `/api/companies/${args.companyId}/invoices/${args.invoiceId}/pdf` };
+      return {
+        pdfUrl: `/api/companies/${args.companyId}/invoices/${args.invoiceId}/pdf`,
+      };
 
     case "get_aging_report":
       return getAgingReport(args.companyId as string, args.type as "ar" | "ap");
 
     case "generate_vat_declaration":
-      return generateVatDeclaration(args.companyId as string, args.year as number, args.month as number);
+      return generateVatDeclaration(
+        args.companyId as string,
+        args.year as number,
+        args.month as number,
+      );
 
     case "generate_annual_report":
-      return generateAnnualReport(args.companyId as string, args.fiscalYear as number);
+      return generateAnnualReport(
+        args.companyId as string,
+        args.fiscalYear as number,
+      );
 
     case "acquire_fixed_asset":
       return acquireAsset({
@@ -269,7 +353,10 @@ async function executeTool(name: string, args: Record<string, unknown>, userId: 
       });
 
     case "get_budget_vs_actual":
-      return getBudgetVsActual(args.companyId as string, args.fiscalYear as number);
+      return getBudgetVsActual(
+        args.companyId as string,
+        args.fiscalYear as number,
+      );
 
     default:
       return { error: `Unknown tool: ${name}` };
@@ -325,7 +412,10 @@ export async function handleChat(input: ChatInput): Promise<string> {
     messages.push(assistantMessage);
 
     // If no tool calls, return the text response
-    if (!assistantMessage.tool_calls || assistantMessage.tool_calls.length === 0) {
+    if (
+      !assistantMessage.tool_calls ||
+      assistantMessage.tool_calls.length === 0
+    ) {
       return assistantMessage.content || "Done.";
     }
 
@@ -388,7 +478,9 @@ Default to 21% VAT unless the item clearly falls into a reduced category.
 If no price is mentioned, use 0.
 Respond with the JSON object only, no markdown fences.`;
 
-export async function parseItemDescription(description: string): Promise<ParsedItemFields> {
+export async function parseItemDescription(
+  description: string,
+): Promise<ParsedItemFields> {
   const response = await getClient().chat.completions.create({
     model: DEPLOYMENT,
     messages: [
@@ -401,7 +493,10 @@ export async function parseItemDescription(description: string): Promise<ParsedI
 
   const content = response.choices[0]?.message?.content || "{}";
   // Strip markdown fences if present
-  const cleaned = content.replace(/```json?\n?/g, "").replace(/```/g, "").trim();
+  const cleaned = content
+    .replace(/```json?\n?/g, "")
+    .replace(/```/g, "")
+    .trim();
   const parsed = JSON.parse(cleaned);
 
   return {
@@ -411,7 +506,9 @@ export async function parseItemDescription(description: string): Promise<ParsedI
     unitOfMeasure: String(parsed.unitOfMeasure || "pcs"),
     costPrice: Number(parsed.costPrice) || 0,
     sellingPrice: Number(parsed.sellingPrice) || 0,
-    vatRate: [0, 5, 12, 21].includes(Number(parsed.vatRate)) ? Number(parsed.vatRate) : 21,
+    vatRate: [0, 5, 12, 21].includes(Number(parsed.vatRate))
+      ? Number(parsed.vatRate)
+      : 21,
     purchaseAccountCode: String(parsed.purchaseAccountCode || "6110"),
     salesAccountCode: String(parsed.salesAccountCode || "5110"),
   };
@@ -454,7 +551,9 @@ Latvian chart of accounts context for account codes:
 Default to 21% VAT unless clearly reduced. Default to "sales" if type is ambiguous.
 Respond with the JSON object only, no markdown fences.`;
 
-export async function parseInvoiceDescription(description: string): Promise<ParsedInvoiceFields> {
+export async function parseInvoiceDescription(
+  description: string,
+): Promise<ParsedInvoiceFields> {
   const response = await getClient().chat.completions.create({
     model: DEPLOYMENT,
     messages: [
@@ -466,11 +565,16 @@ export async function parseInvoiceDescription(description: string): Promise<Pars
   });
 
   const content = response.choices[0]?.message?.content || "{}";
-  const cleaned = content.replace(/```json?\n?/g, "").replace(/```/g, "").trim();
+  const cleaned = content
+    .replace(/```json?\n?/g, "")
+    .replace(/```/g, "")
+    .trim();
   const parsed = JSON.parse(cleaned);
 
   const today = new Date().toISOString().slice(0, 10);
-  const defaultDue = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+  const defaultDue = new Date(Date.now() + 30 * 86400000)
+    .toISOString()
+    .slice(0, 10);
 
   return {
     type: parsed.type === "purchase" ? "purchase" : "sales",
@@ -481,8 +585,12 @@ export async function parseInvoiceDescription(description: string): Promise<Pars
       description: String(l.description || "Item"),
       quantity: Number(l.quantity) || 1,
       unitPrice: Number(l.unitPrice) || 0,
-      vatRate: [0, 5, 12, 21].includes(Number(l.vatRate)) ? Number(l.vatRate) : 21,
-      accountCode: String(l.accountCode || (parsed.type === "purchase" ? "6350" : "5110")),
+      vatRate: [0, 5, 12, 21].includes(Number(l.vatRate))
+        ? Number(l.vatRate)
+        : 21,
+      accountCode: String(
+        l.accountCode || (parsed.type === "purchase" ? "6350" : "5110"),
+      ),
     })),
   };
 }
@@ -520,7 +628,9 @@ If a field is not mentioned, use an empty string (or 30 for paymentTermsDays).
 For Latvian companies, country defaults to "Latvia".
 Respond with the JSON object only, no markdown fences.`;
 
-export async function parseContactDescription(description: string): Promise<ParsedContactFields> {
+export async function parseContactDescription(
+  description: string,
+): Promise<ParsedContactFields> {
   const response = await getClient().chat.completions.create({
     model: DEPLOYMENT,
     messages: [
@@ -532,11 +642,16 @@ export async function parseContactDescription(description: string): Promise<Pars
   });
 
   const content = response.choices[0]?.message?.content || "{}";
-  const cleaned = content.replace(/```json?\n?/g, "").replace(/```/g, "").trim();
+  const cleaned = content
+    .replace(/```json?\n?/g, "")
+    .replace(/```/g, "")
+    .trim();
   const parsed = JSON.parse(cleaned);
 
   return {
-    type: ["customer", "vendor", "both"].includes(parsed.type) ? parsed.type : "customer",
+    type: ["customer", "vendor", "both"].includes(parsed.type)
+      ? parsed.type
+      : "customer",
     name: String(parsed.name || "").slice(0, 120),
     registrationNumber: String(parsed.registrationNumber || ""),
     vatNumber: String(parsed.vatNumber || ""),
@@ -589,7 +704,9 @@ Latvian fixed asset categories:
 If no price is mentioned, use 0.
 Respond with the JSON object only, no markdown fences.`;
 
-export async function parseAssetDescription(description: string): Promise<ParsedAssetFields> {
+export async function parseAssetDescription(
+  description: string,
+): Promise<ParsedAssetFields> {
   const response = await getClient().chat.completions.create({
     model: DEPLOYMENT,
     messages: [
@@ -601,15 +718,23 @@ export async function parseAssetDescription(description: string): Promise<Parsed
   });
 
   const content = response.choices[0]?.message?.content || "{}";
-  const cleaned = content.replace(/```json?\n?/g, "").replace(/```/g, "").trim();
+  const cleaned = content
+    .replace(/```json?\n?/g, "")
+    .replace(/```/g, "")
+    .trim();
   const parsed = JSON.parse(cleaned);
 
   return {
     code: String(parsed.code || "FA-001").slice(0, 20),
     name: String(parsed.name || "").slice(0, 80),
-    assetAccountCode: ["1210", "1220", "1230"].includes(String(parsed.assetAccountCode))
-      ? String(parsed.assetAccountCode) : "1220",
-    acquisitionDate: String(parsed.acquisitionDate || new Date().toISOString().slice(0, 10)),
+    assetAccountCode: ["1210", "1220", "1230"].includes(
+      String(parsed.assetAccountCode),
+    )
+      ? String(parsed.assetAccountCode)
+      : "1220",
+    acquisitionDate: String(
+      parsed.acquisitionDate || new Date().toISOString().slice(0, 10),
+    ),
     acquisitionCost: Number(parsed.acquisitionCost) || 0,
     residualValue: Number(parsed.residualValue) || 0,
     usefulLifeMonths: Number(parsed.usefulLifeMonths) || 60,

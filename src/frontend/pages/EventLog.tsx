@@ -58,7 +58,7 @@ function summarizeData(
   if (data.description && !data.invoiceNumber) parts.push(data.description);
   if (data.entryNumber) parts.push(`#${data.entryNumber}`);
   if (data.name && !data.contactName) parts.push(data.name);
-  if (data.stepsCompleted !== null)
+  if (data.stepsCompleted !== null && data.stepsCompleted !== undefined)
     parts.push(
       `${data.stepsCompleted} step${data.stepsCompleted !== 1 ? "s" : ""} completed`,
     );
