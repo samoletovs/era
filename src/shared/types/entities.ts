@@ -17,16 +17,16 @@ export interface BaseEntity {
 
 export interface Company {
   id: string;
-  code: string;                   // Short code, max 5 chars (e.g. "DAIS", "ERATC")
+  code: string; // Short code, max 5 chars (e.g. "DAIS", "ERATC")
   name: string;
-  shortName?: string;            // Display name / "known as" (e.g. "Dais" instead of 'Sabiedrība "DAIS"')
-  registrationNumber: string;   // Latvian reg number (e.g. 40003XXXXXX)
-  vatNumber?: string;           // LV + 11 digits
+  shortName?: string; // Display name / "known as" (e.g. "Dais" instead of 'Sabiedrība "DAIS"')
+  registrationNumber: string; // Latvian reg number (e.g. 40003XXXXXX)
+  vatNumber?: string; // LV + 11 digits
   legalAddress: Address;
   bankAccounts: BankAccount[];
-  fiscalYearStart: number;      // month 1-12 (usually 1 for calendar year)
-  currency: string;             // ISO 4217 (default "EUR")
-  country: string;              // ISO 3166-1 alpha-2 (default "LV")
+  fiscalYearStart: number; // month 1-12 (usually 1 for calendar year)
+  currency: string; // ISO 4217 (default "EUR")
+  country: string; // ISO 3166-1 alpha-2 (default "LV")
   settings: CompanySettings;
   createdAt: string;
   updatedAt: string;
@@ -34,7 +34,7 @@ export interface Company {
 
 export interface CompanySettings {
   isVatRegistered: boolean;
-  vatRate: number;              // default 21
+  vatRate: number; // default 21
   defaultPaymentTermsDays: number;
   invoiceNumberPrefix: string;
   nextInvoiceNumber: number;
@@ -57,37 +57,43 @@ export type SequenceType =
   | "contact";
 
 export interface NumberSequence {
-  prefix: string;           // e.g. "INV", "PAY", "FA"
-  nextNumber: number;       // current counter, incremented on use
-  padding?: number;         // legacy — ignored, kept for backward compat
-  suffix?: string;          // optional suffix after number, e.g. "-2026"
-  separator?: string;       // between prefix and number, default "-"
+  prefix: string; // e.g. "INV", "PAY", "FA"
+  nextNumber: number; // current counter, incremented on use
+  padding?: number; // legacy — ignored, kept for backward compat
+  suffix?: string; // optional suffix after number, e.g. "-2026"
+  separator?: string; // between prefix and number, default "-"
 }
 
 // Default sequences applied when a company is created
 export const DEFAULT_SEQUENCES: Record<SequenceType, NumberSequence> = {
-  salesInvoice:    { prefix: "INV",  nextNumber: 1, separator: "-" },
+  salesInvoice: { prefix: "INV", nextNumber: 1, separator: "-" },
   purchaseInvoice: { prefix: "PINV", nextNumber: 1, separator: "-" },
-  creditNote:      { prefix: "CN",   nextNumber: 1, separator: "-" },
-  payment:         { prefix: "PAY",  nextNumber: 1, separator: "-" },
-  journalEntry:    { prefix: "JE",   nextNumber: 1, separator: "-" },
-  fixedAsset:      { prefix: "FA",   nextNumber: 1, separator: "-" },
-  item:            { prefix: "ITEM", nextNumber: 1, separator: "-" },
-  contact:         { prefix: "C",    nextNumber: 1, separator: "-" },
+  creditNote: { prefix: "CN", nextNumber: 1, separator: "-" },
+  payment: { prefix: "PAY", nextNumber: 1, separator: "-" },
+  journalEntry: { prefix: "JE", nextNumber: 1, separator: "-" },
+  fixedAsset: { prefix: "FA", nextNumber: 1, separator: "-" },
+  item: { prefix: "ITEM", nextNumber: 1, separator: "-" },
+  contact: { prefix: "C", nextNumber: 1, separator: "-" },
 };
 
 export const SEQUENCE_LABELS: Record<SequenceType, string> = {
-  salesInvoice:    "Sales invoices",
+  salesInvoice: "Sales invoices",
   purchaseInvoice: "Purchase invoices",
-  creditNote:      "Credit notes",
-  payment:         "Payments",
-  journalEntry:    "Journal entries",
-  fixedAsset:      "Fixed assets",
-  item:            "Items",
-  contact:         "Contacts",
+  creditNote: "Credit notes",
+  payment: "Payments",
+  journalEntry: "Journal entries",
+  fixedAsset: "Fixed assets",
+  item: "Items",
+  contact: "Contacts",
 };
 
-export type NumberFormat = "space_comma" | "dot_comma" | "comma_dot" | "space_dot" | "none_dot" | "none_comma";
+export type NumberFormat =
+  | "space_comma"
+  | "dot_comma"
+  | "comma_dot"
+  | "space_dot"
+  | "none_dot"
+  | "none_comma";
 // "space_comma"  → 1 234 567,89  (Latvian/French)
 // "dot_comma"    → 1.234.567,89  (German/Italian)
 // "comma_dot"    → 1,234,567.89  (English/US)
@@ -95,7 +101,13 @@ export type NumberFormat = "space_comma" | "dot_comma" | "comma_dot" | "space_do
 // "none_dot"     → 1234567.89
 // "none_comma"   → 1234567,89
 
-export type DateFormat = "dd.MM.yyyy" | "dd/MM/yyyy" | "MM/dd/yyyy" | "yyyy-MM-dd" | "dd-MM-yyyy" | "dd MMM yyyy";
+export type DateFormat =
+  | "dd.MM.yyyy"
+  | "dd/MM/yyyy"
+  | "MM/dd/yyyy"
+  | "yyyy-MM-dd"
+  | "dd-MM-yyyy"
+  | "dd MMM yyyy";
 // "dd.MM.yyyy"   → 22.03.2026  (Latvia, Germany)
 // "dd/MM/yyyy"   → 22/03/2026  (UK, France)
 // "MM/dd/yyyy"   → 03/22/2026  (US)
@@ -128,32 +140,37 @@ export interface BankAccount {
 //   budget         — rates used in budget/forecast scenarios
 //   group          — intercompany rates set by parent
 
-export type ExchangeRateType = "daily" | "monthly-average" | "closing" | "budget" | "group";
+export type ExchangeRateType =
+  | "daily"
+  | "monthly-average"
+  | "closing"
+  | "budget"
+  | "group";
 
 export interface CurrencySettings {
-  accountingCurrency: string;              // ISO 4217, required — set at company creation
-  reportingCurrency?: string;              // ISO 4217, optional — for group consolidation
-  accountingRateType: ExchangeRateType;    // rate type used for transaction → accounting conversion
-  reportingRateType?: ExchangeRateType;    // rate type used for transaction → reporting conversion
-  exchangeRateSource: ExchangeRateSource;  // where rates are imported from
-  unrealizedGainAccount?: string;          // GL account code for unrealized FX gains (e.g. "8110")
-  unrealizedLossAccount?: string;          // GL account code for unrealized FX losses (e.g. "8120")
-  realizedGainAccount?: string;            // GL account code for realized FX gains (e.g. "8130")
-  realizedLossAccount?: string;            // GL account code for realized FX losses (e.g. "8140")
+  accountingCurrency: string; // ISO 4217, required — set at company creation
+  reportingCurrency?: string; // ISO 4217, optional — for group consolidation
+  accountingRateType: ExchangeRateType; // rate type used for transaction → accounting conversion
+  reportingRateType?: ExchangeRateType; // rate type used for transaction → reporting conversion
+  exchangeRateSource: ExchangeRateSource; // where rates are imported from
+  unrealizedGainAccount?: string; // GL account code for unrealized FX gains (e.g. "8110")
+  unrealizedLossAccount?: string; // GL account code for unrealized FX losses (e.g. "8120")
+  realizedGainAccount?: string; // GL account code for realized FX gains (e.g. "8130")
+  realizedLossAccount?: string; // GL account code for realized FX losses (e.g. "8140")
 }
 
 export type ExchangeRateSource = "ecb" | "latvian-bank" | "manual";
 
 export interface ExchangeRate {
   id: string;
-  docType?: "exchange-rate";      // Cosmos discriminator
-  fromCurrency: string;          // ISO 4217
-  toCurrency: string;            // ISO 4217
-  rateType: ExchangeRateType;    // which rate set this belongs to
-  rate: number;                  // 1 fromCurrency = rate toCurrency
-  effectiveDate: string;         // ISO date
+  docType?: "exchange-rate"; // Cosmos discriminator
+  fromCurrency: string; // ISO 4217
+  toCurrency: string; // ISO 4217
+  rateType: ExchangeRateType; // which rate set this belongs to
+  rate: number; // 1 fromCurrency = rate toCurrency
+  effectiveDate: string; // ISO date
   source: ExchangeRateSource;
-  companyId?: string;            // null = shared across companies
+  companyId?: string; // null = shared across companies
   createdAt: string;
 }
 
@@ -161,21 +178,26 @@ export interface ExchangeRate {
 
 export interface Account extends BaseEntity {
   docType: "account";
-  code: string;                 // e.g. "1210" per LV CoA
+  code: string; // e.g. "1210" per LV CoA
   name: string;
-  nameLv: string;               // Latvian name for official reports
+  nameLv: string; // Latvian name for official reports
   type: AccountType;
   parentCode?: string;
-  level: number;                // 1=class, 2=group, 3=account, 4=sub-account
-  isPostable: boolean;          // only level 3-4 accounts accept journal entries
+  level: number; // 1=class, 2=group, 3=account, 4=sub-account
+  isPostable: boolean; // only level 3-4 accounts accept journal entries
   balance: number;
   normalSide: "debit" | "credit";
   // Foreign currency revaluation (D365 F&O: per-account flag)
-  currencyCode?: string;                // foreign currency if denominated (e.g., USD bank account)
+  currencyCode?: string; // foreign currency if denominated (e.g., USD bank account)
   isForeignCurrencyRevaluation?: boolean; // include in month-end FX revaluation
 }
 
-export type AccountType = "asset" | "liability" | "equity" | "revenue" | "expense";
+export type AccountType =
+  | "asset"
+  | "liability"
+  | "equity"
+  | "revenue"
+  | "expense";
 
 // ─── General Ledger ─────────────────────────────────────────
 
@@ -187,18 +209,24 @@ export type AccountType = "asset" | "liability" | "equity" | "revenue" | "expens
 //   bank        — bank account posting: accountCode = bank GL account (e.g. 2420)
 //   fixed-asset — asset posting: fixedAssetId required, accountCode = asset GL account
 //   item        — inventory posting: itemId required, accountCode = inventory GL account
-export type JournalLineAccountType = "ledger" | "customer" | "vendor" | "bank" | "fixed-asset" | "item";
+export type JournalLineAccountType =
+  | "ledger"
+  | "customer"
+  | "vendor"
+  | "bank"
+  | "fixed-asset"
+  | "item";
 
 export interface JournalEntry extends BaseEntity {
   docType: "journal-entry";
   entryNumber: string;
-  date: string;                 // ISO date
+  date: string; // ISO date
   description: string;
   lines: JournalLine[];
   status: "draft" | "posted" | "reversed";
-  period: string;               // "2026-03"
+  period: string; // "2026-03"
   sourceType?: "manual" | "invoice" | "payment" | "adjustment" | "closing";
-  sourceId?: string;            // reference to originating document
+  sourceId?: string; // reference to originating document
   totalDebit: number;
   totalCredit: number;
 }
@@ -207,27 +235,27 @@ export interface JournalLine {
   accountType?: JournalLineAccountType; // default "ledger" for backward compat
   accountCode: string;
   accountName: string;
-  debit: number;                    // amount in accounting currency
-  credit: number;                   // amount in accounting currency
+  debit: number; // amount in accounting currency
+  credit: number; // amount in accounting currency
   description?: string;
   /** @deprecated Use taxCode instead */
   vatCode?: string;
   // Enriched dimensions — enables subledger-free AR/AP/tax/inventory reporting
   contactId?: string;
-  contactName?: string;             // display name for customer/vendor lines
+  contactName?: string; // display name for customer/vendor lines
   itemId?: string;
-  itemCode?: string;                // display code for item lines
-  fixedAssetId?: string;            // reference for fixed-asset lines
-  fixedAssetCode?: string;          // display code for fixed-asset lines
-  taxCode?: string;                 // e.g. "LV-21", "LV-12", "LV-0"
+  itemCode?: string; // display code for item lines
+  fixedAssetId?: string; // reference for fixed-asset lines
+  fixedAssetCode?: string; // display code for fixed-asset lines
+  taxCode?: string; // e.g. "LV-21", "LV-12", "LV-0"
   taxAmount?: number;
   // Transaction currency (per D365 F&O dual-currency model)
-  currencyCode?: string;            // ISO 4217 transaction currency
-  exchangeRate?: number;            // transaction → accounting rate (1.0 if same)
-  amountInCurrency?: number;        // original amount in transaction currency
+  currencyCode?: string; // ISO 4217 transaction currency
+  exchangeRate?: number; // transaction → accounting rate (1.0 if same)
+  amountInCurrency?: number; // original amount in transaction currency
   // Reporting currency (parallel conversion from transaction currency, not via accounting)
   reportingCurrencyAmount?: number; // amount in reporting currency
-  reportingExchangeRate?: number;   // transaction → reporting rate
+  reportingExchangeRate?: number; // transaction → reporting rate
 }
 
 // ─── Contacts (Customers & Vendors) ─────────────────────────
@@ -236,7 +264,7 @@ export interface Contact extends BaseEntity {
   contactNumber?: string;
   type: "customer" | "vendor" | "both";
   name: string;
-  shortName?: string;            // Display name / "known as" — auto-generated from official name
+  shortName?: string; // Display name / "known as" — auto-generated from official name
   registrationNumber?: string;
   vatNumber?: string;
   email?: string;
@@ -251,7 +279,7 @@ export interface Contact extends BaseEntity {
 
 export interface Invoice extends BaseEntity {
   docType: "invoice";
-  invoiceNumber: string;        // ERA internal number (INV-00001, PINV-00002)
+  invoiceNumber: string; // ERA internal number (INV-00001, PINV-00002)
   vendorInvoiceNumber?: string; // Original invoice number from vendor/supplier
   type: "sales" | "purchase";
   contactId: string;
@@ -263,10 +291,16 @@ export interface Invoice extends BaseEntity {
   vatAmount: number;
   total: number;
   amountPaid: number;
-  status: "draft" | "posted" | "partially_paid" | "paid" | "overdue" | "cancelled";
+  status:
+    | "draft"
+    | "posted"
+    | "partially_paid"
+    | "paid"
+    | "overdue"
+    | "cancelled";
   currency: "EUR";
   // Latvian source document requirements (Section 7)
-  documentNumber: string;       // registration number
+  documentNumber: string; // registration number
   documentDate: string;
   // GL posting references
   journalEntryId?: string;
@@ -274,17 +308,17 @@ export interface Invoice extends BaseEntity {
   paymentJournalEntryIds: string[];
   // Recognition metadata
   recognitionConfidence?: "high" | "medium" | "low";
-  sourceFile?: string;          // original filename
+  sourceFile?: string; // original filename
 }
 
 export interface InvoiceLine {
   description: string;
   quantity: number;
   unitPrice: number;
-  vatRate: number;              // 0, 5, 12, or 21
+  vatRate: number; // 0, 5, 12, or 21
   vatAmount: number;
   lineTotal: number;
-  accountCode: string;          // GL account for this line
+  accountCode: string; // GL account for this line
   itemId?: string;
 }
 
@@ -323,10 +357,10 @@ export interface Item extends BaseEntity {
   unitOfMeasure: string;
   costPrice: number;
   sellingPrice: number;
-  vatRate: number;              // default VAT rate for this item
-  quantityOnHand: number;       // 0 for services
-  purchaseAccountCode: string;  // default GL account for purchases
-  salesAccountCode: string;     // default GL account for sales
+  vatRate: number; // default VAT rate for this item
+  quantityOnHand: number; // 0 for services
+  purchaseAccountCode: string; // default GL account for purchases
+  salesAccountCode: string; // default GL account for sales
 }
 
 export interface StockMovement extends BaseEntity {
@@ -334,7 +368,7 @@ export interface StockMovement extends BaseEntity {
   itemId: string;
   itemCode: string;
   type: "purchase_receipt" | "sales_delivery" | "adjustment";
-  quantity: number;             // positive = in, negative = out
+  quantity: number; // positive = in, negative = out
   unitCost: number;
   totalCost: number;
   sourceType: "invoice" | "manual";
@@ -347,12 +381,12 @@ export interface StockMovement extends BaseEntity {
 
 export interface VatReturn extends BaseEntity {
   docType: "vat-return";
-  period: string;               // "2026-03"
+  period: string; // "2026-03"
   startDate: string;
   endDate: string;
-  outputVat: number;            // VAT on sales
-  inputVat: number;             // VAT on purchases
-  vatPayable: number;           // output - input
+  outputVat: number; // VAT on sales
+  inputVat: number; // VAT on purchases
+  vatPayable: number; // output - input
   status: "draft" | "submitted" | "accepted";
   lines: VatReturnLine[];
 }
@@ -394,10 +428,10 @@ export interface ChatMessage {
 export interface BusinessEvent {
   id: string;
   companyId: string;
-  type: string;                 // e.g. "invoice.posted", "payment.applied", "entry.reversed"
+  type: string; // e.g. "invoice.posted", "payment.applied", "entry.reversed"
   timestamp: string;
-  actor: string;                // userId or "system"
-  documentType?: string;        // "invoice" | "payment" | "journal-entry" | "item"
+  actor: string; // userId or "system"
+  documentType?: string; // "invoice" | "payment" | "journal-entry" | "item"
   documentId?: string;
   journalEntryId?: string;
   data?: Record<string, unknown>;
@@ -406,7 +440,7 @@ export interface BusinessEvent {
 // ─── Posting Rules (configurable per country) ───────────────
 
 export type PostingRuleCondition = {
-  field: string;                // e.g. "invoice.type", "line.vatRate"
+  field: string; // e.g. "invoice.type", "line.vatRate"
   operator: "eq" | "neq" | "gt" | "lt" | "in" | "exists";
   value: unknown;
 };
@@ -415,27 +449,32 @@ export interface PostingRuleLine {
   accountCode: string;
   accountName: string;
   side: "debit" | "credit";
-  amountExpr: string;           // e.g. "invoice.total", "line.netAmount", "line.vatAmount"
+  amountExpr: string; // e.g. "invoice.total", "line.netAmount", "line.vatAmount"
   description?: string;
   taxCode?: string;
 }
 
 export interface PostingRule {
   id: string;
-  country: string;              // ISO 3166-1 alpha-2
-  documentType: "sales-invoice" | "purchase-invoice" | "incoming-payment" | "outgoing-payment" | "manual-entry";
+  country: string; // ISO 3166-1 alpha-2
+  documentType:
+    | "sales-invoice"
+    | "purchase-invoice"
+    | "incoming-payment"
+    | "outgoing-payment"
+    | "manual-entry";
   name: string;
   description: string;
   version: number;
   conditions: PostingRuleCondition[];
   lines: PostingRuleLine[];
-  effectiveFrom: string;        // ISO date
-  effectiveTo?: string;         // null = current
+  effectiveFrom: string; // ISO date
+  effectiveTo?: string; // null = current
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
   createdBy: string;
-  source?: string;              // e.g. "LV-Cabinet-Regulation-775"
+  source?: string; // e.g. "LV-Cabinet-Regulation-775"
 }
 
 // ─── Feedback / Dev Tasks ───────────────────────────────────
@@ -454,7 +493,7 @@ export interface Feedback {
 // ─── Auth / User ────────────────────────────────────────────
 
 export interface UserProfile {
-  id: string;                   // provider UID
+  id: string; // provider UID
   email: string;
   displayName: string;
   photoUrl?: string;
@@ -468,6 +507,19 @@ export interface UserCompanyRole {
   companyId: string;
   companyName: string;
   role: "owner" | "accountant" | "viewer";
+  sharedBy?: string; // userId of the user who shared this company (absent for owners)
+  sharedAt?: string; // ISO timestamp when access was granted
+}
+
+// ─── Company Sharing ────────────────────────────────────────
+
+export interface CompanySharingEntry {
+  userId: string;
+  email: string;
+  displayName: string;
+  role: "accountant" | "viewer";
+  sharedBy: string;
+  sharedAt: string;
 }
 
 // ─── Fiscal Period ──────────────────────────────────────────
@@ -476,7 +528,7 @@ export interface FiscalPeriod {
   id: string;
   companyId: string;
   docType: "fiscal-period";
-  period: string;               // "2026-03"
+  period: string; // "2026-03"
   status: "open" | "closed";
   closedBy?: string;
   closedAt?: string;
@@ -499,11 +551,11 @@ export interface PeriodCloseRun {
   companyId: string;
   docType: "period-close-run";
   type: "month-end" | "year-end" | "vat-return";
-  period?: string;              // "2026-03" for month-end
-  fiscalYear?: number;          // 2025 for year-end
+  period?: string; // "2026-03" for month-end
+  fiscalYear?: number; // 2025 for year-end
   steps: PeriodCloseStep[];
-  closingEntryId?: string;      // year-end closing journal entry
-  netResult?: number;           // year-end P&L transfer amount
+  closingEntryId?: string; // year-end closing journal entry
+  netResult?: number; // year-end P&L transfer amount
   status: "completed" | "partial" | "failed";
   startedBy: string;
   startedAt: string;
@@ -517,7 +569,7 @@ export interface Address {
   line2?: string;
   city: string;
   postalCode: string;
-  country: string;              // ISO 3166-1 alpha-2
+  country: string; // ISO 3166-1 alpha-2
 }
 
 export interface PaginatedResponse<T> {
@@ -549,8 +601,27 @@ export interface ApiError {
 // 4. What to do next (suggestedActions)
 
 export interface OperationResult {
-  operation: "create" | "update" | "delete" | "post" | "reverse" | "close" | "match" | "execute";
-  entityType: "company" | "invoice" | "payment" | "contact" | "item" | "journal-entry" | "fixed-asset" | "bank-reconciliation" | "recurring-template" | "period" | "vat-return";
+  operation:
+    | "create"
+    | "update"
+    | "delete"
+    | "post"
+    | "reverse"
+    | "close"
+    | "match"
+    | "execute";
+  entityType:
+    | "company"
+    | "invoice"
+    | "payment"
+    | "contact"
+    | "item"
+    | "journal-entry"
+    | "fixed-asset"
+    | "bank-reconciliation"
+    | "recurring-template"
+    | "period"
+    | "vat-return";
   entityId: string;
   status: "success" | "partial" | "failed";
   message: string;
@@ -565,11 +636,22 @@ export interface OperationResult {
 
 export interface AgentTask {
   id: string;
-  type: "invoice" | "payment" | "journal-entry" | "period-close" | "report" | "reconciliation";
-  intent: string;           // Natural language description of what to do
-  parameters: Record<string, unknown>;  // Structured parameters for the operation
+  type:
+    | "invoice"
+    | "payment"
+    | "journal-entry"
+    | "period-close"
+    | "report"
+    | "reconciliation";
+  intent: string; // Natural language description of what to do
+  parameters: Record<string, unknown>; // Structured parameters for the operation
   priority: "low" | "normal" | "high" | "critical";
-  status: "pending" | "in-progress" | "completed" | "failed" | "requires-approval";
+  status:
+    | "pending"
+    | "in-progress"
+    | "completed"
+    | "failed"
+    | "requires-approval";
   createdAt: string;
   completedAt?: string;
   result?: OperationResult;

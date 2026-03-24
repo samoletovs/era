@@ -25,37 +25,89 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // Serve frontend static files BEFORE any middleware — same-origin assets must not go through CORS
+import fs from "fs";
+
 if (process.env.NODE_ENV === "production") {
   const frontendPath = path.join(__dirname, "../frontend");
-  app.use(express.static(frontendPath));
+  const indexPath = path.join(frontendPath, "index.html");
+
+  // Cache index.html with injected runtime config (Google Client ID)
+  let indexHtml: string | null = null;
+  function getIndexHtml(): string {
+    if (!indexHtml) {
+      const raw = fs.readFileSync(indexPath, "utf-8");
+      indexHtml = raw.replace(
+        "%%GOOGLE_CLIENT_ID%%",
+        process.env.GOOGLE_CLIENT_ID || "",
+      );
+    }
+    return indexHtml;
+  }
+
+  // Serve index.html with injected config for root and SPA routes
+  app.get("/", (_req, res) => {
+    res.type("html").send(getIndexHtml());
+  });
+
+  // Static assets (JS, CSS, images) — excludes index.html since GET / is handled above
+  app.use(express.static(frontendPath, { index: false }));
 }
 
-// Security headers
-app.use(helmet({ contentSecurityPolicy: false })); // CSP off — SPA serves own scripts
+// Security headers — crossOriginOpenerPolicy: false allows Google OAuth popup to communicate back
+app.use(
+  helmet({ contentSecurityPolicy: false, crossOriginOpenerPolicy: false }),
+);
 
 // CORS — whitelist known origins
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(",")
   : ["http://localhost:5173", "http://localhost:3000"];
 
-app.use(cors({
-  origin: (origin, cb) => {
-    // Allow requests with no origin (server-to-server, curl, mobile)
-    if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
-    // Reject unknown origins silently (browser enforces; don't crash with 500)
-    cb(null, false);
-  },
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: (origin, cb) => {
+      // Allow requests with no origin (server-to-server, curl, mobile)
+      if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+      // Reject unknown origins silently (browser enforces; don't crash with 500)
+      cb(null, false);
+    },
+    credentials: true,
+  }),
+);
 
 // Rate limiting — 200 requests per minute per IP
-app.use(rateLimit({
+app.use(
+  rateLimit({
+    windowMs: 60_000,
+    max: 200,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+      error: {
+        code: "RATE_LIMITED",
+        message: "Too many requests, please try again later",
+      },
+    },
+  }),
+);
+
+// Tighter limits for mutation-heavy financial routes.
+const financialWriteLimiter = rateLimit({
   windowMs: 60_000,
-  max: 200,
+  max: 30,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: { code: "RATE_LIMITED", message: "Too many requests, please try again later" } },
-}));
+  skip: (req) => req.method === "GET",
+  message: {
+    error: {
+      code: "RATE_LIMITED",
+      message: "Too many write operations, please retry shortly",
+    },
+  },
+});
+app.use("/api/companies/:companyId/journal-entries", financialWriteLimiter);
+app.use("/api/companies/:companyId/invoices", financialWriteLimiter);
+app.use("/api/companies/:companyId/payments", financialWriteLimiter);
 
 app.use(express.json({ limit: "10mb" }));
 
@@ -64,7 +116,8 @@ app.use(idempotency);
 
 // Request ID + structured logging
 app.use((req, _res, next) => {
-  const requestId = req.headers["x-request-id"] as string || crypto.randomUUID();
+  const requestId =
+    (req.headers["x-request-id"] as string) || crypto.randomUUID();
   (req as any).requestId = requestId;
   _res.setHeader("x-request-id", requestId);
 
@@ -96,7 +149,9 @@ app.get("/health", async (_req, res) => {
   } catch {
     checks.database = "unhealthy";
   }
-  const overall = Object.values(checks).every(s => s === "healthy") ? "healthy" : "degraded";
+  const overall = Object.values(checks).every((s) => s === "healthy")
+    ? "healthy"
+    : "degraded";
   res.status(overall === "healthy" ? 200 : 503).json({
     status: overall,
     version: "0.1.0",
@@ -110,9 +165,15 @@ app.use("/api", router);
 
 // SPA catch-all — serve index.html for client-side routes
 if (process.env.NODE_ENV === "production") {
-  const frontendPath = path.join(__dirname, "../frontend");
   app.get("*", (_req, res) => {
-    res.sendFile(path.join(frontendPath, "index.html"));
+    const frontendPath = path.join(__dirname, "../frontend");
+    const indexPath = path.join(frontendPath, "index.html");
+    const raw = fs.readFileSync(indexPath, "utf-8");
+    const html = raw.replace(
+      "%%GOOGLE_CLIENT_ID%%",
+      process.env.GOOGLE_CLIENT_ID || "",
+    );
+    res.type("html").send(html);
   });
 }
 

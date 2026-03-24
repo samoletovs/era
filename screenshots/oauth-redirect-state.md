@@ -1,0 +1,250 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - complementary "Skip links" [ref=e5]:
+        - link "Skip to main content" [ref=e6] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e7]: Skip to main content
+        - button "Keyboard shortcuts" [ref=e8]:
+          - generic [ref=e9]: Keyboard shortcuts
+        - link "Accessibility Help external, opens new window" [ref=e10] [cursor=pointer]:
+          - /url: https://cloud.google.com/docs/accessibility?hl=en_US
+          - generic [ref=e11]:
+            - text: Accessibility Help
+            - generic "external, opens new window" [ref=e12]:
+              - img "external, opens new window" [ref=e13]:
+                - img [ref=e14]
+        - link "Accessibility Feedback external, opens new window" [ref=e16] [cursor=pointer]:
+          - /url: https://support.google.com/accessibility/contact/feedback?hl=en_US
+          - generic [ref=e17]:
+            - text: Accessibility Feedback
+            - generic "external, opens new window" [ref=e18]:
+              - img "external, opens new window" [ref=e19]:
+                - img [ref=e20]
+      - banner [ref=e23]:
+        - generic [ref=e24]:
+          - navigation [ref=e27]:
+            - button "Navigation menu (.)" [ref=e28] [cursor=pointer]:
+              - img [ref=e30]
+          - link "Google Cloud Platform Home" [ref=e32] [cursor=pointer]:
+            - /url: /
+            - generic:
+              - img
+          - button "You're currently working in ERA ERP. Hit enter to switch projects, folders, or organizations" [ref=e224]:
+            - generic [ref=e225]:
+              - img [ref=e227]
+              - generic [ref=e230]: ERA ERP
+        - search "Google Cloud Platform" [ref=e46]:
+          - combobox [ref=e47]:
+            - searchbox "Enter query to search for resources, docs, products, and more" [ref=e48]
+          - button "See all search results" [disabled]:
+            - generic:
+              - img
+            - generic: Search
+        - generic [ref=e49]:
+          - generic [ref=e50]:
+            - button "Open or close Gemini Cloud Assist chat (Alt G)" [ref=e234] [cursor=pointer]:
+              - img [ref=e236]
+            - button "Activate Cloud Shell (G then S)" [ref=e238] [cursor=pointer]:
+              - img [ref=e240]
+            - button "2 unread notifications. Open notifications" [ref=e57] [cursor=pointer]:
+              - generic [ref=e60]: "2"
+            - button "Settings and utilities" [ref=e65] [cursor=pointer]:
+              - img [ref=e67]
+          - 'button "Account: Dmitri Andreev (d.146099412+samoletovs@users.noreply.github.comgmail.com)" [ref=e244]':
+            - img [ref=e245]
+    - generic [ref=e80]:
+      - navigation "Breadcrumb" [ref=e250]:
+        - link "Google Auth Platform" [ref=e253] [cursor=pointer]:
+          - /url: /auth?project=era-erp
+          - img [ref=e256]
+          - generic [ref=e260]: Google Auth Platform
+        - list [ref=e261]:
+          - listitem [ref=e262]:
+            - generic [ref=e263]: /
+            - link "Clients" [ref=e266] [cursor=pointer]:
+              - /url: /auth/clients?project=era-erp
+              - generic [ref=e268]: Clients
+          - listitem [ref=e269]:
+            - generic [ref=e270]: /
+            - 'link "Client: 715463017630-ru5ilmava5016bfsec1er7ib8pa7h7jo.apps.googleusercontent.com" [ref=e273] [cursor=pointer]':
+              - /url: /auth/clients/715463017630-ru5ilmava5016bfsec1er7ib8pa7h7jo.apps.googleusercontent.com?project=era-erp
+              - generic [ref=e275]: "Client: 715463017630-ru5ilmava5016bfsec1er7ib8pa7h7jo.apps.googleusercontent.com"
+      - generic [ref=e91]:
+        - navigation "Google Auth Platform" [ref=e98]:
+          - generic [ref=e99]:
+            - list "Overview, 1 of 7 Branding, 2 of 7 Audience, 3 of 7 Clients, 4 of 7 Data Access, 5 of 7 Verification Center, 6 of 7 Settings, 7 of 7" [ref=e113]:
+              - listitem [ref=e114]:
+                - link "Overview, 1 of 7" [ref=e118] [cursor=pointer]:
+                  - /url: /auth/overview
+                  - generic [ref=e119]:
+                    - img [ref=e122]
+                    - generic [ref=e124]: Overview
+              - listitem [ref=e125]:
+                - link "Branding, 2 of 7" [ref=e129] [cursor=pointer]:
+                  - /url: /auth/branding
+                  - generic [ref=e130]:
+                    - img [ref=e133]
+                    - generic [ref=e139]: Branding
+              - listitem [ref=e140]:
+                - link "Audience, 3 of 7" [ref=e144] [cursor=pointer]:
+                  - /url: /auth/audience
+                  - generic [ref=e145]:
+                    - img [ref=e148]
+                    - generic [ref=e150]: Audience
+              - listitem [ref=e151]:
+                - link "Clients, 4 of 7" [ref=e155] [cursor=pointer]:
+                  - /url: /auth/clients
+                  - generic [ref=e156]:
+                    - img [ref=e159]
+                    - generic [ref=e161]: Clients
+              - listitem [ref=e162]:
+                - link "Data Access, 5 of 7" [ref=e166] [cursor=pointer]:
+                  - /url: /auth/scopes
+                  - generic [ref=e167]:
+                    - img [ref=e170]
+                    - generic [ref=e173]: Data Access
+              - listitem [ref=e174]:
+                - link "Verification Center, 6 of 7" [ref=e178] [cursor=pointer]:
+                  - /url: /auth/verification
+                  - generic [ref=e179]:
+                    - img [ref=e182]
+                    - generic [ref=e185]: Verification Center
+              - listitem [ref=e186]:
+                - link "Settings, 7 of 7" [ref=e190] [cursor=pointer]:
+                  - /url: /auth/settings
+                  - generic [ref=e191]:
+                    - img [ref=e194]
+                    - generic [ref=e196]: Settings
+            - button "Toggle Google Auth Platform navigation menu" [pressed] [ref=e199] [cursor=pointer]:
+              - img [ref=e202]
+        - main [ref=e205]:
+          - generic [ref=e286]:
+            - generic [ref=e289]:
+              - button "Back to previous page" [ref=e293] [cursor=pointer]:
+                - img [ref=e295]
+              - heading "Client ID for Web application" [level=1] [ref=e299]:
+                - generic [ref=e300]: Client ID for Web application
+              - generic [ref=e302]:
+                - button "Delete" [ref=e307]:
+                  - img [ref=e309]
+                  - generic [ref=e311]: Delete
+                - button "Information and summary" [ref=e315] [cursor=pointer]:
+                  - img [ref=e317]
+            - generic [ref=e327]:
+              - generic [ref=e329]:
+                - generic [ref=e330]:
+                  - generic [ref=e332] [cursor=pointer]:
+                    - generic [ref=e333]:
+                      - text: Name
+                      - generic [ref=e334]: "*"
+                    - textbox "Name" [ref=e336]: ERA Web App
+                  - generic [ref=e339]: The name of your OAuth 2.0 client. This name is only used to identify the client in the console and will not be shown to end users.
+                - generic [ref=e341]:
+                  - generic [ref=e343]:
+                    - img "Information" [ref=e344]:
+                      - img [ref=e345]
+                    - generic [ref=e349]:
+                      - text: The domains of the URIs you add below will be automatically added to your
+                      - link "OAuth consent screen" [ref=e350] [cursor=pointer]:
+                        - /url: /auth/branding?project=era-erp
+                      - text: as
+                      - link "authorized domains external, opens new window" [ref=e351] [cursor=pointer]:
+                        - /url: https://support.google.com/cloud/answer/6158849#authorized-domains
+                        - text: authorized domains
+                        - img "external, opens new window" [ref=e352]:
+                          - img [ref=e353]
+                      - text: .
+                  - group "Authorized JavaScript origins" [ref=e356]:
+                    - generic "Authorized JavaScript origins" [ref=e358]:
+                      - heading "Authorized JavaScript origins" [level=2] [ref=e360]
+                      - button "Help with Javascript origins" [ref=e362] [cursor=pointer]:
+                        - img [ref=e364]
+                    - generic [ref=e367]: For use with requests from a browser
+                    - group "Authorized JavaScript origins" [ref=e369]:
+                      - generic [ref=e370]:
+                        - group "Item 1" [ref=e371]:
+                          - generic [ref=e375] [cursor=pointer]:
+                            - generic [ref=e376]:
+                              - generic [ref=e377]: URIs 1
+                              - generic [ref=e378]: "*"
+                            - textbox "URIs 1" [ref=e380]:
+                              - /placeholder: https://www.example.com
+                              - text: http://localhost:5173
+                          - button "Delete item. Item 1" [ref=e382] [cursor=pointer]:
+                            - img [ref=e384]
+                        - group "Item 2" [ref=e386]:
+                          - generic [ref=e390] [cursor=pointer]:
+                            - generic [ref=e391]:
+                              - generic [ref=e392]: URIs 2
+                              - generic [ref=e393]: "*"
+                            - textbox "URIs 2" [ref=e395]:
+                              - /placeholder: https://www.example.com
+                              - text: http://localhost:3000
+                          - button "Delete item. Item 2" [ref=e397] [cursor=pointer]:
+                            - img [ref=e399]
+                        - group "Item 3" [ref=e401]:
+                          - generic [ref=e405] [cursor=pointer]:
+                            - generic [ref=e406]:
+                              - generic [ref=e407]: URIs 3
+                              - generic [ref=e408]: "*"
+                            - textbox "URIs 3" [ref=e410]:
+                              - /placeholder: https://www.example.com
+                              - text: https://era-dev-api.blackdune-26b951eb.northeurope.azurecontainerapps.io
+                          - button "Delete item. Item 3" [ref=e412] [cursor=pointer]:
+                            - img [ref=e414]
+                      - button "Add URI" [ref=e417]:
+                        - generic [ref=e419]:
+                          - img [ref=e421]
+                          - text: Add URI
+                  - group "Authorized redirect URIs" [ref=e424]:
+                    - generic "Authorized redirect URIs" [ref=e426]:
+                      - heading "Authorized redirect URIs" [level=2] [ref=e428]
+                      - button "Help with redirect URIs" [ref=e430] [cursor=pointer]:
+                        - img [ref=e432]
+                    - generic [ref=e435]: For use with requests from a web server
+                    - group "Authorized redirect URIs" [ref=e437]:
+                      - generic [ref=e438]:
+                        - group "Item 1" [ref=e439]:
+                          - generic [ref=e443] [cursor=pointer]:
+                            - generic [ref=e444]:
+                              - generic [ref=e445]: URIs 1
+                              - generic [ref=e446]: "*"
+                            - textbox "URIs 1" [ref=e448]:
+                              - /placeholder: https://www.example.com
+                              - text: https://era-dev-api.blackdune-26b951eb.northeurope.azurecontainerapps.io/
+                          - button "Delete item. Item 1" [ref=e450] [cursor=pointer]:
+                            - img [ref=e452]
+                        - group "Item 2" [ref=e454]:
+                          - generic [ref=e458] [cursor=pointer]:
+                            - generic [ref=e459]:
+                              - generic [ref=e460]: URIs 2
+                              - generic [ref=e461]: "*"
+                            - textbox "URIs 2" [ref=e463]:
+                              - /placeholder: https://www.example.com
+                              - text: http://localhost:5173/
+                          - button "Delete item. Item 2" [ref=e465] [cursor=pointer]:
+                            - img [ref=e467]
+                        - group "Item 3" [ref=e469]:
+                          - generic [ref=e473] [cursor=pointer]:
+                            - generic [ref=e474]:
+                              - generic [ref=e475]: URIs 3
+                              - generic [ref=e476]: "*"
+                            - textbox "URIs 3" [ref=e478]:
+                              - /placeholder: https://www.example.com
+                              - text: http://localhost:3000/
+                          - button "Delete item. Item 3" [ref=e480] [cursor=pointer]:
+                            - img [ref=e482]
+                      - button "Add URI" [ref=e485]:
+                        - generic [ref=e487]:
+                          - img [ref=e489]
+                          - text: Add URI
+              - paragraph [ref=e491]: "Note: It may take 5 minutes to a few hours for settings to take effect"
+              - button "Save" [ref=e494]:
+                - generic [ref=e495]: Save
+              - button "Cancel" [ref=e496]:
+                - generic [ref=e497]: Cancel
+  - iframe [ref=e222]:
+    
+  - iframe [ref=e500]:
+    

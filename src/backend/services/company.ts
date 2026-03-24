@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from "uuid";
 import { containers } from "./cosmos.js";
 import { buildAccountsForCompany } from "./chart-of-accounts.js";
 import { emitEvent } from "./events.js";
-import type { Company, CompanySettings } from "@shared/types";
+import type { Company, CompanySettings, UserProfile } from "@shared/types";
 
 interface CreateCompanyInput {
   name: string;
@@ -11,6 +11,72 @@ interface CreateCompanyInput {
   vatNumber?: string;
   legalAddress: Company["legalAddress"];
   createdBy: string;
+  createdByEmail?: string;
+  createdByName?: string;
+  createdByProvider?: "google" | "microsoft";
+}
+
+async function ensureUserCompanyRole(input: {
+  userId: string;
+  companyId: string;
+  companyName: string;
+  email?: string;
+  displayName?: string;
+  provider?: "google" | "microsoft";
+}) {
+  const now = new Date().toISOString();
+  let profile: UserProfile | null = null;
+
+  try {
+    const { resource } = await containers
+      .users()
+      .item(input.userId, input.userId)
+      .read<UserProfile>();
+    profile = resource ?? null;
+  } catch {
+    profile = null;
+  }
+
+  if (!profile) {
+    const createdProfile: UserProfile = {
+      id: input.userId,
+      email: input.email || `${input.userId}@unknown.local`,
+      displayName: input.displayName || "User",
+      provider: input.provider || "microsoft",
+      companies: [
+        {
+          companyId: input.companyId,
+          companyName: input.companyName,
+          role: "owner",
+        },
+      ],
+      createdAt: now,
+      lastLoginAt: now,
+    };
+    await containers.users().items.upsert(createdProfile);
+    return;
+  }
+
+  const alreadyLinked = profile.companies.some(
+    (c) => c.companyId === input.companyId,
+  );
+  if (!alreadyLinked) {
+    profile.companies.push({
+      companyId: input.companyId,
+      companyName: input.companyName,
+      role: "owner",
+    });
+  }
+
+  if (input.email && !profile.email) {
+    profile.email = input.email;
+  }
+  if (input.displayName && !profile.displayName) {
+    profile.displayName = input.displayName;
+  }
+  profile.lastLoginAt = now;
+
+  await containers.users().items.upsert(profile);
 }
 
 // Generate a short code from company name (max 5 chars, uppercase)
@@ -48,7 +114,9 @@ export function generateShortName(officialName: string): string {
   let name = officialName.trim();
 
   // 1. Extract content from quotes if present (Latvian register often wraps in quotes)
-  const quoted = name.match(/[""\u201C\u201D]([^""\u201C\u201D]+)[""\u201C\u201D]/);
+  const quoted = name.match(
+    /[""\u201C\u201D]([^""\u201C\u201D]+)[""\u201C\u201D]/,
+  );
   if (quoted) {
     name = quoted[1].trim();
   }
@@ -78,7 +146,7 @@ export function generateShortName(officialName: string): string {
     name = name
       .toLowerCase()
       .split(/\s+/)
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(" ");
   }
 
@@ -90,7 +158,9 @@ export function generateShortName(officialName: string): string {
   return name || officialName;
 }
 
-export async function createCompany(input: CreateCompanyInput): Promise<Company> {
+export async function createCompany(
+  input: CreateCompanyInput,
+): Promise<Company> {
   const id = uuidv4();
   const now = new Date().toISOString();
   const code = input.code || generateCode(input.name);
@@ -128,6 +198,16 @@ export async function createCompany(input: CreateCompanyInput): Promise<Company>
   // Create company
   await containers.companies().items.create(company);
 
+  // Persist tenant membership for access checks.
+  await ensureUserCompanyRole({
+    userId: input.createdBy,
+    companyId: company.id,
+    companyName: company.name,
+    email: input.createdByEmail,
+    displayName: input.createdByName,
+    provider: input.createdByProvider,
+  });
+
   // Pre-populate Latvian Chart of Accounts
   const accounts = buildAccountsForCompany(id, input.createdBy);
   const ledgerContainer = containers.ledger();
@@ -149,7 +229,10 @@ export async function createCompany(input: CreateCompanyInput): Promise<Company>
 
 export async function getCompany(id: string): Promise<Company | null> {
   try {
-    const { resource } = await containers.companies().item(id, id).read<Company>();
+    const { resource } = await containers
+      .companies()
+      .item(id, id)
+      .read<Company>();
     return resource ?? null;
   } catch {
     return null;
@@ -158,7 +241,18 @@ export async function getCompany(id: string): Promise<Company | null> {
 
 export async function updateCompany(
   id: string,
-  updates: Partial<Pick<Company, "code" | "name" | "shortName" | "vatNumber" | "settings" | "bankAccounts" | "legalAddress">>
+  updates: Partial<
+    Pick<
+      Company,
+      | "code"
+      | "name"
+      | "shortName"
+      | "vatNumber"
+      | "settings"
+      | "bankAccounts"
+      | "legalAddress"
+    >
+  >,
 ): Promise<Company | null> {
   const company = await getCompany(id);
   if (!company) return null;
@@ -167,27 +261,37 @@ export async function updateCompany(
   if (updates.name && !updates.shortName) {
     company.shortName = generateShortName(updates.name);
   }
-  const { resource } = await containers.companies().item(id, id).replace(company);
+  const { resource } = await containers
+    .companies()
+    .item(id, id)
+    .replace(company);
   return resource ?? null;
 }
 
-export async function getCompanyStats(id: string): Promise<{ transactionCount: number }> {
-  const { resources: txns } = await containers.ledger().items
-    .query<number>({
-      query: "SELECT VALUE COUNT(1) FROM c WHERE c.companyId = @companyId AND c.docType != 'account'",
+export async function getCompanyStats(
+  id: string,
+): Promise<{ transactionCount: number }> {
+  const { resources: txns } = await containers
+    .ledger()
+    .items.query<number>({
+      query:
+        "SELECT VALUE COUNT(1) FROM c WHERE c.companyId = @companyId AND c.docType != 'account'",
       parameters: [{ name: "@companyId", value: id }],
     })
     .fetchAll();
   return { transactionCount: txns[0] ?? 0 };
 }
 
-export async function deleteCompany(id: string): Promise<{ isDeleted: boolean }> {
+export async function deleteCompany(
+  id: string,
+): Promise<{ isDeleted: boolean }> {
   const company = await getCompany(id);
   if (!company) throw new Error("Company not found");
 
   // Delete all ledger items (accounts, journal entries, etc.)
-  const { resources: ledgerItems } = await containers.ledger().items
-    .query<{ id: string }>({
+  const { resources: ledgerItems } = await containers
+    .ledger()
+    .items.query<{ id: string }>({
       query: "SELECT c.id FROM c WHERE c.companyId = @companyId",
       parameters: [{ name: "@companyId", value: id }],
     })
@@ -197,8 +301,9 @@ export async function deleteCompany(id: string): Promise<{ isDeleted: boolean }>
   }
 
   // Delete documents (invoices)
-  const { resources: docs } = await containers.documents().items
-    .query<{ id: string }>({
+  const { resources: docs } = await containers
+    .documents()
+    .items.query<{ id: string }>({
       query: "SELECT c.id FROM c WHERE c.companyId = @companyId",
       parameters: [{ name: "@companyId", value: id }],
     })
@@ -208,8 +313,9 @@ export async function deleteCompany(id: string): Promise<{ isDeleted: boolean }>
   }
 
   // Delete contacts
-  const { resources: contacts } = await containers.contacts().items
-    .query<{ id: string }>({
+  const { resources: contacts } = await containers
+    .contacts()
+    .items.query<{ id: string }>({
       query: "SELECT c.id FROM c WHERE c.companyId = @companyId",
       parameters: [{ name: "@companyId", value: id }],
     })
@@ -219,8 +325,9 @@ export async function deleteCompany(id: string): Promise<{ isDeleted: boolean }>
   }
 
   // Delete inventory
-  const { resources: items } = await containers.inventory().items
-    .query<{ id: string }>({
+  const { resources: items } = await containers
+    .inventory()
+    .items.query<{ id: string }>({
       query: "SELECT c.id FROM c WHERE c.companyId = @companyId",
       parameters: [{ name: "@companyId", value: id }],
     })
@@ -230,8 +337,9 @@ export async function deleteCompany(id: string): Promise<{ isDeleted: boolean }>
   }
 
   // Delete events
-  const { resources: events } = await containers.events().items
-    .query<{ id: string }>({
+  const { resources: events } = await containers
+    .events()
+    .items.query<{ id: string }>({
       query: "SELECT c.id FROM c WHERE c.companyId = @companyId",
       parameters: [{ name: "@companyId", value: id }],
     })

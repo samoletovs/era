@@ -30,7 +30,10 @@ declare global {
   }
 }
 
-function getSigningKey(client: jwksRsa.JwksClient, header: jwt.JwtHeader): Promise<string> {
+function getSigningKey(
+  client: jwksRsa.JwksClient,
+  header: jwt.JwtHeader,
+): Promise<string> {
   return new Promise((resolve, reject) => {
     client.getSigningKey(header.kid, (err, key) => {
       if (err) return reject(err);
@@ -68,7 +71,10 @@ async function verifyMicrosoftToken(token: string): Promise<AuthUser> {
 
   // Validate Microsoft issuer pattern manually
   const iss = payload.iss || "";
-  if (!iss.startsWith("https://login.microsoftonline.com/") || !iss.endsWith("/v2.0")) {
+  if (
+    !iss.startsWith("https://login.microsoftonline.com/") ||
+    !iss.endsWith("/v2.0")
+  ) {
     throw new Error("Invalid Microsoft issuer");
   }
 
@@ -80,28 +86,45 @@ async function verifyMicrosoftToken(token: string): Promise<AuthUser> {
   };
 }
 
-export async function authMiddleware(req: Request, res: Response, next: NextFunction) {
+export async function authMiddleware(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
   // Accept token from Authorization header or query param (for browser-opened URLs like PDF)
   const authHeader = req.headers.authorization;
   const queryToken = req.query.token as string | undefined;
 
-  // Dev bypass — in development: always allowed; in production: only if ALLOW_DEV_BYPASS=true
-  // This is a temporary measure until Google/Microsoft OAuth login is implemented.
-  // To disable: remove ALLOW_DEV_BYPASS env var from Container App.
-  const devBypassAllowed = process.env.NODE_ENV !== "production" || process.env.ALLOW_DEV_BYPASS === "true";
-  if (devBypassAllowed && (authHeader === "Bearer dev-bypass" || queryToken === "dev-bypass")) {
-    if (process.env.NODE_ENV === "production") {
-      console.warn(JSON.stringify({ level: "warn", message: "Dev bypass used in production — disable ALLOW_DEV_BYPASS before go-live" }));
-    }
-    req.user = { id: "dev-user", email: "dev@era.local", name: "Developer", provider: "google" };
+  // Dev bypass is allowed only outside production.
+  const isDevBypassRequest =
+    authHeader === "Bearer dev-bypass" || queryToken === "dev-bypass";
+  const devBypassAllowed = process.env.NODE_ENV !== "production";
+  if (isDevBypassRequest && !devBypassAllowed) {
+    res
+      .status(401)
+      .json({ error: { code: "AUTH-001", message: "Invalid bearer token" } });
+    return;
+  }
+
+  if (devBypassAllowed && isDevBypassRequest) {
+    req.user = {
+      id: "dev-user",
+      email: "dev@era.local",
+      name: "Developer",
+      provider: "google",
+    };
     next();
     return;
   }
 
-  const rawToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : queryToken;
+  const rawToken = authHeader?.startsWith("Bearer ")
+    ? authHeader.slice(7)
+    : queryToken;
 
   if (!rawToken) {
-    res.status(401).json({ error: { code: "UNAUTHORIZED", message: "Missing bearer token" } });
+    res
+      .status(401)
+      .json({ error: { code: "AUTH-001", message: "Missing bearer token" } });
     return;
   }
 
@@ -111,7 +134,9 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     // Try Google first, then Microsoft
     const decoded = jwt.decode(token, { complete: true });
     if (!decoded) {
-      res.status(401).json({ error: { code: "UNAUTHORIZED", message: "Invalid token" } });
+      res
+        .status(401)
+        .json({ error: { code: "AUTH-001", message: "Invalid token" } });
       return;
     }
 
@@ -123,13 +148,17 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     } else if (issuer.includes("login.microsoftonline.com")) {
       user = await verifyMicrosoftToken(token);
     } else {
-      res.status(401).json({ error: { code: "UNAUTHORIZED", message: "Unknown token issuer" } });
+      res
+        .status(401)
+        .json({ error: { code: "AUTH-001", message: "Unknown token issuer" } });
       return;
     }
 
     req.user = user;
     next();
   } catch {
-    res.status(401).json({ error: { code: "UNAUTHORIZED", message: "Token verification failed" } });
+    res.status(401).json({
+      error: { code: "AUTH-001", message: "Token verification failed" },
+    });
   }
 }

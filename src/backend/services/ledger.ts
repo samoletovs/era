@@ -6,13 +6,20 @@ import type { JournalEntry, JournalLine, Account } from "@shared/types";
 // ─── Validation ─────────────────────────────────────────────
 
 export class GLError extends Error {
-  constructor(public code: string, message: string) {
+  constructor(
+    public code: string,
+    message: string,
+  ) {
     super(message);
     this.name = "GLError";
   }
 }
 
-function validateEntry(entry: { lines: JournalLine[]; date: string; description: string }) {
+function validateEntry(entry: {
+  lines: JournalLine[];
+  date: string;
+  description: string;
+}) {
   if (!entry.lines || entry.lines.length < 2) {
     throw new GLError("MIN_LINES", "Journal entry must have at least 2 lines");
   }
@@ -23,17 +30,24 @@ function validateEntry(entry: { lines: JournalLine[]; date: string; description:
     throw new GLError("MISSING_DESC", "Journal entry must have a description");
   }
 
-  const totalDebit = roundCurrency(entry.lines.reduce((sum, l) => sum + l.debit, 0));
-  const totalCredit = roundCurrency(entry.lines.reduce((sum, l) => sum + l.credit, 0));
+  const totalDebit = roundCurrency(
+    entry.lines.reduce((sum, l) => sum + l.debit, 0),
+  );
+  const totalCredit = roundCurrency(
+    entry.lines.reduce((sum, l) => sum + l.credit, 0),
+  );
 
   if (totalDebit !== totalCredit) {
     throw new GLError(
       "UNBALANCED",
-      `Debits (${totalDebit}) must equal credits (${totalCredit})`
+      `Debits (${totalDebit}) must equal credits (${totalCredit})`,
     );
   }
   if (totalDebit === 0) {
-    throw new GLError("ZERO_ENTRY", "Journal entry total must be greater than zero");
+    throw new GLError(
+      "ZERO_ENTRY",
+      "Journal entry total must be greater than zero",
+    );
   }
 
   for (const line of entry.lines) {
@@ -41,13 +55,22 @@ function validateEntry(entry: { lines: JournalLine[]; date: string; description:
       throw new GLError("NEGATIVE_AMOUNT", "Amounts must be non-negative");
     }
     if (line.debit > 0 && line.credit > 0) {
-      throw new GLError("BOTH_SIDES", "A line cannot have both debit and credit");
+      throw new GLError(
+        "BOTH_SIDES",
+        "A line cannot have both debit and credit",
+      );
     }
     if (line.debit === 0 && line.credit === 0) {
-      throw new GLError("ZERO_LINE", "A line must have either a debit or credit amount");
+      throw new GLError(
+        "ZERO_LINE",
+        "A line must have either a debit or credit amount",
+      );
     }
     if (!line.accountCode) {
-      throw new GLError("MISSING_ACCOUNT", "Each line must reference an account code");
+      throw new GLError(
+        "MISSING_ACCOUNT",
+        "Each line must reference an account code",
+      );
     }
   }
 }
@@ -58,10 +81,15 @@ function roundCurrency(n: number): number {
 
 // ─── Generate entry number ──────────────────────────────────
 
-async function nextEntryNumber(companyId: string, period: string): Promise<string> {
-  const { resources } = await containers.ledger().items
-    .query<{ entryNumber: string }>({
-      query: "SELECT c.entryNumber FROM c WHERE c.companyId = @cid AND c.period = @period AND (c.docType = 'journal-entry' OR IS_DEFINED(c.entryNumber)) ORDER BY c.entryNumber DESC OFFSET 0 LIMIT 1",
+async function nextEntryNumber(
+  companyId: string,
+  period: string,
+): Promise<string> {
+  const { resources } = await containers
+    .ledger()
+    .items.query<{ entryNumber: string }>({
+      query:
+        "SELECT c.entryNumber FROM c WHERE c.companyId = @cid AND c.period = @period AND (c.docType = 'journal-entry' OR IS_DEFINED(c.entryNumber)) ORDER BY c.entryNumber DESC OFFSET 0 LIMIT 1",
       parameters: [
         { name: "@cid", value: companyId },
         { name: "@period", value: period },
@@ -88,15 +116,21 @@ interface PostEntryInput {
   createdBy: string;
 }
 
-export async function postJournalEntry(input: PostEntryInput): Promise<JournalEntry> {
+export async function postJournalEntry(
+  input: PostEntryInput,
+): Promise<JournalEntry> {
   validateEntry(input);
 
   const period = input.date.slice(0, 7); // "2026-03"
   const entryNumber = await nextEntryNumber(input.companyId, period);
   const now = new Date().toISOString();
 
-  const totalDebit = roundCurrency(input.lines.reduce((sum, l) => sum + l.debit, 0));
-  const totalCredit = roundCurrency(input.lines.reduce((sum, l) => sum + l.credit, 0));
+  const totalDebit = roundCurrency(
+    input.lines.reduce((sum, l) => sum + l.debit, 0),
+  );
+  const totalCredit = roundCurrency(
+    input.lines.reduce((sum, l) => sum + l.credit, 0),
+  );
 
   const entry: JournalEntry = {
     id: uuidv4(),
@@ -132,7 +166,11 @@ export async function postJournalEntry(input: PostEntryInput): Promise<JournalEn
     documentType: "journal-entry",
     documentId: entry.id,
     journalEntryId: entry.id,
-    data: { entryNumber: entry.entryNumber, sourceType: entry.sourceType, totalDebit: entry.totalDebit },
+    data: {
+      entryNumber: entry.entryNumber,
+      sourceType: entry.sourceType,
+      totalDebit: entry.totalDebit,
+    },
   });
 
   return entry;
@@ -150,22 +188,40 @@ async function updateAccountBalances(companyId: string, lines: JournalLine[]) {
 
   for (const [accountCode, delta] of deltas) {
     const accountId = `${companyId}-acct-${accountCode}`;
-    try {
-      const { resource: account, etag } = await containers.ledger()
-        .item(accountId, companyId)
-        .read<Account>();
+    let attempt = 0;
+    while (attempt < 3) {
+      try {
+        const { resource: account, etag } = await containers
+          .ledger()
+          .item(accountId, companyId)
+          .read<Account>();
 
-      if (account) {
-        // For accounts with credit normal side, flip the sign
+        if (!account) {
+          break;
+        }
+
+        // For accounts with credit normal side, flip the sign.
         const signedDelta = account.normalSide === "credit" ? -delta : delta;
         account.balance = roundCurrency(account.balance + signedDelta);
         account.updatedAt = new Date().toISOString();
-        await containers.ledger().item(accountId, companyId).replace(account, {
-          accessCondition: { type: "IfMatch", condition: etag! },
-        });
+        await containers
+          .ledger()
+          .item(accountId, companyId)
+          .replace(account, {
+            accessCondition: { type: "IfMatch", condition: etag! },
+          });
+        break;
+      } catch (err) {
+        const code =
+          (err as { code?: number; statusCode?: number }).code ??
+          (err as { code?: number; statusCode?: number }).statusCode;
+        const isPreconditionFailed = code === 412;
+        if (isPreconditionFailed && attempt < 2) {
+          attempt++;
+          continue;
+        }
+        throw err;
       }
-    } catch {
-      // Account not found or etag conflict — skip (validation should catch this upstream)
     }
   }
 }
@@ -175,14 +231,16 @@ async function updateAccountBalances(companyId: string, lines: JournalLine[]) {
 export async function reverseJournalEntry(
   companyId: string,
   entryId: string,
-  createdBy: string
+  createdBy: string,
 ): Promise<JournalEntry> {
-  const { resource: original } = await containers.ledger()
+  const { resource: original } = await containers
+    .ledger()
     .item(entryId, companyId)
     .read<JournalEntry>();
 
   if (!original) throw new GLError("NOT_FOUND", "Journal entry not found");
-  if (original.status === "reversed") throw new GLError("ALREADY_REVERSED", "Entry already reversed");
+  if (original.status === "reversed")
+    throw new GLError("ALREADY_REVERSED", "Entry already reversed");
 
   // Mark original as reversed
   original.status = "reversed";
@@ -230,7 +288,11 @@ export interface TrialBalanceLine {
   closingBalance: number;
 }
 
-export async function getTrialBalance(companyId: string, from?: string, to?: string): Promise<{
+export async function getTrialBalance(
+  companyId: string,
+  from?: string,
+  to?: string,
+): Promise<{
   lines: TrialBalanceLine[];
   periodStart: string;
   periodEnd: string;
@@ -243,18 +305,25 @@ export async function getTrialBalance(companyId: string, from?: string, to?: str
   const periodEnd = to || new Date().toISOString().slice(0, 10);
 
   // Get all postable accounts
-  const { resources: accounts } = await containers.ledger().items
-    .query<Account>({
-      query: "SELECT * FROM c WHERE c.companyId = @cid AND (c.docType = 'account' OR (IS_DEFINED(c.code) AND IS_DEFINED(c.normalSide))) AND (c.isPostable = true OR c.isPostable = false) ORDER BY c.code",
+  const { resources: accounts } = await containers
+    .ledger()
+    .items.query<Account>({
+      query:
+        "SELECT * FROM c WHERE c.companyId = @cid AND (c.docType = 'account' OR (IS_DEFINED(c.code) AND IS_DEFINED(c.normalSide))) AND (c.isPostable = true OR c.isPostable = false) ORDER BY c.code",
       parameters: [{ name: "@cid", value: companyId }],
     })
     .fetchAll();
 
   // Get all posted journal entries
-  const { resources: allEntries } = await containers.ledger().items
-    .query<any>({
-      query: "SELECT * FROM c WHERE c.companyId = @cid AND (c.docType = 'journal-entry' OR IS_DEFINED(c.entryNumber)) AND c.status = 'posted'",
-      parameters: [{ name: "@cid", value: companyId }],
+  const { resources: allEntries } = await containers
+    .ledger()
+    .items.query<any>({
+      query:
+        "SELECT * FROM c WHERE c.companyId = @cid AND (c.docType = 'journal-entry' OR IS_DEFINED(c.entryNumber)) AND c.status = 'posted' AND c.date <= @periodEnd",
+      parameters: [
+        { name: "@cid", value: companyId },
+        { name: "@periodEnd", value: periodEnd },
+      ],
     })
     .fetchAll();
 
@@ -268,16 +337,28 @@ export async function getTrialBalance(companyId: string, from?: string, to?: str
     const isBefore = entry.date < periodStart;
     const isInPeriod = entry.date >= periodStart && entry.date <= periodEnd;
 
-    for (const line of (entry.lines || [])) {
+    for (const line of entry.lines || []) {
       const code = line.accountCode;
       if (!code) continue;
 
       if (isBefore) {
-        openingDebits.set(code, (openingDebits.get(code) || 0) + (line.debit || 0));
-        openingCredits.set(code, (openingCredits.get(code) || 0) + (line.credit || 0));
+        openingDebits.set(
+          code,
+          (openingDebits.get(code) || 0) + (line.debit || 0),
+        );
+        openingCredits.set(
+          code,
+          (openingCredits.get(code) || 0) + (line.credit || 0),
+        );
       } else if (isInPeriod) {
-        periodDebits.set(code, (periodDebits.get(code) || 0) + (line.debit || 0));
-        periodCredits.set(code, (periodCredits.get(code) || 0) + (line.credit || 0));
+        periodDebits.set(
+          code,
+          (periodDebits.get(code) || 0) + (line.debit || 0),
+        );
+        periodCredits.set(
+          code,
+          (periodCredits.get(code) || 0) + (line.credit || 0),
+        );
       }
     }
   }
@@ -295,8 +376,8 @@ export async function getTrialBalance(companyId: string, from?: string, to?: str
     const pc = roundCurrency(periodCredits.get(account.code) || 0);
 
     // Opening balance: net of all entries before period
-    const openingNet = account.normalSide === "credit" ? (oc - od) : (od - oc);
-    const periodNet = account.normalSide === "credit" ? (pc - pd) : (pd - pc);
+    const openingNet = account.normalSide === "credit" ? oc - od : od - oc;
+    const periodNet = account.normalSide === "credit" ? pc - pd : pd - pc;
     const closingBalance = roundCurrency(openingNet + periodNet);
 
     // Skip accounts with no activity and no balance
@@ -331,10 +412,14 @@ export async function getTrialBalance(companyId: string, from?: string, to?: str
 
 // ─── Account balance query ──────────────────────────────────
 
-export async function getAccountBalance(companyId: string, accountCode: string): Promise<number> {
+export async function getAccountBalance(
+  companyId: string,
+  accountCode: string,
+): Promise<number> {
   const accountId = `${companyId}-acct-${accountCode}`;
   try {
-    const { resource } = await containers.ledger()
+    const { resource } = await containers
+      .ledger()
       .item(accountId, companyId)
       .read<Account>();
     return resource?.balance ?? 0;

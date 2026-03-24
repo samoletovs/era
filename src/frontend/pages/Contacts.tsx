@@ -3,9 +3,7 @@ import { api } from "../utils/api";
 import { useApp } from "../utils/context";
 import { formatMoney } from "../utils/format";
 import { AiInput } from "../components/AiInput";
-
-type ContactSortKey = "name" | "type" | "registrationNumber" | "vatNumber" | "city" | "paymentTermsDays";
-type SortDir = "asc" | "desc";
+import { UniversalGrid, type GridColumn } from "../components/UniversalGrid";
 
 interface ContactForm {
   type: "customer" | "vendor" | "both";
@@ -23,6 +21,32 @@ interface ContactForm {
   bankName: string;
   paymentTermsDays: string;
   notes: string;
+}
+
+interface RegisterResult {
+  registrationNumber: string;
+  name: string;
+  legalForm: string;
+  address: string;
+  registeredDate?: string;
+}
+
+interface RegisterDiff {
+  field: string;
+  current: string;
+  register: string;
+}
+
+interface RegisterPanelData {
+  found: boolean;
+  diffs: RegisterDiff[];
+  registerData?: {
+    name: string;
+    registrationNumber: string;
+    legalForm: string;
+    address: string;
+  };
+  error?: string;
 }
 
 const EMPTY_FORM: ContactForm = {
@@ -51,9 +75,6 @@ export function Contacts() {
   const [txns, setTxns] = useState<any>(null);
   const [loadingTxns, setLoadingTxns] = useState(false);
   const [filter, setFilter] = useState<"" | "customer" | "vendor">("");
-  const [search, setSearch] = useState("");
-  const [sortKey, setSortKey] = useState<ContactSortKey>("name");
-  const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<ContactForm>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
@@ -65,17 +86,93 @@ export function Contacts() {
   const [mergeResult, setMergeResult] = useState<any>(null);
 
   // Register check state
-  const [registerData, setRegisterData] = useState<any>(null);
+  const [showRegisterPanel, setShowRegisterPanel] = useState(false);
+  const [registerQuery, setRegisterQuery] = useState("");
+  const [registerResults, setRegisterResults] = useState<RegisterResult[]>([]);
+  const [registerSearchDone, setRegisterSearchDone] = useState(false);
+  const [registerData, setRegisterData] = useState<RegisterPanelData | null>(
+    null,
+  );
   const [checkingRegister, setCheckingRegister] = useState(false);
   const [applyingRegister, setApplyingRegister] = useState(false);
 
+  function normalizeRegNumber(value: string | undefined): string {
+    return (value || "").replace(/\s/g, "").toLowerCase();
+  }
+
+  function buildAddress(value: any): string {
+    return [
+      value?.address?.line1,
+      value?.address?.city,
+      value?.address?.postalCode,
+    ]
+      .filter(Boolean)
+      .join(", ");
+  }
+
+  function buildRegisterPanelData(
+    contact: any,
+    registerEntry: RegisterResult,
+  ): RegisterPanelData {
+    const diffs: RegisterDiff[] = [];
+    const currentAddress = buildAddress(contact);
+
+    if (registerEntry.name && registerEntry.name !== contact.name) {
+      diffs.push({
+        field: "name",
+        current: contact.name || "—",
+        register: registerEntry.name,
+      });
+    }
+
+    if (
+      registerEntry.registrationNumber &&
+      normalizeRegNumber(registerEntry.registrationNumber) !==
+        normalizeRegNumber(contact.registrationNumber)
+    ) {
+      diffs.push({
+        field: "registration number",
+        current: contact.registrationNumber || "—",
+        register: registerEntry.registrationNumber,
+      });
+    }
+
+    if (registerEntry.address && registerEntry.address !== currentAddress) {
+      diffs.push({
+        field: "address",
+        current: currentAddress || "—",
+        register: registerEntry.address,
+      });
+    }
+
+    return {
+      found: true,
+      diffs,
+      registerData: {
+        name: registerEntry.name,
+        registrationNumber: registerEntry.registrationNumber,
+        legalForm: registerEntry.legalForm,
+        address: registerEntry.address,
+      },
+    };
+  }
+
   function loadContacts() {
     if (!companyId) return;
-    api.contacts(companyId).then((data: any) => { setContacts(data); setLoading(false); }).catch(() => setLoading(false));
+    api
+      .contacts(companyId)
+      .then((data: any) => {
+        setContacts(data);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
   }
 
   useEffect(() => {
-    if (!companyId) { setLoading(false); return; }
+    if (!companyId) {
+      setLoading(false);
+      return;
+    }
     loadContacts();
   }, [companyId]);
 
@@ -85,21 +182,14 @@ export function Contacts() {
     try {
       const data = await api.contactTransactions(companyId, c.id);
       setTxns(data);
-    } catch { setTxns(null); }
+    } catch {
+      setTxns(null);
+    }
     setLoadingTxns(false);
   }
 
-  function handleSort(key: ContactSortKey) {
-    if (sortKey === key) {
-      setSortDir(d => d === "asc" ? "desc" : "asc");
-    } else {
-      setSortKey(key);
-      setSortDir("asc");
-    }
-  }
-
   async function handleAiParse(text: string) {
-    const fields = await api.parseContactDescription(companyId, text) as any;
+    const fields = (await api.parseContactDescription(companyId, text)) as any;
     setForm({
       type: fields.type || "customer",
       name: fields.name || "",
@@ -124,12 +214,16 @@ export function Contacts() {
     if (!companyId || !selected) return;
     setMerging(true);
     try {
-      const result = await api.mergeContacts(companyId, selected.id, targetId) as any;
+      const result = (await api.mergeContacts(
+        companyId,
+        selected.id,
+        targetId,
+      )) as any;
       setMergeResult(result);
       setShowMerge(false);
       // Refresh and navigate to merged contact
       loadContacts();
-      const merged = await api.contact(companyId, targetId) as any;
+      const merged = (await api.contact(companyId, targetId)) as any;
       setSelected(merged);
       const data = await api.contactTransactions(companyId, targetId);
       setTxns(data);
@@ -140,26 +234,98 @@ export function Contacts() {
     }
   }
 
-  async function handleCheckRegister() {
+  async function handleRegisterSearch(queryOverride?: string) {
     if (!companyId || !selected) return;
+    const query = (queryOverride ?? registerQuery).trim();
+
+    setRegisterSearchDone(true);
+    if (query.length < 2) {
+      setRegisterResults([]);
+      setRegisterData({
+        found: false,
+        diffs: [],
+        error: "Enter at least 2 characters to search the register.",
+      });
+      return;
+    }
+
     setCheckingRegister(true);
     setRegisterData(null);
     try {
-      const result = await api.checkRegister(companyId, selected.id);
-      setRegisterData(result);
+      const result = (await api.registerSearch(query)) as any;
+      const results: RegisterResult[] = Array.isArray(result?.results)
+        ? result.results
+        : [];
+      setRegisterResults(results);
+
+      if (results.length === 0) {
+        setRegisterData({
+          found: false,
+          diffs: [],
+          error: "No matching record found in the register.",
+        });
+        return;
+      }
+
+      const exactByReg = selected.registrationNumber
+        ? results.find(
+            (r) =>
+              normalizeRegNumber(r.registrationNumber) ===
+              normalizeRegNumber(selected.registrationNumber),
+          )
+        : undefined;
+      const selectedEntry = exactByReg ?? results[0];
+      setRegisterData(buildRegisterPanelData(selected, selectedEntry));
     } catch (e: any) {
-      setRegisterData({ found: false, error: e.message });
+      setRegisterResults([]);
+      setRegisterData({
+        found: false,
+        diffs: [],
+        error: e.message || "Could not search register.",
+      });
     } finally {
       setCheckingRegister(false);
     }
+  }
+
+  async function handleCheckRegister() {
+    if (!selected) return;
+
+    const defaultQuery = (
+      selected.registrationNumber ||
+      selected.name ||
+      ""
+    ).trim();
+    setShowRegisterPanel(true);
+    setRegisterQuery(defaultQuery);
+    setRegisterSearchDone(false);
+    setRegisterResults([]);
+    setRegisterData(null);
+
+    if (defaultQuery.length >= 2) {
+      await handleRegisterSearch(defaultQuery);
+    }
+  }
+
+  function handleUseRegisterResult(registerEntry: RegisterResult) {
+    if (!selected) return;
+    setRegisterData(buildRegisterPanelData(selected, registerEntry));
   }
 
   async function handleApplyRegister() {
     if (!companyId || !selected || !registerData?.registerData) return;
     setApplyingRegister(true);
     try {
-      const updated = await api.applyRegister(companyId, selected.id, registerData.registerData) as any;
+      const updated = (await api.applyRegister(
+        companyId,
+        selected.id,
+        registerData.registerData,
+      )) as any;
       setSelected(updated);
+      setShowRegisterPanel(false);
+      setRegisterResults([]);
+      setRegisterSearchDone(false);
+      setRegisterQuery("");
       setRegisterData(null);
       loadContacts();
     } catch {
@@ -186,11 +352,13 @@ export function Contacts() {
           postalCode: form.postalCode,
           country: form.country,
         },
-        bankAccount: form.iban ? {
-          iban: form.iban,
-          swift: form.swift,
-          bankName: form.bankName,
-        } : undefined,
+        bankAccount: form.iban
+          ? {
+              iban: form.iban,
+              swift: form.swift,
+              bankName: form.bankName,
+            }
+          : undefined,
         paymentTermsDays: parseInt(form.paymentTermsDays) || 30,
         notes: form.notes || undefined,
       });
@@ -202,61 +370,120 @@ export function Contacts() {
     }
   }
 
-  const filtered = useMemo(() => {
-    const q = search.toLowerCase().trim();
-    let list = filter ? contacts.filter((c) => c.type === filter || c.type === "both") : contacts;
-    if (q) {
-      list = list.filter(c =>
-        c.name?.toLowerCase().includes(q) ||
-        c.shortName?.toLowerCase().includes(q) ||
-        c.registrationNumber?.toLowerCase().includes(q) ||
-        c.vatNumber?.toLowerCase().includes(q) ||
-        c.address?.city?.toLowerCase().includes(q)
-      );
-    }
-    list = [...list].sort((a, b) => {
-      let av = sortKey === "city" ? (a.address?.city ?? "") : (a[sortKey] ?? "");
-      let bv = sortKey === "city" ? (b.address?.city ?? "") : (b[sortKey] ?? "");
-      if (typeof av === "number" && typeof bv === "number") {
-        return sortDir === "asc" ? av - bv : bv - av;
-      }
-      av = String(av).toLowerCase();
-      bv = String(bv).toLowerCase();
-      if (av < bv) return sortDir === "asc" ? -1 : 1;
-      if (av > bv) return sortDir === "asc" ? 1 : -1;
-      return 0;
-    });
-    return list;
-  }, [contacts, filter, search, sortKey, sortDir]);
-
-  if (!companyId) return (
-    <div className="empty-state"><div className="icon">🏢</div><h3>No company selected</h3><p>Add a company first to manage contacts.</p></div>
+  const filteredContacts = useMemo(
+    () =>
+      filter
+        ? contacts.filter((c) => c.type === filter || c.type === "both")
+        : contacts,
+    [contacts, filter],
   );
+
+  const contactColumns: GridColumn<any>[] = useMemo(
+    () => [
+      {
+        id: "name",
+        header: "Name",
+        accessor: (c) => c.shortName || c.name || "",
+        render: (c) => (
+          <span style={{ fontWeight: 500 }}>{c.shortName || c.name}</span>
+        ),
+      },
+      {
+        id: "type",
+        header: "Type",
+        accessor: (c) => c.type || "",
+        render: (c) => <span className="badge">{c.type}</span>,
+      },
+      {
+        id: "registrationNumber",
+        header: "Reg. number",
+        accessor: (c) => c.registrationNumber || "",
+        render: (c) => (
+          <span className="mono">{c.registrationNumber || "—"}</span>
+        ),
+      },
+      {
+        id: "vatNumber",
+        header: "VAT number",
+        accessor: (c) => c.vatNumber || "",
+        render: (c) => <span className="mono">{c.vatNumber || "—"}</span>,
+      },
+      {
+        id: "city",
+        header: "City",
+        accessor: (c) => c.address?.city || "",
+        render: (c) => c.address?.city || "—",
+      },
+      {
+        id: "paymentTermsDays",
+        header: "Payment terms",
+        accessor: (c) => Number(c.paymentTermsDays ?? 0),
+        render: (c) => `${c.paymentTermsDays} days`,
+      },
+    ],
+    [],
+  );
+
+  if (!companyId)
+    return (
+      <div className="empty-state">
+        <div className="icon">🏢</div>
+        <h3>No company selected</h3>
+        <p>Add a company first to manage contacts.</p>
+      </div>
+    );
 
   // Detail view
   if (selected) {
-    const mergeTargets = contacts.filter(c =>
-      c.id !== selected.id &&
-      (!mergeSearch || c.name?.toLowerCase().includes(mergeSearch.toLowerCase()) || c.registrationNumber?.includes(mergeSearch))
+    const mergeTargets = contacts.filter(
+      (c) =>
+        c.id !== selected.id &&
+        (!mergeSearch ||
+          c.name?.toLowerCase().includes(mergeSearch.toLowerCase()) ||
+          c.registrationNumber?.includes(mergeSearch)),
     );
 
     return (
       <div>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-          <button className="btn-secondary" onClick={() => { setSelected(null); setRegisterData(null); setShowMerge(false); setMergeResult(null); }}>← Back to list</button>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: 16,
+          }}
+        >
+          <button
+            className="btn-secondary"
+            onClick={() => {
+              setSelected(null);
+              setShowRegisterPanel(false);
+              setRegisterQuery("");
+              setRegisterResults([]);
+              setRegisterSearchDone(false);
+              setRegisterData(null);
+              setShowMerge(false);
+              setMergeResult(null);
+            }}
+          >
+            ← Back to list
+          </button>
           <div style={{ display: "flex", gap: 8 }}>
             <button
               className="btn-secondary"
               onClick={handleCheckRegister}
-              disabled={checkingRegister || !selected.registrationNumber}
-              title={!selected.registrationNumber ? "No registration number to look up" : "Check business register for updates"}
+              disabled={checkingRegister}
+              title="Check business register for updates"
               aria-label="Check register"
             >
               {checkingRegister ? "Checking..." : "Check register"}
             </button>
             <button
               className="btn-secondary"
-              onClick={() => { setShowMerge(!showMerge); setMergeResult(null); }}
+              onClick={() => {
+                setShowMerge(!showMerge);
+                setMergeResult(null);
+              }}
               aria-label="Merge with another contact"
             >
               Merge contact
@@ -268,51 +495,199 @@ export function Contacts() {
 
         {/* Merge result notification */}
         {mergeResult && !mergeResult.error && (
-          <div className="settings-card" style={{ marginBottom: 16, borderLeft: "3px solid var(--success, #34C759)" }}>
-            <p style={{ fontSize: 13, color: "var(--text-body, #3C3C3C)", margin: 0 }}>
-              Contacts merged. Updated {mergeResult.invoicesUpdated} invoice{mergeResult.invoicesUpdated !== 1 ? "s" : ""}, {mergeResult.paymentsUpdated} payment{mergeResult.paymentsUpdated !== 1 ? "s" : ""}, {mergeResult.journalEntriesUpdated} journal {mergeResult.journalEntriesUpdated !== 1 ? "entries" : "entry"}.
+          <div
+            className="settings-card"
+            style={{
+              marginBottom: 16,
+              borderLeft: "3px solid var(--success, #34C759)",
+            }}
+          >
+            <p
+              style={{
+                fontSize: 13,
+                color: "var(--text-body, #3C3C3C)",
+                margin: 0,
+              }}
+            >
+              Contacts merged. Updated {mergeResult.invoicesUpdated} invoice
+              {mergeResult.invoicesUpdated !== 1 ? "s" : ""},{" "}
+              {mergeResult.paymentsUpdated} payment
+              {mergeResult.paymentsUpdated !== 1 ? "s" : ""},{" "}
+              {mergeResult.journalEntriesUpdated} journal{" "}
+              {mergeResult.journalEntriesUpdated !== 1 ? "entries" : "entry"}.
             </p>
           </div>
         )}
         {mergeResult?.error && (
-          <div className="settings-card" style={{ marginBottom: 16, borderLeft: "3px solid var(--error, #FF3B30)" }}>
-            <p style={{ fontSize: 13, color: "var(--error, #FF3B30)", margin: 0 }}>{mergeResult.error}</p>
+          <div
+            className="settings-card"
+            style={{
+              marginBottom: 16,
+              borderLeft: "3px solid var(--error, #FF3B30)",
+            }}
+          >
+            <p
+              style={{
+                fontSize: 13,
+                color: "var(--error, #FF3B30)",
+                margin: 0,
+              }}
+            >
+              {mergeResult.error}
+            </p>
           </div>
         )}
 
         {/* Register check panel */}
-        {registerData && (
+        {showRegisterPanel && (
           <div className="settings-card" style={{ marginBottom: 16 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Business register data</h3>
-            {!registerData.found ? (
-              <p style={{ fontSize: 13, color: "var(--text-secondary, #787878)", margin: 0 }}>
-                {registerData.error || "No matching record found in the register."}
+            <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>
+              Business register data
+            </h3>
+            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+              <input
+                type="text"
+                value={registerQuery}
+                onChange={(e) => setRegisterQuery(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleRegisterSearch()}
+                placeholder="Search by company name or registration number"
+                className="table-search-input"
+                style={{ flex: 1 }}
+                aria-label="Search register"
+                autoFocus
+              />
+              <button
+                className="btn-secondary"
+                onClick={() => handleRegisterSearch()}
+                disabled={checkingRegister}
+              >
+                {checkingRegister ? "Searching..." : "Search"}
+              </button>
+            </div>
+
+            {registerSearchDone && registerResults.length > 0 && (
+              <div style={{ marginBottom: 12 }}>
+                <p
+                  style={{
+                    fontSize: 13,
+                    color: "var(--text-secondary, #787878)",
+                    margin: "0 0 8px",
+                  }}
+                >
+                  Found {registerResults.length} match
+                  {registerResults.length !== 1 ? "es" : ""}. Choose the correct
+                  record.
+                </p>
+                <div style={{ maxHeight: 220, overflowY: "auto" }}>
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Reg. number</th>
+                        <th>Address</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {registerResults.slice(0, 10).map((r) => {
+                        const isSelected =
+                          registerData?.registerData?.registrationNumber ===
+                            r.registrationNumber &&
+                          registerData?.registerData?.name === r.name;
+                        return (
+                          <tr key={`${r.registrationNumber}-${r.name}`}>
+                            <td style={{ fontWeight: 500 }}>{r.name}</td>
+                            <td className="mono">
+                              {r.registrationNumber || "—"}
+                            </td>
+                            <td>{r.address || "—"}</td>
+                            <td style={{ textAlign: "right" }}>
+                              <button
+                                className="btn-secondary"
+                                style={{ fontSize: 12, padding: "4px 10px" }}
+                                onClick={() => handleUseRegisterResult(r)}
+                                disabled={isSelected}
+                              >
+                                {isSelected ? "Selected" : "Use this"}
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {!registerData?.found ? (
+              <p
+                style={{
+                  fontSize: 13,
+                  color: "var(--text-secondary, #787878)",
+                  margin: 0,
+                }}
+              >
+                {registerData?.error ||
+                  "Search register to compare and update contact details."}
               </p>
             ) : registerData.diffs?.length === 0 ? (
-              <p style={{ fontSize: 13, color: "var(--success, #34C759)", margin: 0 }}>
+              <p
+                style={{
+                  fontSize: 13,
+                  color: "var(--success, #34C759)",
+                  margin: 0,
+                }}
+              >
                 Contact data matches the register. No updates needed.
               </p>
             ) : (
               <>
                 <table className="data-table" style={{ marginBottom: 12 }}>
                   <thead>
-                    <tr><th>Field</th><th>Current value</th><th>Register value</th></tr>
+                    <tr>
+                      <th>Field</th>
+                      <th>Current value</th>
+                      <th>Register value</th>
+                    </tr>
                   </thead>
                   <tbody>
                     {registerData.diffs?.map((d: any) => (
                       <tr key={d.field}>
-                        <td style={{ fontWeight: 500, textTransform: "capitalize" }}>{d.field}</td>
-                        <td style={{ color: "var(--text-secondary, #787878)" }}>{d.current || "—"}</td>
+                        <td
+                          style={{
+                            fontWeight: 500,
+                            textTransform: "capitalize",
+                          }}
+                        >
+                          {d.field}
+                        </td>
+                        <td style={{ color: "var(--text-secondary, #787878)" }}>
+                          {d.current || "—"}
+                        </td>
                         <td style={{ fontWeight: 500 }}>{d.register}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <button className="btn-primary" onClick={handleApplyRegister} disabled={applyingRegister}>
+                  <button
+                    className="btn-primary"
+                    onClick={handleApplyRegister}
+                    disabled={applyingRegister}
+                  >
                     {applyingRegister ? "Applying..." : "Apply updates"}
                   </button>
-                  <button className="btn-secondary" onClick={() => setRegisterData(null)}>
+                  <button
+                    className="btn-secondary"
+                    onClick={() => {
+                      setShowRegisterPanel(false);
+                      setRegisterResults([]);
+                      setRegisterSearchDone(false);
+                      setRegisterQuery("");
+                      setRegisterData(null);
+                    }}
+                  >
                     Dismiss
                   </button>
                 </div>
@@ -324,30 +699,59 @@ export function Contacts() {
         {/* Merge contact picker */}
         {showMerge && (
           <div className="settings-card" style={{ marginBottom: 16 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Merge into another contact</h3>
-            <p style={{ fontSize: 13, color: "var(--text-secondary, #787878)", margin: "0 0 12px" }}>
-              Select the contact to keep. All invoices, payments and journal entries from <strong>{selected.shortName || selected.name}</strong> will be reassigned, and this contact will be deleted.
+            <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
+              Merge into another contact
+            </h3>
+            <p
+              style={{
+                fontSize: 13,
+                color: "var(--text-secondary, #787878)",
+                margin: "0 0 12px",
+              }}
+            >
+              Select the contact to keep. All invoices, payments and journal
+              entries from{" "}
+              <strong>{selected.shortName || selected.name}</strong> will be
+              reassigned, and this contact will be deleted.
             </p>
             <input
               type="text"
               placeholder="Search by name or reg. number..."
               value={mergeSearch}
-              onChange={e => setMergeSearch(e.target.value)}
+              onChange={(e) => setMergeSearch(e.target.value)}
               className="table-search-input"
               style={{ marginBottom: 8 }}
               aria-label="Search merge target"
             />
             <div style={{ maxHeight: 200, overflowY: "auto" }}>
               {mergeTargets.length === 0 ? (
-                <p style={{ fontSize: 13, color: "var(--text-tertiary, #A0A0A0)" }}>No contacts found</p>
+                <p
+                  style={{
+                    fontSize: 13,
+                    color: "var(--text-tertiary, #A0A0A0)",
+                  }}
+                >
+                  No contacts found
+                </p>
               ) : (
                 <table className="data-table">
-                  <thead><tr><th>Name</th><th>Type</th><th>Reg. number</th><th></th></tr></thead>
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Type</th>
+                      <th>Reg. number</th>
+                      <th></th>
+                    </tr>
+                  </thead>
                   <tbody>
                     {mergeTargets.slice(0, 10).map((c: any) => (
                       <tr key={c.id}>
-                        <td style={{ fontWeight: 500 }}>{c.shortName || c.name}</td>
-                        <td><span className="badge">{c.type}</span></td>
+                        <td style={{ fontWeight: 500 }}>
+                          {c.shortName || c.name}
+                        </td>
+                        <td>
+                          <span className="badge">{c.type}</span>
+                        </td>
                         <td className="mono">{c.registrationNumber || "—"}</td>
                         <td style={{ textAlign: "right" }}>
                           <button
@@ -365,7 +769,13 @@ export function Contacts() {
                 </table>
               )}
             </div>
-            <button className="btn-secondary" style={{ marginTop: 8 }} onClick={() => setShowMerge(false)}>Cancel</button>
+            <button
+              className="btn-secondary"
+              style={{ marginTop: 8 }}
+              onClick={() => setShowMerge(false)}
+            >
+              Cancel
+            </button>
           </div>
         )}
 
@@ -373,36 +783,92 @@ export function Contacts() {
           <div className="detail-sidebar">
             <div className="settings-card">
               <div className="onboarding-details">
-                <div className="detail-row"><span className="detail-label">Type</span><span className="badge">{selected.type}</span></div>
-                <div className="detail-row"><span className="detail-label">Reg. number</span><span className="mono">{selected.registrationNumber || "—"}</span></div>
-                <div className="detail-row"><span className="detail-label">VAT number</span><span className="mono">{selected.vatNumber || "—"}</span></div>
-                <div className="detail-row"><span className="detail-label">Email</span><span>{selected.email || "—"}</span></div>
-                <div className="detail-row"><span className="detail-label">Phone</span><span>{selected.phone || "—"}</span></div>
-                <div className="detail-row" style={{ alignItems: "flex-start" }}>
+                <div className="detail-row">
+                  <span className="detail-label">Type</span>
+                  <span className="badge">{selected.type}</span>
+                </div>
+                <div className="detail-row">
+                  <span className="detail-label">Reg. number</span>
+                  <span className="mono">
+                    {selected.registrationNumber || "—"}
+                  </span>
+                </div>
+                <div className="detail-row">
+                  <span className="detail-label">VAT number</span>
+                  <span className="mono">{selected.vatNumber || "—"}</span>
+                </div>
+                <div className="detail-row">
+                  <span className="detail-label">Email</span>
+                  <span>{selected.email || "—"}</span>
+                </div>
+                <div className="detail-row">
+                  <span className="detail-label">Phone</span>
+                  <span>{selected.phone || "—"}</span>
+                </div>
+                <div
+                  className="detail-row"
+                  style={{ alignItems: "flex-start" }}
+                >
                   <span className="detail-label">Address</span>
                   <span style={{ textAlign: "right", lineHeight: 1.5 }}>
                     {selected.address?.line1 || selected.address?.city ? (
                       <>
-                        {selected.address?.line1 && <span>{selected.address.line1}</span>}
-                        {selected.address?.city && <><br />{[selected.address.city, selected.address.postalCode].filter(Boolean).join(", ")}</>}
-                        {selected.address?.country && <><br />{selected.address.country}</>}
+                        {selected.address?.line1 && (
+                          <span>{selected.address.line1}</span>
+                        )}
+                        {selected.address?.city && (
+                          <>
+                            <br />
+                            {[
+                              selected.address.city,
+                              selected.address.postalCode,
+                            ]
+                              .filter(Boolean)
+                              .join(", ")}
+                          </>
+                        )}
+                        {selected.address?.country && (
+                          <>
+                            <br />
+                            {selected.address.country}
+                          </>
+                        )}
                       </>
-                    ) : "—"}
+                    ) : (
+                      "—"
+                    )}
                   </span>
                 </div>
-                <div className="detail-row"><span className="detail-label">Payment terms</span><span>{selected.paymentTermsDays} days</span></div>
+                <div className="detail-row">
+                  <span className="detail-label">Payment terms</span>
+                  <span>{selected.paymentTermsDays} days</span>
+                </div>
               </div>
             </div>
 
             {txns && (
               <div className="settings-card" style={{ marginTop: 16 }}>
-                <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Balance</h3>
+                <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>
+                  Balance
+                </h3>
                 <div className="onboarding-details">
-                  <div className="detail-row"><span className="detail-label">Total invoiced</span><span>{formatMoney(txns.totalInvoiced, fmt)}</span></div>
-                  <div className="detail-row"><span className="detail-label">Total paid</span><span>{formatMoney(txns.totalPaid, fmt)}</span></div>
+                  <div className="detail-row">
+                    <span className="detail-label">Total invoiced</span>
+                    <span>{formatMoney(txns.totalInvoiced, fmt)}</span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="detail-label">Total paid</span>
+                    <span>{formatMoney(txns.totalPaid, fmt)}</span>
+                  </div>
                   <div className="detail-row" style={{ fontWeight: 600 }}>
                     <span className="detail-label">Balance</span>
-                    <span style={{ color: txns.balance > 0 ? "#FF3B30" : "#34C759" }}>{formatMoney(txns.balance, fmt)}</span>
+                    <span
+                      style={{
+                        color: txns.balance > 0 ? "#FF3B30" : "#34C759",
+                      }}
+                    >
+                      {formatMoney(txns.balance, fmt)}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -410,56 +876,106 @@ export function Contacts() {
           </div>
 
           <div style={{ flex: 1 }}>
-            {loadingTxns ? <p style={{ color: "#A0A0A0" }}>Loading transactions...</p> : txns && (
-              <>
-                <div className="settings-card">
-                  <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>
-                    Invoices ({txns.invoices?.length || 0})
-                  </h3>
-                  {txns.invoices?.length > 0 ? (
-                    <table className="data-table">
-                      <thead><tr><th>Number</th><th>Date</th><th>Net</th><th>VAT</th><th>Total</th><th>Status</th></tr></thead>
-                      <tbody>
-                        {txns.invoices.map((inv: any) => (
-                          <tr key={inv.id}>
-                            <td className="mono">{inv.invoiceNumber}</td>
-                            <td>{inv.date}</td>
-                            <td className="num">{formatMoney(inv.subtotal, fmt)}</td>
-                            <td className="num">{formatMoney(inv.vatAmount, fmt)}</td>
-                            <td className="num" style={{ fontWeight: 500 }}>{formatMoney(inv.total, fmt)}</td>
-                            <td><span className={`badge badge-${inv.status}`}>{inv.status}</span></td>
+            {loadingTxns ? (
+              <p style={{ color: "#A0A0A0" }}>Loading transactions...</p>
+            ) : (
+              txns && (
+                <>
+                  <div className="settings-card">
+                    <h3
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 600,
+                        marginBottom: 12,
+                      }}
+                    >
+                      Invoices ({txns.invoices?.length || 0})
+                    </h3>
+                    {txns.invoices?.length > 0 ? (
+                      <table className="data-table">
+                        <thead>
+                          <tr>
+                            <th>Number</th>
+                            <th>Date</th>
+                            <th>Net</th>
+                            <th>VAT</th>
+                            <th>Total</th>
+                            <th>Status</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  ) : (
-                    <p style={{ color: "#A0A0A0", fontSize: 13 }}>No invoices</p>
-                  )}
-                </div>
+                        </thead>
+                        <tbody>
+                          {txns.invoices.map((inv: any) => (
+                            <tr key={inv.id}>
+                              <td className="mono">{inv.invoiceNumber}</td>
+                              <td>{inv.date}</td>
+                              <td className="num">
+                                {formatMoney(inv.subtotal, fmt)}
+                              </td>
+                              <td className="num">
+                                {formatMoney(inv.vatAmount, fmt)}
+                              </td>
+                              <td className="num" style={{ fontWeight: 500 }}>
+                                {formatMoney(inv.total, fmt)}
+                              </td>
+                              <td>
+                                <span className={`badge badge-${inv.status}`}>
+                                  {inv.status}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <p style={{ color: "#A0A0A0", fontSize: 13 }}>
+                        No invoices
+                      </p>
+                    )}
+                  </div>
 
-                <div className="settings-card" style={{ marginTop: 16 }}>
-                  <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>
-                    Payments ({txns.payments?.length || 0})
-                  </h3>
-                  {txns.payments?.length > 0 ? (
-                    <table className="data-table">
-                      <thead><tr><th>Date</th><th>Reference</th><th>Amount</th><th>Type</th></tr></thead>
-                      <tbody>
-                        {txns.payments.map((p: any) => (
-                          <tr key={p.id}>
-                            <td>{p.date}</td>
-                            <td>{p.reference}</td>
-                            <td className="num" style={{ fontWeight: 500 }}>{formatMoney(p.amount, fmt)}</td>
-                            <td><span className="badge">{p.type}</span></td>
+                  <div className="settings-card" style={{ marginTop: 16 }}>
+                    <h3
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 600,
+                        marginBottom: 12,
+                      }}
+                    >
+                      Payments ({txns.payments?.length || 0})
+                    </h3>
+                    {txns.payments?.length > 0 ? (
+                      <table className="data-table">
+                        <thead>
+                          <tr>
+                            <th>Date</th>
+                            <th>Reference</th>
+                            <th>Amount</th>
+                            <th>Type</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  ) : (
-                    <p style={{ color: "#A0A0A0", fontSize: 13 }}>No payments</p>
-                  )}
-                </div>
-              </>
+                        </thead>
+                        <tbody>
+                          {txns.payments.map((p: any) => (
+                            <tr key={p.id}>
+                              <td>{p.date}</td>
+                              <td>{p.reference}</td>
+                              <td className="num" style={{ fontWeight: 500 }}>
+                                {formatMoney(p.amount, fmt)}
+                              </td>
+                              <td>
+                                <span className="badge">{p.type}</span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <p style={{ color: "#A0A0A0", fontSize: 13 }}>
+                        No payments
+                      </p>
+                    )}
+                  </div>
+                </>
+              )
             )}
           </div>
         </div>
@@ -470,11 +986,28 @@ export function Contacts() {
   return (
     <div>
       <div className="page-header-bar">
-        <h2 className="page-title" style={{ marginBottom: 0 }}>Contacts</h2>
+        <h2 className="page-title" style={{ marginBottom: 0 }}>
+          Contacts
+        </h2>
         <div style={{ display: "flex", gap: 6 }}>
-          <button className={!filter ? "btn-primary" : "btn-secondary"} onClick={() => setFilter("")}>All</button>
-          <button className={filter === "vendor" ? "btn-primary" : "btn-secondary"} onClick={() => setFilter("vendor")}>Vendors</button>
-          <button className={filter === "customer" ? "btn-primary" : "btn-secondary"} onClick={() => setFilter("customer")}>Customers</button>
+          <button
+            className={!filter ? "btn-primary" : "btn-secondary"}
+            onClick={() => setFilter("")}
+          >
+            All
+          </button>
+          <button
+            className={filter === "vendor" ? "btn-primary" : "btn-secondary"}
+            onClick={() => setFilter("vendor")}
+          >
+            Vendors
+          </button>
+          <button
+            className={filter === "customer" ? "btn-primary" : "btn-secondary"}
+            onClick={() => setFilter("customer")}
+          >
+            Customers
+          </button>
         </div>
       </div>
 
@@ -488,17 +1021,32 @@ export function Contacts() {
       </div>
 
       {showForm && (
-        <div className="settings-card" style={{ marginBottom: 20, maxWidth: "100%" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <div
+          className="settings-card"
+          style={{ marginBottom: 20, maxWidth: "100%" }}
+        >
+          <div
+            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}
+          >
             <div className="settings-field">
               <label>Name</label>
-              <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+              <input
+                value={form.name}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, name: e.target.value }))
+                }
+              />
             </div>
             <div className="settings-field">
               <label>Type</label>
               <select
                 value={form.type}
-                onChange={e => setForm(f => ({ ...f, type: e.target.value as ContactForm["type"] }))}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    type: e.target.value as ContactForm["type"],
+                  }))
+                }
                 className="settings-input"
               >
                 <option value="customer">Customer</option>
@@ -508,85 +1056,151 @@ export function Contacts() {
             </div>
             <div className="settings-field">
               <label>Registration number</label>
-              <input value={form.registrationNumber} onChange={e => setForm(f => ({ ...f, registrationNumber: e.target.value }))} />
+              <input
+                value={form.registrationNumber}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, registrationNumber: e.target.value }))
+                }
+              />
             </div>
             <div className="settings-field">
               <label>VAT number</label>
-              <input value={form.vatNumber} onChange={e => setForm(f => ({ ...f, vatNumber: e.target.value }))} placeholder="LV40003290084" />
+              <input
+                value={form.vatNumber}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, vatNumber: e.target.value }))
+                }
+                placeholder="LV40003290084"
+              />
             </div>
             <div className="settings-field">
               <label>Email</label>
-              <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+              <input
+                type="email"
+                value={form.email}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, email: e.target.value }))
+                }
+              />
             </div>
             <div className="settings-field">
               <label>Phone</label>
-              <input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
+              <input
+                value={form.phone}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, phone: e.target.value }))
+                }
+              />
             </div>
             <div className="settings-field" style={{ gridColumn: "1 / -1" }}>
               <label>Street address</label>
-              <input value={form.addressLine1} onChange={e => setForm(f => ({ ...f, addressLine1: e.target.value }))} />
+              <input
+                value={form.addressLine1}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, addressLine1: e.target.value }))
+                }
+              />
             </div>
             <div className="settings-field">
               <label>City</label>
-              <input value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} />
+              <input
+                value={form.city}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, city: e.target.value }))
+                }
+              />
             </div>
             <div className="settings-field">
               <label>Postal code</label>
-              <input value={form.postalCode} onChange={e => setForm(f => ({ ...f, postalCode: e.target.value }))} />
+              <input
+                value={form.postalCode}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, postalCode: e.target.value }))
+                }
+              />
             </div>
             <div className="settings-field">
               <label>Country</label>
-              <input value={form.country} onChange={e => setForm(f => ({ ...f, country: e.target.value }))} />
+              <input
+                value={form.country}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, country: e.target.value }))
+                }
+              />
             </div>
             <div className="settings-field">
               <label>Payment terms (days)</label>
-              <input type="number" value={form.paymentTermsDays} onChange={e => setForm(f => ({ ...f, paymentTermsDays: e.target.value }))} min={0} />
+              <input
+                type="number"
+                value={form.paymentTermsDays}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, paymentTermsDays: e.target.value }))
+                }
+                min={0}
+              />
             </div>
             <div className="settings-field">
               <label>IBAN</label>
-              <input value={form.iban} onChange={e => setForm(f => ({ ...f, iban: e.target.value }))} placeholder="LV00HABA0551000000000" />
+              <input
+                value={form.iban}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, iban: e.target.value }))
+                }
+                placeholder="LV00HABA0551000000000"
+              />
             </div>
             <div className="settings-field">
               <label>SWIFT / BIC</label>
-              <input value={form.swift} onChange={e => setForm(f => ({ ...f, swift: e.target.value }))} />
+              <input
+                value={form.swift}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, swift: e.target.value }))
+                }
+              />
             </div>
             <div className="settings-field" style={{ gridColumn: "1 / -1" }}>
               <label>Bank name</label>
-              <input value={form.bankName} onChange={e => setForm(f => ({ ...f, bankName: e.target.value }))} />
+              <input
+                value={form.bankName}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, bankName: e.target.value }))
+                }
+              />
             </div>
             <div className="settings-field" style={{ gridColumn: "1 / -1" }}>
               <label>Notes</label>
-              <input value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+              <input
+                value={form.notes}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, notes: e.target.value }))
+                }
+              />
             </div>
           </div>
           <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-            <button className="btn-primary" onClick={handleSave} disabled={saving || !form.name.trim()}>
+            <button
+              className="btn-primary"
+              onClick={handleSave}
+              disabled={saving || !form.name.trim()}
+            >
               {saving ? "Saving..." : "Save contact"}
             </button>
-            <button className="btn-secondary" onClick={() => { setForm(EMPTY_FORM); setShowForm(false); }}>
+            <button
+              className="btn-secondary"
+              onClick={() => {
+                setForm(EMPTY_FORM);
+                setShowForm(false);
+              }}
+            >
               Cancel
             </button>
           </div>
         </div>
       )}
 
-      <div className="filter-bar">
-        <input
-          type="text"
-          placeholder="Search contacts..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="table-search-input"
-          aria-label="Search contacts"
-        />
-        {(search || filter) && (
-          <span style={{ fontSize: "var(--text-sm)", color: "var(--text-tertiary)" }}>
-            {filtered.length} result{filtered.length !== 1 ? "s" : ""}
-          </span>
-        )}
-      </div>
-
-      {loading ? <p style={{ color: "#A0A0A0" }}>Loading...</p> : filtered.length === 0 ? (
+      {loading ? (
+        <p style={{ color: "#A0A0A0" }}>Loading...</p>
+      ) : filteredContacts.length === 0 ? (
         contacts.length === 0 ? (
           <div className="empty-state">
             <div className="icon">👥</div>
@@ -601,44 +1215,15 @@ export function Contacts() {
           </div>
         )
       ) : (
-        <table className="data-table">
-          <thead>
-            <tr>
-              {([
-                ["name", "Name"],
-                ["type", "Type"],
-                ["registrationNumber", "Reg. number"],
-                ["vatNumber", "VAT number"],
-                ["city", "City"],
-                ["paymentTermsDays", "Payment terms"],
-              ] as [ContactSortKey, string][]).map(([key, label]) => (
-                <th
-                  key={key}
-                  className={`sortable-th ${sortKey === key ? "sorted" : ""}`}
-                  onClick={() => handleSort(key)}
-                  aria-sort={sortKey === key ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
-                >
-                  {label}
-                  {sortKey === key && (
-                    <span className="sort-indicator">{sortDir === "asc" ? " ↑" : " ↓"}</span>
-                  )}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((c: any) => (
-              <tr key={c.id} onClick={() => handleSelect(c)} style={{ cursor: "pointer" }}>
-                <td style={{ fontWeight: 500 }}>{c.shortName || c.name}</td>
-                <td><span className="badge">{c.type}</span></td>
-                <td className="mono">{c.registrationNumber || "—"}</td>
-                <td className="mono">{c.vatNumber || "—"}</td>
-                <td>{c.address?.city || "—"}</td>
-                <td>{c.paymentTermsDays} days</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <UniversalGrid
+          rows={filteredContacts}
+          columns={contactColumns}
+          rowKey={(row) => String(row.id)}
+          onRowClick={handleSelect}
+          searchPlaceholder="Search contacts..."
+          emptyMessage="No matching contacts. Try adjusting filters."
+          initialSort={{ columnId: "name", direction: "asc" }}
+        />
       )}
     </div>
   );

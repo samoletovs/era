@@ -5,7 +5,12 @@ import { emitEvent } from "./events.js";
 import { getActiveRule, evaluatePaymentRule } from "./posting-rules.js";
 import { getNextNumber } from "./sequences.js";
 import { DEFAULT_GL_ACCOUNTS } from "@shared/constants";
-import type { Payment, PaymentAllocation, Invoice, JournalLine } from "@shared/types";
+import type {
+  Payment,
+  PaymentAllocation,
+  Invoice,
+  JournalLine,
+} from "@shared/types";
 
 function roundCurrency(n: number): number {
   return Math.round(n * 100) / 100;
@@ -30,19 +35,21 @@ interface CreatePaymentInput {
   createdBy: string;
 }
 
-export async function createAndPostPayment(input: CreatePaymentInput): Promise<Payment> {
+export async function createAndPostPayment(
+  input: CreatePaymentInput,
+): Promise<Payment> {
   if (input.amount <= 0) {
     throw new GLError("INVALID_AMOUNT", "Payment amount must be positive");
   }
 
   // Validate allocations don't exceed payment
   const totalAllocated = roundCurrency(
-    input.invoiceAllocations.reduce((s, a) => s + a.amount, 0)
+    input.invoiceAllocations.reduce((s, a) => s + a.amount, 0),
   );
   if (totalAllocated > input.amount) {
     throw new GLError(
       "OVER_ALLOCATED",
-      `Allocated ${totalAllocated} exceeds payment ${input.amount}`
+      `Allocated ${totalAllocated} exceeds payment ${input.amount}`,
     );
   }
 
@@ -70,7 +77,10 @@ export async function createAndPostPayment(input: CreatePaymentInput): Promise<P
   };
 
   // Build GL journal lines — try rule engine first, fall back to hardcoded
-  const ruleType = input.type === "incoming" ? "incoming-payment" as const : "outgoing-payment" as const;
+  const ruleType =
+    input.type === "incoming"
+      ? ("incoming-payment" as const)
+      : ("outgoing-payment" as const);
   const rule = await getActiveRule("LV", ruleType);
   let journalLines: JournalLine[];
   if (rule) {
@@ -97,7 +107,11 @@ export async function createAndPostPayment(input: CreatePaymentInput): Promise<P
   await containers.documents().items.create(payment);
 
   // Update invoice paid amounts and statuses
-  await updateInvoicesForPayment(input.companyId, input.invoiceAllocations, journalEntry.id);
+  await updateInvoicesForPayment(
+    input.companyId,
+    input.invoiceAllocations,
+    journalEntry.id,
+  );
 
   await emitEvent({
     companyId: input.companyId,
@@ -106,7 +120,11 @@ export async function createAndPostPayment(input: CreatePaymentInput): Promise<P
     documentType: "payment",
     documentId: payment.id,
     journalEntryId: journalEntry.id,
-    data: { type: payment.type, amount: payment.amount, contactName: payment.contactName },
+    data: {
+      type: payment.type,
+      amount: payment.amount,
+      contactName: payment.contactName,
+    },
   });
 
   return payment;
@@ -119,7 +137,7 @@ function buildPaymentJournalLines(payment: Payment): JournalLine[] {
     // Customer payment received
     return [
       {
-        accountCode: DEFAULT_GL_ACCOUNTS.BANK,       // Bank accounts
+        accountCode: DEFAULT_GL_ACCOUNTS.BANK, // Bank accounts
         accountName: "Bank accounts",
         debit: payment.amount,
         credit: 0,
@@ -127,7 +145,7 @@ function buildPaymentJournalLines(payment: Payment): JournalLine[] {
         contactId: payment.contactId,
       },
       {
-        accountCode: DEFAULT_GL_ACCOUNTS.ACCOUNTS_RECEIVABLE,       // Accounts receivable
+        accountCode: DEFAULT_GL_ACCOUNTS.ACCOUNTS_RECEIVABLE, // Accounts receivable
         accountName: "Accounts receivable",
         debit: 0,
         credit: payment.amount,
@@ -139,7 +157,7 @@ function buildPaymentJournalLines(payment: Payment): JournalLine[] {
     // Vendor payment sent
     return [
       {
-        accountCode: DEFAULT_GL_ACCOUNTS.ACCOUNTS_PAYABLE,       // Trade payables
+        accountCode: DEFAULT_GL_ACCOUNTS.ACCOUNTS_PAYABLE, // Trade payables
         accountName: "Trade payables",
         debit: payment.amount,
         credit: 0,
@@ -147,7 +165,7 @@ function buildPaymentJournalLines(payment: Payment): JournalLine[] {
         contactId: payment.contactId,
       },
       {
-        accountCode: DEFAULT_GL_ACCOUNTS.BANK,       // Bank accounts
+        accountCode: DEFAULT_GL_ACCOUNTS.BANK, // Bank accounts
         accountName: "Bank accounts",
         debit: 0,
         credit: payment.amount,
@@ -163,18 +181,40 @@ function buildPaymentJournalLines(payment: Payment): JournalLine[] {
 async function updateInvoicesForPayment(
   companyId: string,
   allocations: PaymentAllocation[],
-  journalEntryId: string
+  journalEntryId: string,
 ) {
-  for (const alloc of allocations) {
-    try {
-      const { resource: invoice } = await containers.documents()
-        .item(alloc.invoiceId, companyId)
-        .read<Invoice>();
+  if (allocations.length === 0) {
+    return;
+  }
 
-      if (!invoice) continue;
+  const allocationMap = new Map(
+    allocations.map((a) => [a.invoiceId, a.amount]),
+  );
+  const invoiceIds = [...allocationMap.keys()];
 
-      invoice.amountPaid = roundCurrency(invoice.amountPaid + alloc.amount);
-      invoice.paymentJournalEntryIds.push(journalEntryId);
+  const { resources: invoices } = await containers
+    .documents()
+    .items.query<Invoice>({
+      query:
+        "SELECT * FROM c WHERE c.companyId = @cid AND ARRAY_CONTAINS(@invoiceIds, c.id)",
+      parameters: [
+        { name: "@cid", value: companyId },
+        { name: "@invoiceIds", value: invoiceIds },
+      ],
+    })
+    .fetchAll();
+
+  await Promise.all(
+    invoices.map(async (invoice) => {
+      const allocatedAmount = allocationMap.get(invoice.id);
+      if (!allocatedAmount) {
+        return;
+      }
+
+      invoice.amountPaid = roundCurrency(invoice.amountPaid + allocatedAmount);
+      if (!invoice.paymentJournalEntryIds.includes(journalEntryId)) {
+        invoice.paymentJournalEntryIds.push(journalEntryId);
+      }
 
       if (invoice.amountPaid >= invoice.total) {
         invoice.status = "paid";
@@ -183,18 +223,16 @@ async function updateInvoicesForPayment(
       }
 
       invoice.updatedAt = new Date().toISOString();
-      await containers.documents().item(alloc.invoiceId, companyId).replace(invoice);
-    } catch {
-      // Invoice not found — skip
-    }
-  }
+      await containers.documents().item(invoice.id, companyId).replace(invoice);
+    }),
+  );
 }
 
 // ─── List payments ──────────────────────────────────────────
 
 export async function listPayments(
   companyId: string,
-  type?: "incoming" | "outgoing"
+  type?: "incoming" | "outgoing",
 ): Promise<Payment[]> {
   const typeFilter = type ? "AND c.type = @type" : "";
   const params: { name: string; value: string }[] = [
@@ -202,8 +240,9 @@ export async function listPayments(
   ];
   if (type) params.push({ name: "@type", value: type });
 
-  const { resources } = await containers.documents().items
-    .query<Payment>({
+  const { resources } = await containers
+    .documents()
+    .items.query<Payment>({
       query: `SELECT * FROM c WHERE c.companyId = @cid AND (c.docType = 'payment' OR IS_DEFINED(c.bankAccountIban)) ${typeFilter} ORDER BY c.date DESC`,
       parameters: params,
     })

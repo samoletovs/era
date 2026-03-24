@@ -1,0 +1,105 @@
+name: "Auto-label and assign issues"
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  label-and-assign:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Label and assign based on issue content
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const title = issue.title;
+            const body = issue.body || '';
+            const fullText = `${title} ${body}`.toLowerCase();
+            const labelsToAdd = [];
+
+            // ── Step 1: Type detection from emoji prefix ──
+            const typeMap = [
+              { pattern: '🐛 Bug report', label: 'bug' },
+              { pattern: '💡 Feature idea', label: 'enhancement' },
+              { pattern: '🎨 UI/UX improvement', label: 'ui/ux' },
+            ];
+            const typeMatch = typeMap.find(m => title.includes(m.pattern));
+            if (typeMatch) {
+              labelsToAdd.push(typeMatch.label);
+              console.log(`Type detected: ${typeMatch.label}`);
+            }
+
+            // ── Step 2: Area detection from content keywords ──
+            const areaRules = [
+              {
+                label: 'area:frontend',
+                keywords: ['component', 'button', 'modal', 'page', 'css', 'style', 'layout',
+                  'mobile', 'responsive', 'ui', 'ux', 'design', 'grid', 'form', 'screen',
+                  'sidebar', 'navigation', 'menu', 'toast', 'popover', 'dialog', 'font',
+                  'color', 'icon', 'animation', 'hover', 'click', 'scroll', 'display',
+                  'visual', 'look', 'table column'],
+              },
+              {
+                label: 'area:backend',
+                keywords: ['api', 'endpoint', 'route', 'service', 'cosmos', 'database',
+                  'query', 'middleware', 'auth', 'validation', 'schema', 'posting',
+                  'ledger', 'transaction', 'payment', 'invoice process', 'calculation',
+                  'reconciliation', 'import', 'export data', 'sync'],
+              },
+              {
+                label: 'area:shared',
+                keywords: ['type', 'interface', 'enum', 'constant', 'zod schema',
+                  'shared type', 'entity'],
+              },
+              {
+                label: 'area:infra',
+                keywords: ['deploy', 'bicep', 'azure', 'ci/cd', 'pipeline', 'docker',
+                  'container', 'infrastructure', 'monitoring', 'performance'],
+              },
+            ];
+
+            for (const rule of areaRules) {
+              if (rule.keywords.some(kw => fullText.includes(kw))) {
+                labelsToAdd.push(rule.label);
+                console.log(`Area detected: ${rule.label}`);
+                break; // only one area label
+              }
+            }
+
+            // ── Step 3: Apply labels ──
+            if (labelsToAdd.length > 0) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: labelsToAdd,
+              });
+              console.log(`Labels applied: ${labelsToAdd.join(', ')}`);
+            }
+
+            // ── Step 4: Auto-assign copilot for simple bug fixes ──
+            // Copilot coding agent works best with well-scoped issues
+            const isBug = labelsToAdd.includes('bug') || labelsToAdd.includes('ui/ux');
+            const isShort = (issue.body || '').length < 500;
+            if (isBug && isShort) {
+              try {
+                await github.rest.issues.addAssignees({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  assignees: ['copilot'],
+                });
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  labels: ['copilot'],
+                });
+                console.log('Assigned to Copilot coding agent');
+              } catch (e) {
+                console.log(`Could not assign copilot (may not be available): ${e.message}`);
+              }
+            }

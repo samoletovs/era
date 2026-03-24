@@ -19,7 +19,9 @@ interface CreateContactInput {
   createdBy: string;
 }
 
-export async function createContact(input: CreateContactInput): Promise<Contact> {
+export async function createContact(
+  input: CreateContactInput,
+): Promise<Contact> {
   const contactNumber = await getNextNumber(input.companyId, "contact");
   const now = new Date().toISOString();
   const contact: Contact = {
@@ -55,9 +57,13 @@ export async function createContact(input: CreateContactInput): Promise<Contact>
   return contact;
 }
 
-export async function getContact(companyId: string, contactId: string): Promise<Contact | null> {
+export async function getContact(
+  companyId: string,
+  contactId: string,
+): Promise<Contact | null> {
   try {
-    const { resource } = await containers.contacts()
+    const { resource } = await containers
+      .contacts()
       .item(contactId, companyId)
       .read<Contact>();
     return resource ?? null;
@@ -66,12 +72,18 @@ export async function getContact(companyId: string, contactId: string): Promise<
   }
 }
 
-export async function findContactByName(companyId: string, name: string, registrationNumber?: string): Promise<Contact | null> {
+export async function findContactByName(
+  companyId: string,
+  name: string,
+  registrationNumber?: string,
+): Promise<Contact | null> {
   // First try exact match on registration number (most reliable identifier)
   if (registrationNumber) {
-    const { resources: byReg } = await containers.contacts().items
-      .query<Contact>({
-        query: "SELECT * FROM c WHERE c.companyId = @cid AND c.registrationNumber = @reg",
+    const { resources: byReg } = await containers
+      .contacts()
+      .items.query<Contact>({
+        query:
+          "SELECT * FROM c WHERE c.companyId = @cid AND c.registrationNumber = @reg",
         parameters: [
           { name: "@cid", value: companyId },
           { name: "@reg", value: registrationNumber },
@@ -83,9 +95,11 @@ export async function findContactByName(companyId: string, name: string, registr
 
   // Then try case-insensitive name match
   const nameLower = name.trim().toLowerCase();
-  const { resources: byName } = await containers.contacts().items
-    .query<Contact>({
-      query: "SELECT * FROM c WHERE c.companyId = @cid AND LOWER(c.name) = @name",
+  const { resources: byName } = await containers
+    .contacts()
+    .items.query<Contact>({
+      query:
+        "SELECT * FROM c WHERE c.companyId = @cid AND LOWER(c.name) = @name",
       parameters: [
         { name: "@cid", value: companyId },
         { name: "@name", value: nameLower },
@@ -100,7 +114,21 @@ export async function findContactByName(companyId: string, name: string, registr
 export async function updateContact(
   companyId: string,
   contactId: string,
-  updates: Partial<Pick<Contact, "name" | "shortName" | "type" | "registrationNumber" | "vatNumber" | "email" | "phone" | "address" | "paymentTermsDays" | "isActive">>
+  updates: Partial<
+    Pick<
+      Contact,
+      | "name"
+      | "shortName"
+      | "type"
+      | "registrationNumber"
+      | "vatNumber"
+      | "email"
+      | "phone"
+      | "address"
+      | "paymentTermsDays"
+      | "isActive"
+    >
+  >,
 ): Promise<Contact | null> {
   const contact = await getContact(companyId, contactId);
   if (!contact) return null;
@@ -109,19 +137,27 @@ export async function updateContact(
   if (updates.name && !updates.shortName) {
     contact.shortName = generateShortName(updates.name);
   }
-  const { resource } = await containers.contacts().item(contactId, companyId).replace(contact);
+  const { resource } = await containers
+    .contacts()
+    .item(contactId, companyId)
+    .replace(contact);
   return resource ?? null;
 }
 
-export async function listContacts(companyId: string, type?: Contact["type"]): Promise<Contact[]> {
-  const typeFilter = type && type !== "both" ? "AND (c.type = @type OR c.type = 'both')" : "";
+export async function listContacts(
+  companyId: string,
+  type?: Contact["type"],
+): Promise<Contact[]> {
+  const typeFilter =
+    type && type !== "both" ? "AND (c.type = @type OR c.type = 'both')" : "";
   const params: { name: string; value: string }[] = [
     { name: "@cid", value: companyId },
   ];
   if (type && type !== "both") params.push({ name: "@type", value: type });
 
-  const { resources } = await containers.contacts().items
-    .query<Contact>({
+  const { resources } = await containers
+    .contacts()
+    .items.query<Contact>({
       query: `SELECT * FROM c WHERE c.companyId = @cid ${typeFilter} ORDER BY c.name`,
       parameters: params,
     })
@@ -144,17 +180,20 @@ export async function mergeContacts(
   companyId: string,
   sourceId: string,
   targetId: string,
-  actor: string
+  actor: string,
 ): Promise<MergeResult> {
   const source = await getContact(companyId, sourceId);
   const target = await getContact(companyId, targetId);
   if (!source) throw new Error("Source contact not found");
   if (!target) throw new Error("Target contact not found");
-  if (sourceId === targetId) throw new Error("Cannot merge a contact with itself");
+  if (sourceId === targetId)
+    throw new Error("Cannot merge a contact with itself");
 
   // 1. Fill missing fields on target from source
-  const fieldsToMerge: (keyof Pick<Contact, "registrationNumber" | "vatNumber" | "email" | "phone" | "notes">)[] =
-    ["registrationNumber", "vatNumber", "email", "phone", "notes"];
+  const fieldsToMerge: (keyof Pick<
+    Contact,
+    "registrationNumber" | "vatNumber" | "email" | "phone" | "notes"
+  >)[] = ["registrationNumber", "vatNumber", "email", "phone", "notes"];
   const mergedUpdates: Partial<Contact> = {};
   for (const field of fieldsToMerge) {
     if (!target[field] && source[field]) {
@@ -166,8 +205,10 @@ export async function mergeContacts(
     const addr = { ...target.address };
     if (!addr.line1 && source.address.line1) addr.line1 = source.address.line1;
     if (!addr.city && source.address.city) addr.city = source.address.city;
-    if (!addr.postalCode && source.address.postalCode) addr.postalCode = source.address.postalCode;
-    if (!addr.country && source.address.country) addr.country = source.address.country;
+    if (!addr.postalCode && source.address.postalCode)
+      addr.postalCode = source.address.postalCode;
+    if (!addr.country && source.address.country)
+      addr.country = source.address.country;
     mergedUpdates.address = addr;
   }
   // Merge bank account
@@ -184,9 +225,11 @@ export async function mergeContacts(
   }
 
   // 2. Reassign invoices
-  const { resources: invoices } = await containers.documents().items
-    .query<{ id: string; contactId: string; contactName: string }>({
-      query: "SELECT c.id, c.contactId, c.contactName FROM c WHERE c.companyId = @cid AND c.contactId = @sourceId AND (c.docType = 'invoice' OR IS_DEFINED(c.invoiceNumber))",
+  const { resources: invoices } = await containers
+    .documents()
+    .items.query<{ id: string; contactId: string; contactName: string }>({
+      query:
+        "SELECT c.id, c.contactId, c.contactName FROM c WHERE c.companyId = @cid AND c.contactId = @sourceId AND (c.docType = 'invoice' OR IS_DEFINED(c.invoiceNumber))",
       parameters: [
         { name: "@cid", value: companyId },
         { name: "@sourceId", value: sourceId },
@@ -195,16 +238,21 @@ export async function mergeContacts(
     .fetchAll();
 
   for (const inv of invoices) {
-    await containers.documents().item(inv.id, companyId).patch([
-      { op: "set", path: "/contactId", value: targetId },
-      { op: "set", path: "/contactName", value: target.name },
-    ]);
+    await containers
+      .documents()
+      .item(inv.id, companyId)
+      .patch([
+        { op: "set", path: "/contactId", value: targetId },
+        { op: "set", path: "/contactName", value: target.name },
+      ]);
   }
 
   // 3. Reassign payments
-  const { resources: payments } = await containers.documents().items
-    .query<{ id: string; contactId: string }>({
-      query: "SELECT c.id, c.contactId FROM c WHERE c.companyId = @cid AND c.contactId = @sourceId AND (c.docType = 'payment' OR IS_DEFINED(c.bankAccountIban))",
+  const { resources: payments } = await containers
+    .documents()
+    .items.query<{ id: string; contactId: string }>({
+      query:
+        "SELECT c.id, c.contactId FROM c WHERE c.companyId = @cid AND c.contactId = @sourceId AND (c.docType = 'payment' OR IS_DEFINED(c.bankAccountIban))",
       parameters: [
         { name: "@cid", value: companyId },
         { name: "@sourceId", value: sourceId },
@@ -213,16 +261,24 @@ export async function mergeContacts(
     .fetchAll();
 
   for (const pay of payments) {
-    await containers.documents().item(pay.id, companyId).patch([
-      { op: "set", path: "/contactId", value: targetId },
-      { op: "set", path: "/contactName", value: target.name },
-    ]);
+    await containers
+      .documents()
+      .item(pay.id, companyId)
+      .patch([
+        { op: "set", path: "/contactId", value: targetId },
+        { op: "set", path: "/contactName", value: target.name },
+      ]);
   }
 
   // 4. Reassign journal entry lines that reference the source contact
-  const { resources: entries } = await containers.ledger().items
-    .query<{ id: string; lines: Array<{ contactId?: string; contactName?: string }> }>({
-      query: "SELECT c.id, c.lines FROM c WHERE c.companyId = @cid AND (c.docType = 'journal-entry' OR IS_DEFINED(c.entryNumber))",
+  const { resources: entries } = await containers
+    .ledger()
+    .items.query<{
+      id: string;
+      lines: Array<{ contactId?: string; contactName?: string }>;
+    }>({
+      query:
+        "SELECT c.id, c.lines FROM c WHERE c.companyId = @cid AND (c.docType = 'journal-entry' OR IS_DEFINED(c.entryNumber))",
       parameters: [{ name: "@cid", value: companyId }],
     })
     .fetchAll();
@@ -238,9 +294,10 @@ export async function mergeContacts(
       }
     }
     if (changed) {
-      await containers.ledger().item(entry.id, companyId).patch([
-        { op: "set", path: "/lines", value: entry.lines },
-      ]);
+      await containers
+        .ledger()
+        .item(entry.id, companyId)
+        .patch([{ op: "set", path: "/lines", value: entry.lines }]);
       journalEntriesUpdated++;
     }
   }
@@ -283,7 +340,9 @@ export interface DuplicateGroup {
   reason: string; // e.g. "Same registration number", "Similar name"
 }
 
-export async function findDuplicateContacts(companyId: string): Promise<DuplicateGroup[]> {
+export async function findDuplicateContacts(
+  companyId: string,
+): Promise<DuplicateGroup[]> {
   const allContacts = await listContacts(companyId);
   const groups: DuplicateGroup[] = [];
   const used = new Set<string>();
@@ -305,7 +364,8 @@ export async function findDuplicateContacts(companyId: string): Promise<Duplicat
   }
 
   // Group by similar name (normalized)
-  const normalize = (n: string) => n.toLowerCase().replace(/[^a-zāčēģīķļņšūž0-9]/g, "");
+  const normalize = (n: string) =>
+    n.toLowerCase().replace(/[^a-zāčēģīķļņšūž0-9]/g, "");
   const byName = new Map<string, Contact[]>();
   for (const c of allContacts) {
     if (used.has(c.id)) continue;
@@ -341,7 +401,10 @@ export interface RefreshResult {
   };
 }
 
-export async function checkContactRegister(companyId: string, contactId: string): Promise<RefreshResult> {
+export async function checkContactRegister(
+  companyId: string,
+  contactId: string,
+): Promise<RefreshResult> {
   const contact = await getContact(companyId, contactId);
   if (!contact) throw new Error("Contact not found");
 
@@ -349,7 +412,9 @@ export async function checkContactRegister(companyId: string, contactId: string)
     return { found: false, diffs: [], registerData: undefined };
   }
 
-  const result = await searchCompanyByRegNumber(contact.registrationNumber.replace(/\s/g, ""));
+  const result = await searchCompanyByRegNumber(
+    contact.registrationNumber.replace(/\s/g, ""),
+  );
   if (!result.found || result.results.length === 0) {
     return { found: false, diffs: [], registerData: undefined };
   }
@@ -361,12 +426,32 @@ export async function checkContactRegister(companyId: string, contactId: string)
     diffs.push({ field: "name", current: contact.name, register: reg.name });
   }
 
+  if (
+    reg.registrationNumber &&
+    reg.registrationNumber !== contact.registrationNumber
+  ) {
+    diffs.push({
+      field: "registrationNumber",
+      current: contact.registrationNumber || "—",
+      register: reg.registrationNumber,
+    });
+  }
+
   // Parse address from register (typically "City, Street, Postal")
   const regAddress = reg.address || "";
-  const currentAddress = [contact.address?.line1, contact.address?.city, contact.address?.postalCode]
-    .filter(Boolean).join(", ");
+  const currentAddress = [
+    contact.address?.line1,
+    contact.address?.city,
+    contact.address?.postalCode,
+  ]
+    .filter(Boolean)
+    .join(", ");
   if (regAddress && regAddress !== currentAddress) {
-    diffs.push({ field: "address", current: currentAddress || "—", register: regAddress });
+    diffs.push({
+      field: "address",
+      current: currentAddress || "—",
+      register: regAddress,
+    });
   }
 
   return {
@@ -384,8 +469,8 @@ export async function checkContactRegister(companyId: string, contactId: string)
 export async function applyRegisterData(
   companyId: string,
   contactId: string,
-  data: { name?: string; address?: string },
-  actor: string
+  data: { name?: string; address?: string; registrationNumber?: string },
+  actor: string,
 ): Promise<Contact | null> {
   const contact = await getContact(companyId, contactId);
   if (!contact) return null;
@@ -394,6 +479,9 @@ export async function applyRegisterData(
   if (data.name) {
     updates.name = data.name;
     updates.shortName = generateShortName(data.name);
+  }
+  if (data.registrationNumber) {
+    updates.registrationNumber = data.registrationNumber;
   }
   if (data.address) {
     // Parse register address - typically "City, Street line" or "Street, City, LV-XXXX"
