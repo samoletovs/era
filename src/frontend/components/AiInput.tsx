@@ -45,7 +45,7 @@ export function AiInput({
   const [listening, setListening] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const recognitionRef = useRef<any>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   async function handleSubmit(text?: string) {
     const desc = text || prompt;
@@ -98,84 +98,78 @@ export function AiInput({
   return (
     <div>
       {label && <label style={labelStyle}>{label}</label>}
-      <div style={{ display: "flex", gap: 6, alignItems: "stretch" }}>
-        <input
+      <div className="ai-input-wrap">
+        <textarea
           ref={inputRef}
-          type="text"
           value={prompt}
           onChange={(e) => {
             setPrompt(e.target.value);
             if (error) setError(null);
           }}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !loading && !disabled) handleSubmit();
+            if (e.key === "Enter" && !e.shiftKey && !loading && !disabled) {
+              e.preventDefault();
+              handleSubmit();
+            }
           }}
-          placeholder={placeholder || "Describe what you want to create..."}
-          className="form-input"
-          style={{ flex: 1, minWidth: 0 }}
+          placeholder={placeholder || "Describe what you need..."}
+          className="ai-input-textarea"
+          rows={1}
           disabled={disabled || loading}
           aria-label={label || "AI description input"}
         />
-        <button
-          className="btn-secondary"
-          onClick={() => handleSubmit()}
-          disabled={disabled || loading || !prompt.trim()}
-          style={{
-            whiteSpace: "nowrap",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-          }}
-        >
-          <span style={{ fontSize: 14 }}>✨</span>
-          {loading
-            ? loadingLabel || "Thinking..."
-            : buttonLabel || "Fill fields"}
-        </button>
-        {speechSupported && (
+        <div className="ai-input-actions">
+          {speechSupported && (
+            <button
+              className={`ai-input-mic${listening ? " listening" : ""}`}
+              onClick={toggleVoice}
+              title={listening ? "Stop listening" : "Voice input"}
+              aria-label={listening ? "Stop voice input" : "Start voice input"}
+              type="button"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <rect x="5.5" y="1" width="5" height="9" rx="2.5" />
+                <path d="M3 7.5a5 5 0 0 0 10 0" />
+                <line x1="8" y1="12.5" x2="8" y2="15" />
+                <line x1="5.5" y1="15" x2="10.5" y2="15" />
+              </svg>
+            </button>
+          )}
           <button
-            className={listening ? "btn-primary" : "btn-secondary"}
-            onClick={toggleVoice}
-            title={listening ? "Stop listening" : "Voice input"}
-            aria-label={listening ? "Stop voice input" : "Start voice input"}
-            style={{
-              width: 36,
-              minWidth: 36,
-              padding: 0,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              ...(listening
-                ? { animation: "pulse 1.5s ease-in-out infinite" }
-                : {}),
-            }}
+            className="ai-input-submit"
+            onClick={() => handleSubmit()}
+            disabled={disabled || loading || !prompt.trim()}
+            type="button"
           >
-            🎙
+            {loading
+              ? loadingLabel || "Filling..."
+              : buttonLabel || "Fill fields"}
           </button>
-        )}
+        </div>
       </div>
       {listening && (
-        <p
-          style={{
-            fontSize: "var(--text-sm)",
-            color: "var(--accent)",
-            marginTop: 4,
-            marginBottom: 0,
-          }}
-        >
+        <p className="ai-input-hint" style={{ color: "var(--accent)" }}>
           Listening... speak now
         </p>
       )}
       {error && (
-        <p
-          style={{
-            fontSize: "var(--text-sm)",
-            color: "var(--error, #FF3B30)",
-            marginTop: 4,
-            marginBottom: 0,
-          }}
-        >
+        <p className="ai-input-hint" style={{ color: "var(--error, #FF3B30)" }}>
           {error}
+        </p>
+      )}
+      {!listening && !error && (
+        <p className="ai-input-hint">
+          Describe what you need — type or use voice. Fields will be filled
+          automatically.
         </p>
       )}
     </div>

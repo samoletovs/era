@@ -1692,6 +1692,106 @@ select.settings-input {
   padding-bottom: 8px;
 }
 
+/* ─── AI Input (universal generate/voice component) ──────── */
+
+.ai-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  transition: border-color var(--duration-normal) var(--ease-out);
+}
+
+.ai-input-wrap:focus-within {
+  border-color: var(--accent, #0a84ff);
+}
+
+.ai-input-textarea {
+  flex: 1;
+  min-height: 40px;
+  max-height: 120px;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  color: var(--text-body);
+  resize: none;
+  outline: none;
+  line-height: 1.4;
+}
+
+.ai-input-textarea::placeholder {
+  color: var(--text-tertiary);
+}
+
+.ai-input-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  flex-shrink: 0;
+}
+
+.ai-input-mic {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--text-tertiary);
+  transition: all var(--duration-normal) var(--ease-out);
+}
+
+.ai-input-mic:hover {
+  background: var(--bg-hover);
+  color: var(--text-body);
+}
+
+.ai-input-mic.listening {
+  color: var(--accent);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.ai-input-submit {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 14px;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--duration-normal) var(--ease-out);
+}
+
+.ai-input-submit:hover:not(:disabled) {
+  background: var(--accent);
+  color: white;
+}
+
+.ai-input-submit:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ai-input-hint {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  margin: 4px 0 0;
+}
+
 /* ─── Feedback Button + Popover ──────────────────────────── */
 
 .feedback-fab {

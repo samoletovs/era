@@ -713,17 +713,10 @@ export function JournalEntries() {
 
           {/* AI quick fill */}
           <div style={{ marginBottom: 16 }}>
-            <div className="detail-label">Describe the entry</div>
             <AiInput
               placeholder="e.g. 'Monthly rent 1200 EUR from bank' or 'Pay vendor Acme 500 EUR'"
-              buttonLabel="Auto-fill"
-              loadingLabel="Filling..."
               onSubmit={async (text) => handleAiFill(text)}
             />
-            <span className="field-hint">
-              Describe what you need — type or use voice. Lines will be filled
-              automatically.
-            </span>
           </div>
 
           <div style={{ borderTop: "1px solid #E8E8E8", paddingTop: 16 }}>

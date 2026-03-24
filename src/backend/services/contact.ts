@@ -469,7 +469,12 @@ export async function checkContactRegister(
 export async function applyRegisterData(
   companyId: string,
   contactId: string,
-  data: { name?: string; address?: string; registrationNumber?: string },
+  data: {
+    name?: string;
+    address?: string;
+    registrationNumber?: string;
+    vatNumber?: string;
+  },
   actor: string,
 ): Promise<Contact | null> {
   const contact = await getContact(companyId, contactId);
@@ -482,6 +487,9 @@ export async function applyRegisterData(
   }
   if (data.registrationNumber) {
     updates.registrationNumber = data.registrationNumber;
+  }
+  if (data.vatNumber) {
+    updates.vatNumber = data.vatNumber;
   }
   if (data.address) {
     // Parse register address - typically "City, Street line" or "Street, City, LV-XXXX"

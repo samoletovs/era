@@ -214,7 +214,6 @@ export function Items() {
           {/* AI description bar */}
           <div style={{ marginBottom: 16 }}>
             <AiInput
-              label="Describe the item you want to add"
               placeholder="e.g. Consulting service, €120/hour, for IT services"
               onSubmit={handleAiDescribe}
               disabled={!companyId}

@@ -409,11 +409,8 @@ export function RecurringEntries() {
 
           {/* Quick fill with AI + voice */}
           <div style={{ marginBottom: 16 }}>
-            <div className="detail-label">Describe the entry</div>
             <AiInput
               placeholder="e.g. 'Monthly office rent 500 EUR' or 'Quarterly insurance 1200 EUR'"
-              buttonLabel="Auto-fill"
-              loadingLabel="Filling..."
               onSubmit={async (text) => {
                 updateForm({ quickText: text });
                 // run quick-fill logic

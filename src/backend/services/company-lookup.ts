@@ -243,7 +243,8 @@ function parseVatNumber(
   vatNumber: string,
 ): { countryCode: string; number: string } | null {
   const clean = vatNumber.replace(/[\s.\-]/g, "").toUpperCase();
-  const match = clean.match(/^([A-Z]{2})(\d{5,12})$/);
+  // EU VAT: 2-letter country code + 5-12 alphanumeric chars (NL has B01, IE has trailing letters)
+  const match = clean.match(/^([A-Z]{2})([A-Z0-9]{5,12})$/);
   if (!match) return null;
   if (!EU_COUNTRY_CODES.has(match[1])) return null;
   return { countryCode: match[1], number: match[2] };
@@ -294,6 +295,24 @@ export async function checkViesVat(vatNumber: string): Promise<ViesResult> {
     }
 
     const data = await res.json();
+
+    // Handle member state unavailable (actionSucceed: false)
+    if (data.actionSucceed === false || data.errorWrappers) {
+      const errCode = data.errorWrappers?.[0]?.error || "UNKNOWN";
+      return {
+        valid: false,
+        countryCode: parsed.countryCode,
+        vatNumber: parsed.number,
+        name: "",
+        address: "",
+        requestDate: new Date().toISOString().slice(0, 10),
+        source:
+          errCode === "MS_UNAVAILABLE"
+            ? `The ${parsed.countryCode} tax authority is temporarily unavailable. Try again later.`
+            : `VIES error: ${errCode}`,
+      };
+    }
+
     return {
       valid: data.isValid === true || data.valid === true,
       countryCode: data.countryCode || parsed.countryCode,

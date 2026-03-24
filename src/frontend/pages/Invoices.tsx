@@ -925,9 +925,7 @@ export function Invoices() {
         <div className="settings-card" style={{ marginBottom: 20 }}>
           <div style={{ marginBottom: 16 }}>
             <AiInput
-              label="Describe the invoice you want to create"
               placeholder='e.g. "Sales invoice for SIA Klient, consulting 10h at €120/h"'
-              buttonLabel="✨ Generate"
               onSubmit={handleAiDescribe}
               disabled={!companyId || aiLoading}
               clearOnSubmit={false}

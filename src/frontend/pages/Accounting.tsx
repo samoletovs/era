@@ -1002,6 +1002,13 @@ export function Accounting() {
           </p>
         ) : (
           <>
+            {expandedRunId && closeRuns.find((r) => r.id === expandedRunId) && (
+              <CloseRunDetail
+                run={closeRuns.find((r) => r.id === expandedRunId)!}
+                fmt={fmt}
+                onClose={() => setExpandedRunId(null)}
+              />
+            )}
             <UniversalGrid
               rows={closeRuns}
               columns={runHistoryColumns}
@@ -1013,12 +1020,6 @@ export function Accounting() {
               emptyMessage="No matching runs."
               initialSort={{ columnId: "completedAt", direction: "desc" }}
             />
-            {expandedRunId && closeRuns.find((r) => r.id === expandedRunId) && (
-              <CloseRunDetail
-                run={closeRuns.find((r) => r.id === expandedRunId)!}
-                fmt={fmt}
-              />
-            )}
           </>
         )}
       </div>
@@ -1029,9 +1030,11 @@ export function Accounting() {
 function CloseRunDetail({
   run,
   fmt,
+  onClose,
 }: {
   run: PeriodCloseRun;
   fmt: NumberFormat | undefined;
+  onClose?: () => void;
 }) {
   const { companyId } = useApp();
   const [glEntries, setGlEntries] = useState<any[]>([]);
@@ -1064,12 +1067,45 @@ function CloseRunDetail({
 
   return (
     <div
+      className="settings-card"
       style={{
-        padding: "12px 16px 16px 40px",
-        background: "var(--bg-subtle)",
-        borderBottom: "1px solid var(--border)",
+        marginBottom: 16,
+        padding: "14px 16px 16px",
       }}
     >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 8,
+        }}
+      >
+        <span
+          style={{
+            fontSize: "var(--text-sm)",
+            fontWeight: 500,
+            color: "var(--text-body)",
+          }}
+        >
+          {run.type === "month-end"
+            ? "Month-end"
+            : run.type === "year-end"
+              ? "Year-end"
+              : "VAT return"}{" "}
+          — {run.period || run.fiscalYear}
+        </span>
+        {onClose && (
+          <button
+            className="btn-secondary"
+            style={{ fontSize: "var(--text-xs)", padding: "2px 8px" }}
+            onClick={onClose}
+            aria-label="Close details"
+          >
+            ✕
+          </button>
+        )}
+      </div>
       {run.type === "year-end" &&
         run.netResult !== null &&
         run.netResult !== undefined && (

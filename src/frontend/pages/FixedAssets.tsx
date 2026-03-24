@@ -405,7 +405,6 @@ export function FixedAssets() {
           </h3>
           <div style={{ marginBottom: 16 }}>
             <AiInput
-              label="Describe the asset you want to acquire"
               placeholder="e.g. MacBook Pro laptop, €2500, 3 years useful life"
               onSubmit={handleAiDescribe}
               disabled={!companyId}

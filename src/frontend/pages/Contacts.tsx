@@ -43,6 +43,7 @@ interface RegisterPanelData {
   registerData?: {
     name: string;
     registrationNumber: string;
+    vatNumber?: string;
     legalForm: string;
     address: string;
   };
@@ -156,12 +157,25 @@ export function Contacts() {
       });
     }
 
+    // Auto-derive VAT number for Latvian companies (LV + reg number)
+    const derivedVat = registerEntry.registrationNumber
+      ? `LV${registerEntry.registrationNumber}`
+      : undefined;
+    if (derivedVat && derivedVat !== contact.vatNumber) {
+      diffs.push({
+        field: "VAT number",
+        current: contact.vatNumber || "—",
+        register: derivedVat,
+      });
+    }
+
     return {
       found: true,
       diffs,
       registerData: {
         name: registerEntry.name,
         registrationNumber: registerEntry.registrationNumber,
+        vatNumber: derivedVat,
         legalForm: registerEntry.legalForm,
         address: registerEntry.address,
       },
@@ -219,6 +233,85 @@ export function Contacts() {
       notes: fields.notes || "",
     });
     setShowForm(true);
+    setFormVerifyStatus(null);
+
+    // Auto-verify in register if we have a name or reg number
+    const searchQuery = fields.registrationNumber || fields.name || "";
+    if (searchQuery.length >= 2) {
+      autoVerifyForm(searchQuery, {
+        type: fields.type || "customer",
+        name: fields.name || "",
+        registrationNumber: fields.registrationNumber || "",
+        vatNumber: fields.vatNumber || "",
+        email: fields.email || "",
+        phone: fields.phone || "",
+        addressLine1: fields.address?.line1 || "",
+        city: fields.address?.city || "",
+        postalCode: fields.address?.postalCode || "",
+        country: fields.address?.country || "Latvia",
+        iban: fields.bankAccount?.iban || "",
+        swift: fields.bankAccount?.swift || "",
+        bankName: fields.bankAccount?.bankName || "",
+        paymentTermsDays: String(fields.paymentTermsDays ?? 30),
+        notes: fields.notes || "",
+      });
+    }
+  }
+
+  // ─── Form register verification ────────────────────────────
+
+  const [formVerifyStatus, setFormVerifyStatus] = useState<
+    "searching" | "found" | "not-found" | null
+  >(null);
+  const [formVerifySource, setFormVerifySource] = useState("");
+
+  async function autoVerifyForm(query: string, currentForm: ContactForm) {
+    setFormVerifyStatus("searching");
+    try {
+      const result = await api.registerSearch(query);
+      const raw = result as Record<string, unknown>;
+      const results: RegisterResult[] = Array.isArray(raw?.results)
+        ? (raw.results as RegisterResult[])
+        : [];
+      if (results.length === 0) {
+        setFormVerifyStatus("not-found");
+        setFormVerifySource(String(raw?.source || ""));
+        return;
+      }
+
+      // Pick best match: exact reg number match, or first result
+      const regNum = currentForm.registrationNumber;
+      const match = regNum
+        ? results.find(
+            (r) =>
+              normalizeRegNumber(r.registrationNumber) ===
+              normalizeRegNumber(regNum),
+          ) || results[0]
+        : results[0];
+
+      // Fill empty fields from register data
+      setForm((f) => ({
+        ...f,
+        name: f.name || match.name || f.name,
+        registrationNumber: match.registrationNumber || f.registrationNumber,
+        vatNumber:
+          f.vatNumber ||
+          (match.registrationNumber
+            ? `LV${match.registrationNumber}`
+            : f.vatNumber),
+        addressLine1: f.addressLine1 || match.address || "",
+      }));
+      setFormVerifyStatus("found");
+      setFormVerifySource(String(raw?.source || "register"));
+    } catch {
+      setFormVerifyStatus("not-found");
+    }
+  }
+
+  async function handleFormVerify() {
+    const query = (form.registrationNumber || form.name || "").trim();
+    if (query.length < 2) return;
+    await autoVerifyForm(query, form);
   }
 
   async function handleMerge(targetId: string) {
@@ -325,12 +418,9 @@ export function Contacts() {
   async function handleCheckRegister() {
     if (!selected) return;
 
-    // Auto-detect source: if contact has a non-LV VAT number, default to VIES
-    const hasEuVat =
-      selected.vatNumber &&
-      /^[A-Z]{2}\d/i.test(selected.vatNumber) &&
-      !selected.vatNumber.toUpperCase().startsWith("LV");
-    const source = hasEuVat ? "vies" : "lv";
+    // Auto-detect source: if contact has a VAT number, default to VIES
+    const hasVat = !!selected.vatNumber?.trim();
+    const source = hasVat ? "vies" : "lv";
     setRegisterSource(source);
 
     const defaultQuery =
@@ -1215,8 +1305,7 @@ export function Contacts() {
         >
           <div style={{ marginBottom: 16 }}>
             <AiInput
-              placeholder="Describe the contact, e.g. 'Vendor SIA Apex, reg 40003112233, Riga, payment 45 days'"
-              loadingLabel="Parsing..."
+              placeholder="e.g. 'Vendor SIA Apex, reg 40003112233, Riga, payment 45 days'"
               onSubmit={handleAiParse}
             />
           </div>
@@ -1250,6 +1339,44 @@ export function Contacts() {
                 <option value="both">Both</option>
               </select>
             </div>
+
+            {/* Register verification row */}
+            <div className="settings-field" style={{ gridColumn: "1 / -1" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <button
+                  className="btn-secondary"
+                  style={{ fontSize: "var(--text-sm)", padding: "4px 12px" }}
+                  onClick={handleFormVerify}
+                  disabled={
+                    formVerifyStatus === "searching" ||
+                    (!form.name.trim() && !form.registrationNumber.trim())
+                  }
+                  type="button"
+                >
+                  {formVerifyStatus === "searching"
+                    ? "Searching..."
+                    : "🔍 Verify in register"}
+                </button>
+                {formVerifyStatus === "found" && (
+                  <span
+                    style={{ fontSize: "var(--text-sm)", color: "#34C759" }}
+                  >
+                    ✓ Verified — fields updated from {formVerifySource}
+                  </span>
+                )}
+                {formVerifyStatus === "not-found" && (
+                  <span
+                    style={{
+                      fontSize: "var(--text-sm)",
+                      color: "var(--text-tertiary)",
+                    }}
+                  >
+                    Not found in register — enter details manually
+                  </span>
+                )}
+              </div>
+            </div>
+
             <div className="settings-field">
               <label>Registration number</label>
               <input

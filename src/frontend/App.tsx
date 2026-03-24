@@ -143,7 +143,7 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
           <NavLink to="/accounting">Accounting</NavLink>
 
           <div className="nav-section-label">Master data</div>
-          <NavLink to="/accounts">Main accounts</NavLink>
+          <NavLink to="/accounts">Accounts</NavLink>
           <NavLink to="/contacts">Contacts</NavLink>
           <NavLink to="/items">Items</NavLink>
           <NavLink to="/fixed-assets">Fixed assets</NavLink>
