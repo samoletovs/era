@@ -144,14 +144,13 @@ export interface BankAccount {
 export type ExchangeRateType = "daily" | "budget";
 
 // System rate sources (shared globally across all users and companies):
-//   "ecb"          — European Central Bank, auto-imported ~16:00 CET daily
-//   "latvian-bank" — Bank of Latvia (mirrors ECB for EUR, adds LVL legacy pairs)
+//   "ecb" — European Central Bank, auto-imported ~16:00 CET daily
+//           Latvian Accounting Law §5 mandates ECB reference rates for all accounting.
 // Custom sources are user-defined, identified by UUID, stored in company settings.
-export type SystemRateSource = "ecb" | "latvian-bank";
+export type SystemRateSource = "ecb";
 
 export const SYSTEM_RATE_SOURCES: { id: SystemRateSource; name: string }[] = [
   { id: "ecb", name: "European Central Bank (ECB)" },
-  { id: "latvian-bank", name: "Bank of Latvia" },
 ];
 
 export interface CustomRateSource {
@@ -162,7 +161,7 @@ export interface CustomRateSource {
 export interface CurrencySettings {
   accountingCurrency: string; // ISO 4217, required — set at company creation
   reportingCurrency?: string; // ISO 4217, optional — for group consolidation
-  accountingRateSource: string; // source ID: "ecb" | "latvian-bank" | custom UUID
+  accountingRateSource: string; // source ID: "ecb" | custom UUID
   reportingRateSource?: string; // source ID for reporting currency conversion
   budgetRateSource?: string; // source ID for budget/forecast rates
   customRateSources?: CustomRateSource[]; // user-defined manual sources (max 5)
@@ -178,7 +177,7 @@ export interface ExchangeRate {
   rateType: ExchangeRateType; // "daily" for imported/manual, "budget" for forecasts
   rate: number; // 1 fromCurrency = rate toCurrency
   effectiveDate: string; // ISO date
-  source: string; // "ecb" | "latvian-bank" | custom source UUID
+  source: string; // "ecb" | custom source UUID
   companyId?: string; // null = shared (system sources), companyId for custom sources
   createdAt: string;
 }

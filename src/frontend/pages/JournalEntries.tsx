@@ -1135,7 +1135,7 @@ export function JournalEntries() {
       )}
 
       {/* ─── Tab Bar ─────────────────────────────────────── */}
-      <div className="segmented-control">
+      <div className="coa-level-controls" style={{ marginBottom: 12 }}>
         {(
           [
             ["all", "All"],
@@ -1145,7 +1145,7 @@ export function JournalEntries() {
         ).map(([key, label]) => (
           <button
             key={key}
-            className={`segmented-btn${tab === key ? " active" : ""}`}
+            className={`coa-level-btn${tab === key ? " active" : ""}`}
             onClick={() => setTab(key)}
           >
             {label}

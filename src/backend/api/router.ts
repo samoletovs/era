@@ -61,6 +61,7 @@ import {
 import {
   searchCompanyByName,
   searchCompanyByRegNumber,
+  checkViesVat,
 } from "../services/company-lookup.js";
 import { recognizeInvoice } from "../services/invoice-recognition.js";
 import {
@@ -186,6 +187,27 @@ router.get("/register/search", async (req, res) => {
 
 router.use(authMiddleware);
 router.use(idempotency);
+
+// ─── EU VIES VAT Validation ─────────────────────────────────
+
+router.get("/vies/check", async (req, res) => {
+  try {
+    const vatNumber = (req.query.vatNumber as string) || "";
+    if (!vatNumber || vatNumber.length < 4) {
+      res.json({
+        data: { valid: false, source: "VAT number too short" },
+      } as ApiResponse);
+      return;
+    }
+    const result = await checkViesVat(vatNumber);
+    res.json({ data: result } as ApiResponse);
+  } catch (err) {
+    {
+      const e = safeError(err, "VIES_CHECK_FAILED");
+      res.status(e.status).json(e.body);
+    }
+  }
+});
 
 // ─── Auth ───────────────────────────────────────────────────
 
@@ -2173,11 +2195,11 @@ router.post("/exchange-rates/import-ecb", async (req, res) => {
 router.post("/exchange-rates/import-system", async (req, res) => {
   try {
     const { source, date } = req.body;
-    if (!source || !["ecb", "latvian-bank"].includes(source)) {
+    if (!source || source !== "ecb") {
       res.status(400).json({
         error: {
           code: "VAL-001",
-          message: "source must be 'ecb' or 'latvian-bank'",
+          message: "source must be 'ecb'",
         },
       });
       return;

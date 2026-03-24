@@ -44,18 +44,35 @@ export function Accounts() {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-  const [asOfDate, setAsOfDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [asOfDate, setAsOfDate] = useState(() =>
+    new Date().toISOString().slice(0, 10),
+  );
 
   // Transaction drawer state
-  const [selectedAccount, setSelectedAccount] = useState<{ code: string; name: string } | null>(null);
+  const [selectedAccount, setSelectedAccount] = useState<{
+    code: string;
+    name: string;
+  } | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [txLoading, setTxLoading] = useState(false);
 
-  const fetchAccounts = useCallback((date: string) => {
-    if (!companyId) { setLoading(false); return; }
-    setLoading(true);
-    api.accounts(companyId, date).then((data: any) => { setAccounts(data); setLoading(false); }).catch(() => setLoading(false));
-  }, [companyId]);
+  const fetchAccounts = useCallback(
+    (date: string) => {
+      if (!companyId) {
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      api
+        .accounts(companyId, date)
+        .then((data: any) => {
+          setAccounts(data);
+          setLoading(false);
+        })
+        .catch(() => setLoading(false));
+    },
+    [companyId],
+  );
 
   useEffect(() => {
     fetchAccounts(asOfDate);
@@ -70,9 +87,16 @@ export function Accounts() {
     if (!companyId) return;
     setSelectedAccount({ code, name });
     setTxLoading(true);
-    api.accountTransactions(companyId, code, asOfDate)
-      .then((data: any) => { setTransactions(data.transactions || []); setTxLoading(false); })
-      .catch(() => { setTransactions([]); setTxLoading(false); });
+    api
+      .accountTransactions(companyId, code, asOfDate)
+      .then((data: any) => {
+        setTransactions(data.transactions || []);
+        setTxLoading(false);
+      })
+      .catch(() => {
+        setTransactions([]);
+        setTxLoading(false);
+      });
   };
 
   const totals = useMemo(() => computeSubtotals(accounts), [accounts]);
@@ -91,7 +115,7 @@ export function Accounts() {
   }, [accounts, collapsed]);
 
   const toggleCollapse = (code: string) => {
-    setCollapsed(prev => {
+    setCollapsed((prev) => {
       const next = new Set(prev);
       if (next.has(code)) next.delete(code);
       else next.add(code);
@@ -112,8 +136,10 @@ export function Accounts() {
   // Determine which level button is active
   const allLevel1 = accounts.filter((a: any) => a.level === 1 && !a.isPostable);
   const allLevel2 = accounts.filter((a: any) => a.level === 2 && !a.isPostable);
-  const level1AllCollapsed = allLevel1.length > 0 && allLevel1.every((a: any) => collapsed.has(a.code));
-  const level2AllCollapsed = allLevel2.length > 0 && allLevel2.every((a: any) => collapsed.has(a.code));
+  const level1AllCollapsed =
+    allLevel1.length > 0 && allLevel1.every((a: any) => collapsed.has(a.code));
+  const level2AllCollapsed =
+    allLevel2.length > 0 && allLevel2.every((a: any) => collapsed.has(a.code));
   const activeLevel = level1AllCollapsed ? 1 : level2AllCollapsed ? 2 : 3;
 
   if (!companyId) return <NoCompany />;
@@ -121,10 +147,12 @@ export function Accounts() {
   return (
     <div>
       <div className="coa-header">
-        <h2 className="page-title">Chart of accounts</h2>
+        <h2 className="page-title">Accounts</h2>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <div className="coa-date-filter">
-            <label className="detail-label" htmlFor="coa-date">Balance as of</label>
+            <label className="detail-label" htmlFor="coa-date">
+              Balance as of
+            </label>
             <input
               id="coa-date"
               type="date"
@@ -144,160 +172,253 @@ export function Accounts() {
           </div>
           {!loading && accounts.length > 0 && (
             <div className="coa-level-controls">
-              <button className={`coa-level-btn ${activeLevel === 1 ? "active" : ""}`} onClick={() => expandToLevel(1)}>Classes</button>
-              <button className={`coa-level-btn ${activeLevel === 2 ? "active" : ""}`} onClick={() => expandToLevel(2)}>Groups</button>
-              <button className={`coa-level-btn ${activeLevel === 3 ? "active" : ""}`} onClick={() => expandToLevel(3)}>All</button>
+              <button
+                className={`coa-level-btn ${activeLevel === 1 ? "active" : ""}`}
+                onClick={() => expandToLevel(1)}
+              >
+                Classes
+              </button>
+              <button
+                className={`coa-level-btn ${activeLevel === 2 ? "active" : ""}`}
+                onClick={() => expandToLevel(2)}
+              >
+                Groups
+              </button>
+              <button
+                className={`coa-level-btn ${activeLevel === 3 ? "active" : ""}`}
+                onClick={() => expandToLevel(3)}
+              >
+                All
+              </button>
             </div>
           )}
         </div>
       </div>
-      {loading ? <p style={{ color: "#A0A0A0" }}>Loading...</p> : (
+      {loading ? (
+        <p style={{ color: "#A0A0A0" }}>Loading...</p>
+      ) : (
         <>
-        {/* Desktop table */}
-        <table className="data-table coa-table desktop-only-table">
-          <thead>
-            <tr><th>Code</th><th>Name</th><th className="hide-mobile">Type</th><th>Balance</th></tr>
-          </thead>
-          <tbody>
-            {visibleAccounts.map((a: any) => {
-              const balance = totals.get(a.code) ?? 0;
-              const hasChildren = !a.isPostable && accounts.some((c: any) => c.parentCode === a.code);
-              const isCollapsed = collapsed.has(a.code);
-              const isSelected = selectedAccount?.code === a.code;
+          {/* Desktop table */}
+          <table className="data-table coa-table desktop-only-table">
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Name</th>
+                <th className="hide-mobile">Type</th>
+                <th>Balance</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleAccounts.map((a: any) => {
+                const balance = totals.get(a.code) ?? 0;
+                const hasChildren =
+                  !a.isPostable &&
+                  accounts.some((c: any) => c.parentCode === a.code);
+                const isCollapsed = collapsed.has(a.code);
+                const isSelected = selectedAccount?.code === a.code;
 
-              if (a.level === 1) {
-                return (
-                  <tr key={a.id} className="coa-class" onClick={() => hasChildren && toggleCollapse(a.code)}>
-                    <td className="mono">{a.code}</td>
-                    <td>
-                      {hasChildren && <span className="coa-toggle">{isCollapsed ? "▸" : "▾"}</span>}
-                      {a.name}
-                    </td>
-                    <td className="hide-mobile"><span className="badge">{a.type}</span></td>
-                    <td className="num">{formatMoney(balance, fmt)}</td>
-                  </tr>
-                );
-              }
+                if (a.level === 1) {
+                  return (
+                    <tr
+                      key={a.id}
+                      className="coa-class"
+                      onClick={() => hasChildren && toggleCollapse(a.code)}
+                    >
+                      <td className="mono">{a.code}</td>
+                      <td>
+                        {hasChildren && (
+                          <span className="coa-toggle">
+                            {isCollapsed ? "▸" : "▾"}
+                          </span>
+                        )}
+                        {a.name}
+                      </td>
+                      <td className="hide-mobile">
+                        <span className="badge">{a.type}</span>
+                      </td>
+                      <td className="num">{formatMoney(balance, fmt)}</td>
+                    </tr>
+                  );
+                }
 
-              if (a.level === 2) {
+                if (a.level === 2) {
+                  return (
+                    <tr
+                      key={a.id}
+                      className="coa-group"
+                      onClick={() => hasChildren && toggleCollapse(a.code)}
+                    >
+                      <td className="mono">{a.code}</td>
+                      <td>
+                        {hasChildren && (
+                          <span className="coa-toggle">
+                            {isCollapsed ? "▸" : "▾"}
+                          </span>
+                        )}
+                        {a.name}
+                      </td>
+                      <td className="hide-mobile"></td>
+                      <td className="num">{formatMoney(balance, fmt)}</td>
+                    </tr>
+                  );
+                }
+
                 return (
-                  <tr key={a.id} className="coa-group" onClick={() => hasChildren && toggleCollapse(a.code)}>
+                  <tr
+                    key={a.id}
+                    className={`coa-account coa-account-clickable${isSelected ? " coa-account-selected" : ""}`}
+                    onClick={() => openTransactions(a.code, a.name)}
+                    aria-label={`View transactions for ${a.code} ${a.name}`}
+                  >
                     <td className="mono">{a.code}</td>
-                    <td>
-                      {hasChildren && <span className="coa-toggle">{isCollapsed ? "▸" : "▾"}</span>}
-                      {a.name}
-                    </td>
+                    <td>{a.name}</td>
                     <td className="hide-mobile"></td>
                     <td className="num">{formatMoney(balance, fmt)}</td>
                   </tr>
                 );
-              }
+              })}
+            </tbody>
+          </table>
+
+          {/* Mobile card view */}
+          <div className="coa-mobile-list">
+            {visibleAccounts.map((a: any) => {
+              const balance = totals.get(a.code) ?? 0;
+              const hasChildren =
+                !a.isPostable &&
+                accounts.some((c: any) => c.parentCode === a.code);
+              const isCollapsed = collapsed.has(a.code);
+              const isSelected = selectedAccount?.code === a.code;
 
               return (
-                <tr
+                <div
                   key={a.id}
-                  className={`coa-account coa-account-clickable${isSelected ? " coa-account-selected" : ""}`}
-                  onClick={() => openTransactions(a.code, a.name)}
-                  aria-label={`View transactions for ${a.code} ${a.name}`}
+                  className={`coa-mobile-item level-${a.level}${isSelected ? " coa-account-selected" : ""}`}
+                  onClick={() => {
+                    if (hasChildren) toggleCollapse(a.code);
+                    else if (a.isPostable) openTransactions(a.code, a.name);
+                  }}
+                  aria-label={
+                    a.isPostable
+                      ? `View transactions for ${a.code} ${a.name}`
+                      : `Toggle ${a.name}`
+                  }
                 >
-                  <td className="mono">{a.code}</td>
-                  <td>{a.name}</td>
-                  <td className="hide-mobile"></td>
-                  <td className="num">{formatMoney(balance, fmt)}</td>
-                </tr>
+                  {hasChildren && (
+                    <span className="coa-toggle">
+                      {isCollapsed ? "▸" : "▾"}
+                    </span>
+                  )}
+                  <div className="coa-mobile-info">
+                    <div className="coa-mobile-name">{a.name}</div>
+                    <div className="coa-mobile-code">{a.code}</div>
+                  </div>
+                  <div className="coa-mobile-balance">
+                    {formatMoney(balance, fmt)}
+                  </div>
+                </div>
               );
             })}
-          </tbody>
-        </table>
-
-        {/* Mobile card view */}
-        <div className="coa-mobile-list">
-          {visibleAccounts.map((a: any) => {
-            const balance = totals.get(a.code) ?? 0;
-            const hasChildren = !a.isPostable && accounts.some((c: any) => c.parentCode === a.code);
-            const isCollapsed = collapsed.has(a.code);
-            const isSelected = selectedAccount?.code === a.code;
-
-            return (
-              <div
-                key={a.id}
-                className={`coa-mobile-item level-${a.level}${isSelected ? " coa-account-selected" : ""}`}
-                onClick={() => {
-                  if (hasChildren) toggleCollapse(a.code);
-                  else if (a.isPostable) openTransactions(a.code, a.name);
-                }}
-                aria-label={a.isPostable ? `View transactions for ${a.code} ${a.name}` : `Toggle ${a.name}`}
-              >
-                {hasChildren && <span className="coa-toggle">{isCollapsed ? "▸" : "▾"}</span>}
-                <div className="coa-mobile-info">
-                  <div className="coa-mobile-name">{a.name}</div>
-                  <div className="coa-mobile-code">{a.code}</div>
-                </div>
-                <div className="coa-mobile-balance">{formatMoney(balance, fmt)}</div>
-              </div>
-            );
-          })}
-        </div>
+          </div>
         </>
       )}
 
       {/* Transaction drawer */}
       {selectedAccount && (
-        <div className="coa-drawer-overlay" onClick={() => setSelectedAccount(null)}>
+        <div
+          className="coa-drawer-overlay"
+          onClick={() => setSelectedAccount(null)}
+        >
           <div className="coa-drawer" onClick={(e) => e.stopPropagation()}>
             <div className="coa-drawer-header">
               <div>
-                <div className="coa-drawer-title">{selectedAccount.code} — {selectedAccount.name}</div>
-                <div className="coa-drawer-subtitle">Transactions as of {asOfDate}</div>
+                <div className="coa-drawer-title">
+                  {selectedAccount.code} — {selectedAccount.name}
+                </div>
+                <div className="coa-drawer-subtitle">
+                  Transactions as of {asOfDate}
+                </div>
               </div>
-              <button className="coa-drawer-close" onClick={() => setSelectedAccount(null)} aria-label="Close">&times;</button>
+              <button
+                className="coa-drawer-close"
+                onClick={() => setSelectedAccount(null)}
+                aria-label="Close"
+              >
+                &times;
+              </button>
             </div>
             <div className="coa-drawer-body">
               {txLoading ? (
-                <p style={{ color: "var(--text-tertiary)", padding: 16 }}>Loading transactions...</p>
+                <p style={{ color: "var(--text-tertiary)", padding: 16 }}>
+                  Loading transactions...
+                </p>
               ) : transactions.length === 0 ? (
-                <p style={{ color: "var(--text-tertiary)", padding: 16 }}>No transactions found</p>
+                <p style={{ color: "var(--text-tertiary)", padding: 16 }}>
+                  No transactions found
+                </p>
               ) : (
                 <>
-                {/* Desktop table */}
-                <table className="data-table coa-tx-table desktop-only-table">
-                  <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th className="hide-mobile">Entry</th>
-                      <th className="hide-mobile">Description</th>
-                      <th>Debit</th>
-                      <th>Credit</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {transactions.map((tx, i) => (
-                      <tr key={`${tx.entryId}-${i}`}>
-                        <td className="mono">{tx.date}</td>
-                        <td className="mono hide-mobile" style={{ fontSize: "var(--text-xs)" }}>{tx.entryNumber}</td>
-                        <td className="hide-mobile">{tx.description}</td>
-                        <td className="num">{tx.debit > 0 ? formatMoney(tx.debit, fmt) : ""}</td>
-                        <td className="num">{tx.credit > 0 ? formatMoney(tx.credit, fmt) : ""}</td>
+                  {/* Desktop table */}
+                  <table className="data-table coa-tx-table desktop-only-table">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th className="hide-mobile">Entry</th>
+                        <th className="hide-mobile">Description</th>
+                        <th>Debit</th>
+                        <th>Credit</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {transactions.map((tx, i) => (
+                        <tr key={`${tx.entryId}-${i}`}>
+                          <td className="mono">{tx.date}</td>
+                          <td
+                            className="mono hide-mobile"
+                            style={{ fontSize: "var(--text-xs)" }}
+                          >
+                            {tx.entryNumber}
+                          </td>
+                          <td className="hide-mobile">{tx.description}</td>
+                          <td className="num">
+                            {tx.debit > 0 ? formatMoney(tx.debit, fmt) : ""}
+                          </td>
+                          <td className="num">
+                            {tx.credit > 0 ? formatMoney(tx.credit, fmt) : ""}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
 
-                {/* Mobile card view */}
-                <div className="tx-mobile-list">
-                  {transactions.map((tx, i) => (
-                    <div key={`${tx.entryId}-${i}`} className="tx-mobile-item">
-                      <div className="tx-mobile-left">
-                        <div className="tx-mobile-date">{tx.date}</div>
-                        <div className="tx-mobile-desc">{tx.description || tx.entryNumber}</div>
+                  {/* Mobile card view */}
+                  <div className="tx-mobile-list">
+                    {transactions.map((tx, i) => (
+                      <div
+                        key={`${tx.entryId}-${i}`}
+                        className="tx-mobile-item"
+                      >
+                        <div className="tx-mobile-left">
+                          <div className="tx-mobile-date">{tx.date}</div>
+                          <div className="tx-mobile-desc">
+                            {tx.description || tx.entryNumber}
+                          </div>
+                        </div>
+                        <div className="tx-mobile-amounts">
+                          {tx.debit > 0 && (
+                            <div className="tx-mobile-debit">
+                              {formatMoney(tx.debit, fmt)}
+                            </div>
+                          )}
+                          {tx.credit > 0 && (
+                            <div className="tx-mobile-credit">
+                              ({formatMoney(tx.credit, fmt)})
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="tx-mobile-amounts">
-                        {tx.debit > 0 && <div className="tx-mobile-debit">{formatMoney(tx.debit, fmt)}</div>}
-                        {tx.credit > 0 && <div className="tx-mobile-credit">({formatMoney(tx.credit, fmt)})</div>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
                 </>
               )}
             </div>
@@ -313,7 +434,10 @@ function NoCompany() {
     <div className="empty-state">
       <div className="icon">🏢</div>
       <h3>No company selected</h3>
-      <p>Use the agent chat to create a company first: "Create a company called SIA MyCompany"</p>
+      <p>
+        Use the agent chat to create a company first: "Create a company called
+        SIA MyCompany"
+      </p>
     </div>
   );
 }

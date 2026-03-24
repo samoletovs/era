@@ -25,28 +25,63 @@ function roundCurrency(n: number): number {
 
 // ─── Exchange Rate Lookup ───────────────────────────────────
 
+// Track in-flight ECB imports to prevent duplicate fetches
+let _ecbImportPromise: Promise<void> | null = null;
+
 /**
- * Get the effective exchange rate for a currency pair on a given date.
- * Falls back to the most recent rate before the given date.
+ * Ensure ECB rates exist for a given date. If not, auto-import from ECB.
+ * Uses a singleton promise so concurrent requests don't trigger duplicate imports.
+ * ECB rates are shared globally across all users and companies.
  */
-export async function getExchangeRate(
+async function ensureEcbRates(date: string): Promise<void> {
+  // Check if we already have ECB rates for this date
+  const cacheKey = `ecb-imported:${date}`;
+  if (cacheGet<boolean>(cacheKey)) return;
+
+  // Check DB
+  const { resources } = await containers
+    .ledger()
+    .items.query<ExchangeRate>({
+      query: `SELECT TOP 1 c.id FROM c
+              WHERE c.docType = 'exchange-rate'
+                AND c.source = 'ecb'
+                AND c.effectiveDate = @date`,
+      parameters: [{ name: "@date", value: date }],
+    })
+    .fetchAll();
+
+  if (resources.length > 0) {
+    cacheSet(cacheKey, true, CACHE_TTL.EXCHANGE_RATE);
+    return;
+  }
+
+  // No rates for this date — auto-import from ECB (singleton to avoid races)
+  if (!_ecbImportPromise) {
+    _ecbImportPromise = importEcbXml(date, "ecb")
+      .then(() => {
+        cacheSet(cacheKey, true, CACHE_TTL.EXCHANGE_RATE);
+      })
+      .catch(() => {
+        /* ECB may not have rates for weekends/holidays — OK */
+      })
+      .finally(() => {
+        _ecbImportPromise = null;
+      });
+  }
+  await _ecbImportPromise;
+}
+
+/**
+ * Look up a direct rate in the database (exact pair or reverse).
+ * Returns undefined if no rate found.
+ */
+async function lookupDirectRate(
   fromCurrency: string,
   toCurrency: string,
   rateType: ExchangeRateType,
   effectiveDate: string,
-  companyId?: string,
-): Promise<number> {
-  if (fromCurrency === toCurrency) return 1;
-
-  // Check cache first
-  const cacheKey = CACHE_KEYS.exchangeRate(
-    fromCurrency,
-    toCurrency,
-    effectiveDate,
-  );
-  const cached = cacheGet<number>(cacheKey);
-  if (cached !== undefined) return cached;
-
+): Promise<number | undefined> {
+  // Direct lookup
   const { resources } = await containers
     .ledger()
     .items.query<ExchangeRate>({
@@ -66,12 +101,9 @@ export async function getExchangeRate(
     })
     .fetchAll();
 
-  if (resources.length > 0) {
-    cacheSet(cacheKey, resources[0].rate, CACHE_TTL.EXCHANGE_RATE);
-    return resources[0].rate;
-  }
+  if (resources.length > 0) return resources[0].rate;
 
-  // Fallback: try the reverse direction
+  // Reverse lookup
   const { resources: reverse } = await containers
     .ledger()
     .items.query<ExchangeRate>({
@@ -91,13 +123,88 @@ export async function getExchangeRate(
     })
     .fetchAll();
 
-  if (reverse.length > 0) {
-    const rate = roundCurrency(1 / reverse[0].rate);
+  if (reverse.length > 0) return roundCurrency(1 / reverse[0].rate);
+
+  return undefined;
+}
+
+/**
+ * Get the effective exchange rate for a currency pair on a given date.
+ *
+ * Resolution order:
+ * 1. Direct lookup (exact pair or reverse)
+ * 2. Auto-import ECB rates for the date if missing
+ * 3. Retry direct lookup after import
+ * 4. Triangulate via EUR (e.g. GBP→PLN = GBP→EUR × EUR→PLN)
+ * 5. Fall back to "daily" rate type if a non-daily type was requested
+ */
+export async function getExchangeRate(
+  fromCurrency: string,
+  toCurrency: string,
+  rateType: ExchangeRateType,
+  effectiveDate: string,
+  companyId?: string,
+): Promise<number> {
+  if (fromCurrency === toCurrency) return 1;
+
+  // Check cache first
+  const cacheKey = CACHE_KEYS.exchangeRate(
+    fromCurrency,
+    toCurrency,
+    effectiveDate,
+  );
+  const cached = cacheGet<number>(cacheKey);
+  if (cached !== undefined) return cached;
+
+  // 1. Direct lookup
+  let rate = await lookupDirectRate(
+    fromCurrency,
+    toCurrency,
+    rateType,
+    effectiveDate,
+  );
+  if (rate !== undefined) {
     cacheSet(cacheKey, rate, CACHE_TTL.EXCHANGE_RATE);
     return rate;
   }
 
-  // Fallback: try "daily" rate type if requested type not found
+  // 2. Auto-import ECB rates for this date (shared, idempotent)
+  await ensureEcbRates(effectiveDate);
+
+  // 3. Retry direct lookup after import
+  rate = await lookupDirectRate(
+    fromCurrency,
+    toCurrency,
+    rateType,
+    effectiveDate,
+  );
+  if (rate !== undefined) {
+    cacheSet(cacheKey, rate, CACHE_TTL.EXCHANGE_RATE);
+    return rate;
+  }
+
+  // 4. Triangulate via EUR (ECB publishes all rates as EUR→X)
+  if (fromCurrency !== "EUR" && toCurrency !== "EUR") {
+    const fromToEur = await lookupDirectRate(
+      fromCurrency,
+      "EUR",
+      rateType,
+      effectiveDate,
+    );
+    const eurToTarget = await lookupDirectRate(
+      "EUR",
+      toCurrency,
+      rateType,
+      effectiveDate,
+    );
+    if (fromToEur !== undefined && eurToTarget !== undefined) {
+      const triangulated = roundCurrency(fromToEur * eurToTarget);
+      cacheSet(cacheKey, triangulated, CACHE_TTL.EXCHANGE_RATE);
+      return triangulated;
+    }
+  }
+
+  // 5. Fall back to "daily" rate type if requested type not found
   if (rateType !== "daily") {
     return getExchangeRate(
       fromCurrency,
@@ -177,21 +284,16 @@ export async function saveExchangeRate(
 // ─── Import ECB Exchange Rates ──────────────────────────────
 
 /**
- * Import daily exchange rates from the European Central Bank.
- * ECB publishes rates as 1 EUR = X foreign currency.
- */
-/**
- * Import daily exchange rates from a system source (ECB or Bank of Latvia).
- * ECB publishes rates at ~16:00 CET. Previous day's rate is used for today (standard practice).
- * Bank of Latvia mirrors ECB rates for EUR-based pairs.
+ * Import daily exchange rates from ECB.
+ * ECB publishes rates at ~16:00 CET. Previous day's rate is used for today (standard EU practice).
+ * Latvian Accounting Law §5 mandates ECB reference rates for all accounting.
  * System-source rates are shared globally — no companyId needed.
  */
 export async function importSystemRates(
   source: SystemRateSource,
   date: string,
 ): Promise<{ imported: number; date: string; source: string }> {
-  if (source === "ecb" || source === "latvian-bank") {
-    // Both use the ECB XML feed; Bank of Latvia mirrors ECB since Latvia joined EUR in 2014
+  if (source === "ecb") {
     return importEcbXml(date, source);
   }
   throw new GLError("INVALID_SOURCE", `Unknown system rate source: ${source}`);

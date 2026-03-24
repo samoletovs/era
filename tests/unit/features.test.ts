@@ -533,8 +533,8 @@ describe("multi-currency architecture", () => {
   });
 
   it("system exchange rate sources are valid", () => {
-    const systemSources = ["ecb", "latvian-bank"];
-    expect(systemSources).toHaveLength(2);
+    const systemSources = ["ecb"];
+    expect(systemSources).toHaveLength(1);
   });
 
   it("custom rate sources have id and name", () => {

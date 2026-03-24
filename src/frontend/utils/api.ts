@@ -79,6 +79,10 @@ export const api = {
   registerSearch: (query: string) =>
     apiFetch(`/register/search?q=${encodeURIComponent(query)}`),
 
+  // EU VIES VAT check
+  viesCheck: (vatNumber: string) =>
+    apiFetch(`/vies/check?vatNumber=${encodeURIComponent(vatNumber)}`),
+
   // Dashboard
   dashboard: (companyId: string) =>
     apiFetch(`/companies/${companyId}/dashboard`),

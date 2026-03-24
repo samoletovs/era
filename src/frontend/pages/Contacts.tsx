@@ -87,17 +87,28 @@ export function Contacts() {
 
   // Register check state
   const [showRegisterPanel, setShowRegisterPanel] = useState(false);
+  const [registerSource, setRegisterSource] = useState<"lv" | "vies">("lv");
   const [registerQuery, setRegisterQuery] = useState("");
   const [registerResults, setRegisterResults] = useState<RegisterResult[]>([]);
   const [registerSearchDone, setRegisterSearchDone] = useState(false);
   const [registerData, setRegisterData] = useState<RegisterPanelData | null>(
     null,
   );
+  const [viesResult, setViesResult] = useState<{
+    valid: boolean;
+    name?: string;
+    address?: string;
+    countryCode?: string;
+    vatNumber?: string;
+    source?: string;
+  } | null>(null);
   const [checkingRegister, setCheckingRegister] = useState(false);
   const [applyingRegister, setApplyingRegister] = useState(false);
 
   function normalizeRegNumber(value: string | undefined): string {
-    return (value || "").replace(/\s/g, "").toLowerCase();
+    return String(value || "")
+      .replace(/\s/g, "")
+      .toLowerCase();
   }
 
   function buildAddress(value: any): string {
@@ -288,22 +299,58 @@ export function Contacts() {
     }
   }
 
+  async function handleViesSearch(queryOverride?: string) {
+    if (!selected) return;
+    const vatNum = (queryOverride ?? registerQuery).trim();
+    setRegisterSearchDone(true);
+    setViesResult(null);
+    if (vatNum.length < 4) {
+      setViesResult({
+        valid: false,
+        source: "Enter a full EU VAT number (e.g. DE123456789)",
+      });
+      return;
+    }
+    setCheckingRegister(true);
+    try {
+      const result = await api.viesCheck(vatNum);
+      setViesResult(result as typeof viesResult);
+    } catch {
+      setViesResult({ valid: false, source: "VIES check failed" });
+    } finally {
+      setCheckingRegister(false);
+    }
+  }
+
   async function handleCheckRegister() {
     if (!selected) return;
 
-    const defaultQuery = (
-      selected.registrationNumber ||
-      selected.name ||
-      ""
-    ).trim();
+    // Auto-detect source: if contact has a non-LV VAT number, default to VIES
+    const hasEuVat =
+      selected.vatNumber &&
+      /^[A-Z]{2}\d/i.test(selected.vatNumber) &&
+      !selected.vatNumber.toUpperCase().startsWith("LV");
+    const source = hasEuVat ? "vies" : "lv";
+    setRegisterSource(source);
+
+    const defaultQuery =
+      source === "vies"
+        ? (selected.vatNumber || "").trim()
+        : (selected.registrationNumber || selected.name || "").trim();
+
     setShowRegisterPanel(true);
     setRegisterQuery(defaultQuery);
     setRegisterSearchDone(false);
     setRegisterResults([]);
     setRegisterData(null);
+    setViesResult(null);
 
     if (defaultQuery.length >= 2) {
-      await handleRegisterSearch(defaultQuery);
+      if (source === "vies") {
+        await handleViesSearch(defaultQuery);
+      } else {
+        await handleRegisterSearch(defaultQuery);
+      }
     }
   }
 
@@ -327,6 +374,7 @@ export function Contacts() {
       setRegisterSearchDone(false);
       setRegisterQuery("");
       setRegisterData(null);
+      setViesResult(null);
       loadContacts();
     } catch {
       // keep panel open on error
@@ -462,6 +510,7 @@ export function Contacts() {
               setRegisterResults([]);
               setRegisterSearchDone(false);
               setRegisterData(null);
+              setViesResult(null);
               setShowMerge(false);
               setMergeResult(null);
             }}
@@ -473,10 +522,10 @@ export function Contacts() {
               className="btn-secondary"
               onClick={handleCheckRegister}
               disabled={checkingRegister}
-              title="Check business register for updates"
-              aria-label="Check register"
+              title="Verify contact via local register or EU VIES"
+              aria-label="Verify contact"
             >
-              {checkingRegister ? "Checking..." : "Check register"}
+              {checkingRegister ? "Checking..." : "Verify contact"}
             </button>
             <button
               className="btn-secondary"
@@ -542,85 +591,249 @@ export function Contacts() {
         {showRegisterPanel && (
           <div className="settings-card" style={{ marginBottom: 16 }}>
             <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>
-              Business register data
+              Verify contact
             </h3>
+
+            {/* Source toggle */}
+            <div className="segmented-control" style={{ marginBottom: 12 }}>
+              <button
+                className={`segmented-btn${registerSource === "lv" ? " active" : ""}`}
+                onClick={() => {
+                  setRegisterSource("lv");
+                  setRegisterSearchDone(false);
+                  setRegisterResults([]);
+                  setRegisterData(null);
+                  setViesResult(null);
+                  setRegisterQuery(
+                    selected?.registrationNumber || selected?.name || "",
+                  );
+                }}
+              >
+                Local register
+              </button>
+              <button
+                className={`segmented-btn${registerSource === "vies" ? " active" : ""}`}
+                onClick={() => {
+                  setRegisterSource("vies");
+                  setRegisterSearchDone(false);
+                  setRegisterResults([]);
+                  setRegisterData(null);
+                  setViesResult(null);
+                  setRegisterQuery(selected?.vatNumber || "");
+                }}
+              >
+                EU VIES
+              </button>
+            </div>
+
             <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
               <input
                 type="text"
                 value={registerQuery}
                 onChange={(e) => setRegisterQuery(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleRegisterSearch()}
-                placeholder="Search by company name or registration number"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    if (registerSource === "vies") {
+                      handleViesSearch();
+                    } else {
+                      handleRegisterSearch();
+                    }
+                  }
+                }}
+                placeholder={
+                  registerSource === "vies"
+                    ? "EU VAT number (e.g. DE123456789, LV40003999999)"
+                    : "Search by company name or registration number"
+                }
                 className="table-search-input"
                 style={{ flex: 1 }}
-                aria-label="Search register"
+                aria-label={
+                  registerSource === "vies"
+                    ? "EU VAT number"
+                    : "Search register"
+                }
                 autoFocus
               />
               <button
                 className="btn-secondary"
-                onClick={() => handleRegisterSearch()}
+                onClick={() =>
+                  registerSource === "vies"
+                    ? handleViesSearch()
+                    : handleRegisterSearch()
+                }
                 disabled={checkingRegister}
               >
-                {checkingRegister ? "Searching..." : "Search"}
+                {checkingRegister
+                  ? "Checking..."
+                  : registerSource === "vies"
+                    ? "Verify"
+                    : "Search"}
               </button>
             </div>
 
-            {registerSearchDone && registerResults.length > 0 && (
+            {/* VIES result */}
+            {registerSource === "vies" && viesResult && (
               <div style={{ marginBottom: 12 }}>
-                <p
-                  style={{
-                    fontSize: 13,
-                    color: "var(--text-secondary, #787878)",
-                    margin: "0 0 8px",
-                  }}
-                >
-                  Found {registerResults.length} match
-                  {registerResults.length !== 1 ? "es" : ""}. Choose the correct
-                  record.
-                </p>
-                <div style={{ maxHeight: 220, overflowY: "auto" }}>
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>Name</th>
-                        <th>Reg. number</th>
-                        <th>Address</th>
-                        <th></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {registerResults.slice(0, 10).map((r) => {
-                        const isSelected =
-                          registerData?.registerData?.registrationNumber ===
-                            r.registrationNumber &&
-                          registerData?.registerData?.name === r.name;
-                        return (
-                          <tr key={`${r.registrationNumber}-${r.name}`}>
-                            <td style={{ fontWeight: 500 }}>{r.name}</td>
-                            <td className="mono">
-                              {r.registrationNumber || "—"}
-                            </td>
-                            <td>{r.address || "—"}</td>
-                            <td style={{ textAlign: "right" }}>
-                              <button
-                                className="btn-secondary"
-                                style={{ fontSize: 12, padding: "4px 10px" }}
-                                onClick={() => handleUseRegisterResult(r)}
-                                disabled={isSelected}
-                              >
-                                {isSelected ? "Selected" : "Use this"}
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                {viesResult.valid ? (
+                  <div
+                    style={{
+                      padding: "12px 14px",
+                      background: "var(--success-bg)",
+                      borderRadius: "var(--radius-sm)",
+                      border: "1px solid #D1FAE5",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        marginBottom: 8,
+                      }}
+                    >
+                      <span
+                        style={{
+                          color: "var(--success)",
+                          fontWeight: 600,
+                          fontSize: 13,
+                        }}
+                      >
+                        ✓ Valid EU VAT number
+                      </span>
+                      <span
+                        style={{ fontSize: 11, color: "var(--text-tertiary)" }}
+                      >
+                        {viesResult.source}
+                      </span>
+                    </div>
+                    {viesResult.name && (
+                      <div style={{ fontSize: 13, marginBottom: 4 }}>
+                        <span style={{ color: "var(--text-secondary)" }}>
+                          Name:
+                        </span>{" "}
+                        <span style={{ fontWeight: 500 }}>
+                          {viesResult.name}
+                        </span>
+                      </div>
+                    )}
+                    {viesResult.address && (
+                      <div style={{ fontSize: 13, marginBottom: 4 }}>
+                        <span style={{ color: "var(--text-secondary)" }}>
+                          Address:
+                        </span>{" "}
+                        <span>{viesResult.address}</span>
+                      </div>
+                    )}
+                    <div style={{ fontSize: 13 }}>
+                      <span style={{ color: "var(--text-secondary)" }}>
+                        Country:
+                      </span>{" "}
+                      <span className="mono">{viesResult.countryCode}</span>
+                      {" · "}
+                      <span style={{ color: "var(--text-secondary)" }}>
+                        VAT:
+                      </span>{" "}
+                      <span className="mono">
+                        {viesResult.countryCode}
+                        {viesResult.vatNumber}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      padding: "12px 14px",
+                      background: "var(--error-bg)",
+                      borderRadius: "var(--radius-sm)",
+                      border: "1px solid #FEE2E2",
+                    }}
+                  >
+                    <div
+                      style={{ display: "flex", alignItems: "center", gap: 6 }}
+                    >
+                      <span
+                        style={{
+                          color: "var(--error)",
+                          fontWeight: 600,
+                          fontSize: 13,
+                        }}
+                      >
+                        ✗ Invalid or not found
+                      </span>
+                    </div>
+                    <p
+                      style={{
+                        fontSize: 12,
+                        color: "var(--text-secondary)",
+                        margin: "4px 0 0",
+                      }}
+                    >
+                      {viesResult.source}
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
-            {!registerData?.found ? (
+            {/* Local register results */}
+            {registerSource === "lv" &&
+              registerSearchDone &&
+              registerResults.length > 0 && (
+                <div style={{ marginBottom: 12 }}>
+                  <p
+                    style={{
+                      fontSize: 13,
+                      color: "var(--text-secondary, #787878)",
+                      margin: "0 0 8px",
+                    }}
+                  >
+                    Found {registerResults.length} match
+                    {registerResults.length !== 1 ? "es" : ""}. Choose the
+                    correct record.
+                  </p>
+                  <div style={{ maxHeight: 220, overflowY: "auto" }}>
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Name</th>
+                          <th>Reg. number</th>
+                          <th>Address</th>
+                          <th></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {registerResults.slice(0, 10).map((r) => {
+                          const isSelected =
+                            registerData?.registerData?.registrationNumber ===
+                              r.registrationNumber &&
+                            registerData?.registerData?.name === r.name;
+                          return (
+                            <tr key={`${r.registrationNumber}-${r.name}`}>
+                              <td style={{ fontWeight: 500 }}>{r.name}</td>
+                              <td className="mono">
+                                {r.registrationNumber || "—"}
+                              </td>
+                              <td>{r.address || "—"}</td>
+                              <td style={{ textAlign: "right" }}>
+                                <button
+                                  className="btn-secondary"
+                                  style={{ fontSize: 12, padding: "4px 10px" }}
+                                  onClick={() => handleUseRegisterResult(r)}
+                                  disabled={isSelected}
+                                >
+                                  {isSelected ? "Selected" : "Use this"}
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+            {registerSource === "lv" && !registerData?.found ? (
               <p
                 style={{
                   fontSize: 13,
@@ -631,7 +844,7 @@ export function Contacts() {
                 {registerData?.error ||
                   "Search register to compare and update contact details."}
               </p>
-            ) : registerData.diffs?.length === 0 ? (
+            ) : registerData?.diffs?.length === 0 ? (
               <p
                 style={{
                   fontSize: 13,
@@ -652,7 +865,7 @@ export function Contacts() {
                     </tr>
                   </thead>
                   <tbody>
-                    {registerData.diffs?.map((d: any) => (
+                    {registerData?.diffs?.map((d: any) => (
                       <tr key={d.field}>
                         <td
                           style={{
@@ -686,6 +899,7 @@ export function Contacts() {
                       setRegisterSearchDone(false);
                       setRegisterQuery("");
                       setRegisterData(null);
+                      setViesResult(null);
                     }}
                   >
                     Dismiss
@@ -989,35 +1203,9 @@ export function Contacts() {
         <h2 className="page-title" style={{ marginBottom: 0 }}>
           Contacts
         </h2>
-        <div style={{ display: "flex", gap: 6 }}>
-          <button
-            className={!filter ? "btn-primary" : "btn-secondary"}
-            onClick={() => setFilter("")}
-          >
-            All
-          </button>
-          <button
-            className={filter === "vendor" ? "btn-primary" : "btn-secondary"}
-            onClick={() => setFilter("vendor")}
-          >
-            Vendors
-          </button>
-          <button
-            className={filter === "customer" ? "btn-primary" : "btn-secondary"}
-            onClick={() => setFilter("customer")}
-          >
-            Customers
-          </button>
-        </div>
-      </div>
-
-      <div style={{ marginBottom: 16 }}>
-        <AiInput
-          placeholder="Describe the contact, e.g. 'Vendor SIA Apex, reg 40003112233, Riga, payment 45 days'"
-          buttonLabel="✨ Fill fields"
-          loadingLabel="Parsing..."
-          onSubmit={handleAiParse}
-        />
+        <button className="btn-primary" onClick={() => setShowForm((f) => !f)}>
+          {showForm ? "Cancel" : "+ Add contact"}
+        </button>
       </div>
 
       {showForm && (
@@ -1025,6 +1213,14 @@ export function Contacts() {
           className="settings-card"
           style={{ marginBottom: 20, maxWidth: "100%" }}
         >
+          <div style={{ marginBottom: 16 }}>
+            <AiInput
+              placeholder="Describe the contact, e.g. 'Vendor SIA Apex, reg 40003112233, Riga, payment 45 days'"
+              loadingLabel="Parsing..."
+              onSubmit={handleAiParse}
+            />
+          </div>
+
           <div
             style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}
           >
@@ -1198,6 +1394,28 @@ export function Contacts() {
         </div>
       )}
 
+      {/* Filter tabs */}
+      <div className="coa-level-controls" style={{ marginBottom: 12 }}>
+        <button
+          className={`coa-level-btn ${!filter ? "active" : ""}`}
+          onClick={() => setFilter("")}
+        >
+          All
+        </button>
+        <button
+          className={`coa-level-btn ${filter === "vendor" ? "active" : ""}`}
+          onClick={() => setFilter("vendor")}
+        >
+          Vendors
+        </button>
+        <button
+          className={`coa-level-btn ${filter === "customer" ? "active" : ""}`}
+          onClick={() => setFilter("customer")}
+        >
+          Customers
+        </button>
+      </div>
+
       {loading ? (
         <p style={{ color: "#A0A0A0" }}>Loading...</p>
       ) : filteredContacts.length === 0 ? (
@@ -1205,7 +1423,7 @@ export function Contacts() {
           <div className="empty-state">
             <div className="icon">👥</div>
             <h3>No contacts yet</h3>
-            <p>Use the text field above to describe a contact and add it.</p>
+            <p>Click "+ Add contact" to create your first contact.</p>
           </div>
         ) : (
           <div className="empty-state">

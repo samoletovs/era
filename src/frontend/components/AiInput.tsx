@@ -18,15 +18,28 @@ interface AiInputProps {
 }
 
 const labelStyle: React.CSSProperties = {
-  display: "block", fontSize: 11, fontWeight: 500, color: "var(--text-tertiary)",
-  textTransform: "uppercase", letterSpacing: "0.02em", marginBottom: 4,
+  display: "block",
+  fontSize: 11,
+  fontWeight: 500,
+  color: "var(--text-tertiary)",
+  textTransform: "uppercase",
+  letterSpacing: "0.02em",
+  marginBottom: 4,
 };
 
 /**
  * Universal AI data entry component with text input + voice recording + submit button.
  * Used on Items, Invoices, Fixed Assets, Contacts, Recurring Entries, etc.
  */
-export function AiInput({ placeholder, label, buttonLabel, loadingLabel, onSubmit, disabled, clearOnSubmit = true }: AiInputProps) {
+export function AiInput({
+  placeholder,
+  label,
+  buttonLabel,
+  loadingLabel,
+  onSubmit,
+  disabled,
+  clearOnSubmit = true,
+}: AiInputProps) {
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const [listening, setListening] = useState(false);
@@ -51,7 +64,9 @@ export function AiInput({ placeholder, label, buttonLabel, loadingLabel, onSubmi
   }
 
   function toggleVoice() {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const SpeechRecognition =
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) return;
     if (listening && recognitionRef.current) {
       recognitionRef.current.stop();
@@ -75,32 +90,47 @@ export function AiInput({ placeholder, label, buttonLabel, loadingLabel, onSubmi
     setListening(true);
   }
 
-  const speechSupported = typeof window !== "undefined" &&
-    (Boolean((window as any).SpeechRecognition) || Boolean((window as any).webkitSpeechRecognition));
+  const speechSupported =
+    typeof window !== "undefined" &&
+    (Boolean((window as any).SpeechRecognition) ||
+      Boolean((window as any).webkitSpeechRecognition));
 
   return (
     <div>
       {label && <label style={labelStyle}>{label}</label>}
-      <div style={{ display: "flex", gap: 8, alignItems: "stretch", flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 6, alignItems: "stretch" }}>
         <input
           ref={inputRef}
           type="text"
           value={prompt}
-          onChange={e => { setPrompt(e.target.value); if (error) setError(null); }}
-          onKeyDown={e => { if (e.key === "Enter" && !loading && !disabled) handleSubmit(); }}
+          onChange={(e) => {
+            setPrompt(e.target.value);
+            if (error) setError(null);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !loading && !disabled) handleSubmit();
+          }}
           placeholder={placeholder || "Describe what you want to create..."}
           className="form-input"
-          style={{ flex: 1, minWidth: 0, fontSize: 16 }}
+          style={{ flex: 1, minWidth: 0 }}
           disabled={disabled || loading}
           aria-label={label || "AI description input"}
         />
         <button
-          className="btn-primary"
+          className="btn-secondary"
           onClick={() => handleSubmit()}
           disabled={disabled || loading || !prompt.trim()}
-          style={{ whiteSpace: "nowrap" }}
+          style={{
+            whiteSpace: "nowrap",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+          }}
         >
-          {loading ? (loadingLabel || "Thinking...") : (buttonLabel || "✨ Fill fields")}
+          <span style={{ fontSize: 14 }}>✨</span>
+          {loading
+            ? loadingLabel || "Thinking..."
+            : buttonLabel || "Fill fields"}
         </button>
         {speechSupported && (
           <button
@@ -109,10 +139,15 @@ export function AiInput({ placeholder, label, buttonLabel, loadingLabel, onSubmi
             title={listening ? "Stop listening" : "Voice input"}
             aria-label={listening ? "Stop voice input" : "Start voice input"}
             style={{
-              width: 40, minWidth: 40, padding: 0,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 18,
-              ...(listening ? { animation: "pulse 1.5s ease-in-out infinite" } : {}),
+              width: 36,
+              minWidth: 36,
+              padding: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              ...(listening
+                ? { animation: "pulse 1.5s ease-in-out infinite" }
+                : {}),
             }}
           >
             🎙
@@ -120,12 +155,26 @@ export function AiInput({ placeholder, label, buttonLabel, loadingLabel, onSubmi
         )}
       </div>
       {listening && (
-        <p style={{ fontSize: "var(--text-sm)", color: "var(--accent)", marginTop: 4, marginBottom: 0 }}>
+        <p
+          style={{
+            fontSize: "var(--text-sm)",
+            color: "var(--accent)",
+            marginTop: 4,
+            marginBottom: 0,
+          }}
+        >
           Listening... speak now
         </p>
       )}
       {error && (
-        <p style={{ fontSize: "var(--text-sm)", color: "var(--error, #FF3B30)", marginTop: 4, marginBottom: 0 }}>
+        <p
+          style={{
+            fontSize: "var(--text-sm)",
+            color: "var(--error, #FF3B30)",
+            marginTop: 4,
+            marginBottom: 0,
+          }}
+        >
           {error}
         </p>
       )}
