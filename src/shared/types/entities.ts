@@ -163,7 +163,8 @@ export interface CurrencySettings {
   accountingCurrency: string; // ISO 4217, required — set at company creation
   reportingCurrency?: string; // ISO 4217, optional — for group consolidation
   accountingRateSource: string; // source ID: "ecb" | "latvian-bank" | custom UUID
-  reportingRateSource?: string; // source ID: "ecb" | "latvian-bank" | custom UUID
+  reportingRateSource?: string; // source ID for reporting currency conversion
+  budgetRateSource?: string; // source ID for budget/forecast rates
   customRateSources?: CustomRateSource[]; // user-defined manual sources (max 5)
   // FX gain/loss accounts are resolved automatically from posting rules (documentType: "fx-revaluation")
   // No manual configuration needed — the system uses country-specific rules
