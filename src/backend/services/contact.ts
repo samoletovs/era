@@ -3,8 +3,8 @@ import { containers } from "./cosmos.js";
 import { emitEvent } from "./events.js";
 import { getNextNumber } from "./sequences.js";
 import { generateShortName } from "./company.js";
-import { searchCompanyByRegNumber } from "./company-lookup.js";
-import type { Contact } from "@shared/types";
+import { searchCompanyByRegNumber, checkVidStatus } from "./company-lookup.js";
+import type { Contact, VidVatStatus, VidSuspendedStatus } from "@shared/types";
 
 interface CreateContactInput {
   companyId: string;
@@ -127,6 +127,8 @@ export async function updateContact(
       | "address"
       | "paymentTermsDays"
       | "isActive"
+      | "vidVatStatus"
+      | "vidSuspendedStatus"
     >
   >,
 ): Promise<Contact | null> {
@@ -399,6 +401,8 @@ export interface RefreshResult {
     legalForm: string;
     address: string;
   };
+  vidVatStatus?: VidVatStatus;
+  vidSuspendedStatus?: VidSuspendedStatus;
 }
 
 export async function checkContactRegister(
@@ -412,11 +416,28 @@ export async function checkContactRegister(
     return { found: false, diffs: [], registerData: undefined };
   }
 
-  const result = await searchCompanyByRegNumber(
-    contact.registrationNumber.replace(/\s/g, ""),
-  );
+  const cleanRegNumber = contact.registrationNumber.replace(/\s/g, "");
+
+  // Run UR register search + VID checks in parallel
+  const [result, vidStatus] = await Promise.all([
+    searchCompanyByRegNumber(cleanRegNumber),
+    checkVidStatus(cleanRegNumber),
+  ]);
+
+  // Save VID data to contact regardless of UR register result
+  await updateContact(companyId, contactId, {
+    vidVatStatus: vidStatus.vatPayer,
+    vidSuspendedStatus: vidStatus.suspended,
+  });
+
   if (!result.found || result.results.length === 0) {
-    return { found: false, diffs: [], registerData: undefined };
+    return {
+      found: false,
+      diffs: [],
+      registerData: undefined,
+      vidVatStatus: vidStatus.vatPayer,
+      vidSuspendedStatus: vidStatus.suspended,
+    };
   }
 
   const reg = result.results[0];
@@ -463,6 +484,8 @@ export async function checkContactRegister(
       legalForm: reg.legalForm,
       address: reg.address,
     },
+    vidVatStatus: vidStatus.vatPayer,
+    vidSuspendedStatus: vidStatus.suspended,
   };
 }
 

@@ -103,6 +103,24 @@ export function Contacts() {
     vatNumber?: string;
     source?: string;
   } | null>(null);
+  const [vidStatus, setVidStatus] = useState<{
+    vatPayer?: {
+      isRegistered: boolean;
+      vatNumber?: string;
+      registeredDate?: string;
+      excludedDate?: string;
+      isConstruction?: boolean;
+      checkedAt: string;
+    };
+    suspended?: {
+      isSuspended: boolean;
+      companyName?: string;
+      suspendedFrom?: string;
+      suspendedUntil?: string;
+      restorationDate?: string;
+      checkedAt: string;
+    };
+  } | null>(null);
   const [checkingRegister, setCheckingRegister] = useState(false);
   const [applyingRegister, setApplyingRegister] = useState(false);
 
@@ -434,6 +452,33 @@ export function Contacts() {
     setRegisterResults([]);
     setRegisterData(null);
     setViesResult(null);
+    setVidStatus(null);
+
+    // Always run VID check in parallel if we have a registration number
+    const regNum = (selected.registrationNumber || "").replace(/\s/g, "");
+    if (regNum.length >= 9) {
+      api
+        .vidStatus(regNum)
+        .then((result) => {
+          const r = result as Record<string, unknown>;
+          setVidStatus(r as typeof vidStatus);
+          // Also update the selected contact in-memory so badges show immediately
+          if (r) {
+            setSelected((prev: typeof selected) =>
+              prev
+                ? {
+                    ...prev,
+                    vidVatStatus: r.vatPayer,
+                    vidSuspendedStatus: r.suspended,
+                  }
+                : prev,
+            );
+          }
+        })
+        .catch(() => {
+          /* VID check failed silently */
+        });
+    }
 
     if (defaultQuery.length >= 2) {
       if (source === "vies") {
@@ -465,6 +510,7 @@ export function Contacts() {
       setRegisterQuery("");
       setRegisterData(null);
       setViesResult(null);
+      setVidStatus(null);
       loadContacts();
     } catch {
       // keep panel open on error
@@ -607,6 +653,7 @@ export function Contacts() {
               setRegisterSearchDone(false);
               setRegisterData(null);
               setViesResult(null);
+              setVidStatus(null);
               setShowMerge(false);
               setMergeResult(null);
             }}
@@ -871,6 +918,103 @@ export function Contacts() {
               </div>
             )}
 
+            {/* VID Status panel — shows for both LV and VIES tabs */}
+            {vidStatus && (
+              <div
+                style={{
+                  marginBottom: 12,
+                  padding: "12px 14px",
+                  background: "var(--surface-secondary, #F5F5F5)",
+                  borderRadius: "var(--radius-sm)",
+                  border: vidStatus.suspended?.isSuspended
+                    ? "1px solid #FEE2E2"
+                    : "1px solid var(--border, #E5E5E5)",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: "var(--text-secondary)",
+                    marginBottom: 8,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                  }}
+                >
+                  VID — Latvian Tax Authority
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 16,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div style={{ fontSize: 13 }}>
+                    <span style={{ color: "var(--text-secondary)" }}>
+                      VAT payer:{" "}
+                    </span>
+                    {vidStatus.vatPayer?.isRegistered ? (
+                      <span
+                        style={{
+                          color: "var(--success, #34C759)",
+                          fontWeight: 600,
+                        }}
+                      >
+                        ✓ Registered
+                      </span>
+                    ) : (
+                      <span
+                        style={{
+                          color: "var(--error, #FF3B30)",
+                          fontWeight: 600,
+                        }}
+                      >
+                        ✗ Not registered
+                      </span>
+                    )}
+                    {vidStatus.vatPayer?.isConstruction && (
+                      <span
+                        style={{
+                          marginLeft: 8,
+                          fontSize: 11,
+                          color: "var(--text-tertiary)",
+                        }}
+                      >
+                        (construction reverse-charge)
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 13 }}>
+                    <span style={{ color: "var(--text-secondary)" }}>
+                      Business status:{" "}
+                    </span>
+                    {vidStatus.suspended?.isSuspended ? (
+                      <span
+                        style={{
+                          color: "var(--error, #FF3B30)",
+                          fontWeight: 600,
+                        }}
+                      >
+                        ⚠ Suspended
+                        {vidStatus.suspended.suspendedFrom &&
+                          ` (${vidStatus.suspended.suspendedFrom} → ${vidStatus.suspended.suspendedUntil || "ongoing"})`}
+                      </span>
+                    ) : (
+                      <span
+                        style={{
+                          color: "var(--success, #34C759)",
+                          fontWeight: 600,
+                        }}
+                      >
+                        ✓ Active
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Local register results */}
             {registerSource === "lv" &&
               registerSearchDone &&
@@ -996,6 +1140,7 @@ export function Contacts() {
                       setRegisterQuery("");
                       setRegisterData(null);
                       setViesResult(null);
+                      setVidStatus(null);
                     }}
                   >
                     Dismiss
@@ -1153,6 +1298,50 @@ export function Contacts() {
                   <span className="detail-label">Payment terms</span>
                   <span>{selected.paymentTermsDays} days</span>
                 </div>
+                {/* VID Status badges */}
+                {selected.vidVatStatus && (
+                  <div className="detail-row">
+                    <span className="detail-label">VAT payer (VID)</span>
+                    <span
+                      className={`badge ${selected.vidVatStatus.isRegistered ? "badge-posted" : "badge-cancelled"}`}
+                    >
+                      {selected.vidVatStatus.isRegistered
+                        ? "Registered"
+                        : "Not registered"}
+                    </span>
+                  </div>
+                )}
+                {selected.vidSuspendedStatus && (
+                  <div className="detail-row">
+                    <span className="detail-label">Business status (VID)</span>
+                    {selected.vidSuspendedStatus.isSuspended ? (
+                      <span
+                        className="badge badge-overdue"
+                        title={`Suspended from ${selected.vidSuspendedStatus.suspendedFrom || "?"} to ${selected.vidSuspendedStatus.suspendedUntil || "?"}`}
+                      >
+                        ⚠ Suspended
+                      </span>
+                    ) : (
+                      <span className="badge badge-posted">Active</span>
+                    )}
+                  </div>
+                )}
+                {(selected.vidVatStatus || selected.vidSuspendedStatus) && (
+                  <div className="detail-row">
+                    <span className="detail-label">VID checked</span>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        color: "var(--text-tertiary, #A0A0A0)",
+                      }}
+                    >
+                      {new Date(
+                        selected.vidVatStatus?.checkedAt ||
+                          selected.vidSuspendedStatus?.checkedAt,
+                      ).toLocaleDateString()}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 

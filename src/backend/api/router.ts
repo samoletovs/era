@@ -62,6 +62,7 @@ import {
   searchCompanyByName,
   searchCompanyByRegNumber,
   checkViesVat,
+  checkVidStatus,
 } from "../services/company-lookup.js";
 import { recognizeInvoice } from "../services/invoice-recognition.js";
 import {
@@ -204,6 +205,36 @@ router.get("/vies/check", async (req, res) => {
   } catch (err) {
     {
       const e = safeError(err, "VIES_CHECK_FAILED");
+      res.status(e.status).json(e.body);
+    }
+  }
+});
+
+// ─── VID Status Check (VAT payer + Suspended) ───────────────
+
+router.get("/vid/status", async (req, res) => {
+  try {
+    const regNumber = (req.query.regNumber as string) || "";
+    if (!regNumber || regNumber.replace(/\s/g, "").length < 9) {
+      res.json({
+        data: {
+          vatPayer: {
+            isRegistered: false,
+            checkedAt: new Date().toISOString(),
+          },
+          suspended: {
+            isSuspended: false,
+            checkedAt: new Date().toISOString(),
+          },
+        },
+      } as ApiResponse);
+      return;
+    }
+    const result = await checkVidStatus(regNumber.replace(/\s/g, ""));
+    res.json({ data: result } as ApiResponse);
+  } catch (err) {
+    {
+      const e = safeError(err, "VID_CHECK_FAILED");
       res.status(e.status).json(e.body);
     }
   }

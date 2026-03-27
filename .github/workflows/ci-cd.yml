@@ -61,3 +61,21 @@ jobs:
             --name era-dev-api \
             --resource-group era-rg \
             --image ${{ secrets.ACR_NAME }}.azurecr.io/era-dev-api:${{ github.sha }}
+
+      - name: Notify Telegram (success)
+        if: success()
+        run: |
+          COMMIT_MSG=$(echo "${{ github.event.head_commit.message }}" | head -1)
+          curl -sf -X POST "${{ secrets.TELEGRAM_NOTIFY_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"message\": \"✅ ERA deployed\\n\\nBranch: ${{ github.ref_name }}\\nCommit: ${COMMIT_MSG}\\nSHA: ${{ github.sha }}\"}" \
+            || echo "::warning::Telegram notification failed"
+
+      - name: Notify Telegram (failure)
+        if: failure()
+        run: |
+          COMMIT_MSG=$(echo "${{ github.event.head_commit.message }}" | head -1)
+          curl -sf -X POST "${{ secrets.TELEGRAM_NOTIFY_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"message\": \"❌ ERA deploy FAILED\\n\\nBranch: ${{ github.ref_name }}\\nCommit: ${COMMIT_MSG}\\nCheck: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+            || echo "::warning::Telegram notification failed"

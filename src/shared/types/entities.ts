@@ -266,6 +266,27 @@ export interface JournalLine {
   reportingExchangeRate?: number; // transaction → reporting rate
 }
 
+// ─── VID (Latvian Tax Authority) enrichment data ────────────
+
+export interface VidVatStatus {
+  isRegistered: boolean; // Whether company is a registered VAT payer
+  vatNumber?: string; // Full VAT number (e.g. "LV40003999999")
+  registeredDate?: string; // Date registered as VAT payer
+  excludedDate?: string; // Date excluded from VAT register (if any)
+  isConstruction?: boolean; // Construction services reverse-charge flag
+  checkedAt: string; // ISO timestamp of last check
+}
+
+export interface VidSuspendedStatus {
+  isSuspended: boolean; // Whether business operations are currently suspended
+  companyName?: string; // Name from VID register
+  decisionDate?: string; // Date of suspension decision
+  suspendedFrom?: string; // Prohibited from doing business from
+  suspendedUntil?: string; // Prohibited from doing business until
+  restorationDate?: string; // Date operations were restored (if any)
+  checkedAt: string; // ISO timestamp of last check
+}
+
 // ─── Contacts (Customers & Vendors) ─────────────────────────
 
 export interface Contact extends BaseEntity {
@@ -281,6 +302,9 @@ export interface Contact extends BaseEntity {
   bankAccount?: BankAccount;
   paymentTermsDays: number;
   notes?: string;
+  // VID (Latvian Tax Authority) enrichment — populated via "Verify contact"
+  vidVatStatus?: VidVatStatus;
+  vidSuspendedStatus?: VidSuspendedStatus;
 }
 
 // ─── Invoices ───────────────────────────────────────────────

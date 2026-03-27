@@ -83,6 +83,10 @@ export const api = {
   viesCheck: (vatNumber: string) =>
     apiFetch(`/vies/check?vatNumber=${encodeURIComponent(vatNumber)}`),
 
+  // VID status check (VAT payer + suspended)
+  vidStatus: (regNumber: string) =>
+    apiFetch(`/vid/status?regNumber=${encodeURIComponent(regNumber)}`),
+
   // Dashboard
   dashboard: (companyId: string) =>
     apiFetch(`/companies/${companyId}/dashboard`),

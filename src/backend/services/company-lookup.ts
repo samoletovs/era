@@ -12,6 +12,12 @@ const CKAN_BASE = "https://data.gov.lv/dati/api/3/action";
 // The main enterprise register resource (register dataset)
 const UR_REGISTER_RESOURCE = "25e80bf3-f107-4ab4-89ef-251b5b9374e9";
 
+// VID (Valsts ieņēmumu dienests) — Latvian Tax Authority datasets
+// PVN maksātāji (VAT payers register) — updated daily
+const VID_VAT_PAYERS_RESOURCE = "610910e9-e086-4c5b-a7ea-0a896a697672";
+// Saimnieciskās darbības apturēšana (Suspended businesses) — updated daily
+const VID_SUSPENDED_RESOURCE = "074fe277-64a8-47ea-a9f6-12aee57c8964";
+
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in type guard patterns
 interface URCompanyRecord {
   regcode: string; // Registration number (11 digits)
@@ -336,4 +342,150 @@ export async function checkViesVat(vatNumber: string): Promise<ViesResult> {
       source: "VIES service unavailable — try again later",
     };
   }
+}
+
+// ─── VID: VAT Payer Check (PVN maksātāji) ───────────────────
+
+import type { VidVatStatus, VidSuspendedStatus } from "@shared/types";
+
+export interface VidStatusResult {
+  vatPayer: VidVatStatus;
+  suspended: VidSuspendedStatus;
+}
+
+/**
+ * Check if a Latvian company is a registered VAT payer via VID open data.
+ * Searches by registration number (e.g. "40003999999") — the dataset stores
+ * VAT numbers as "LV" + regNumber.
+ */
+export async function checkVidVatPayer(
+  regNumber: string,
+): Promise<VidVatStatus> {
+  const now = new Date().toISOString();
+  const clean = regNumber.replace(/\s/g, "");
+  const vatNum = clean.startsWith("LV") ? clean : `LV${clean}`;
+
+  try {
+    const url = new URL(`${CKAN_BASE}/datastore_search`);
+    const params = {
+      resource_id: VID_VAT_PAYERS_RESOURCE,
+      filters: JSON.stringify({ Numurs: vatNum }),
+      limit: "1",
+    };
+
+    const res = await fetch(`${url}?${new URLSearchParams(params)}`, {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(10000),
+    });
+
+    if (!res.ok) {
+      return { isRegistered: false, checkedAt: now };
+    }
+
+    const data = await res.json();
+    const records = data.result?.records;
+    if (!data.success || !records?.length) {
+      return { isRegistered: false, checkedAt: now };
+    }
+
+    const r = records[0] as Record<string, string>;
+    const isActive = (r.Aktivs || "").trim().toLowerCase() !== "nav";
+
+    return {
+      isRegistered: true,
+      vatNumber: String(r.Numurs || "").trim(),
+      registeredDate: String(r.Registrets || "").trim() || undefined,
+      excludedDate: String(r.Izslegts || "").trim() || undefined,
+      isConstruction:
+        (r.Buvniecibas_pazime || "").trim().toLowerCase() !== "nav",
+      checkedAt: now,
+      // Override: if excluded and not active, mark as not registered
+      ...(isActive ? {} : { isRegistered: false }),
+    };
+  } catch {
+    return { isRegistered: false, checkedAt: now };
+  }
+}
+
+// ─── VID: Suspended Business Check ──────────────────────────
+
+/**
+ * Check if a Latvian company has suspended business operations via VID open data.
+ * Note: The dataset wraps registration codes in single quotes (e.g. "'40001005630'").
+ */
+export async function checkVidSuspended(
+  regNumber: string,
+): Promise<VidSuspendedStatus> {
+  const now = new Date().toISOString();
+  const clean = regNumber.replace(/\s/g, "");
+
+  try {
+    // VID stores reg codes with leading quote: "'40001005630'"
+    const quotedCode = `'${clean}'`;
+
+    const url = new URL(`${CKAN_BASE}/datastore_search`);
+    const params = {
+      resource_id: VID_SUSPENDED_RESOURCE,
+      filters: JSON.stringify({ Registracijas_kods: quotedCode }),
+      limit: "5",
+    };
+
+    const res = await fetch(`${url}?${new URLSearchParams(params)}`, {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(10000),
+    });
+
+    if (!res.ok) {
+      return { isSuspended: false, checkedAt: now };
+    }
+
+    const data = await res.json();
+    const records = data.result?.records;
+    if (!data.success || !records?.length) {
+      return { isSuspended: false, checkedAt: now };
+    }
+
+    // Find the most recent suspension record
+    const r = records[0] as Record<string, string>;
+    const suspendedUntil = r.Aizliegts_veikt_darijumus_lidz
+      ? new Date(r.Aizliegts_veikt_darijumus_lidz)
+      : null;
+    const hasRestoration =
+      (r.Lemuma_par_atjaunosanu_datums || "").trim().length > 0;
+    const isSuspended =
+      !hasRestoration && (!suspendedUntil || suspendedUntil > new Date());
+
+    return {
+      isSuspended,
+      companyName: String(r.Nosaukums || "").trim() || undefined,
+      decisionDate: String(r.Lemuma_datums || "").trim() || undefined,
+      suspendedFrom: r.Aizliegts_veikt_darijumus_no
+        ? new Date(r.Aizliegts_veikt_darijumus_no).toISOString().slice(0, 10)
+        : undefined,
+      suspendedUntil: suspendedUntil
+        ? suspendedUntil.toISOString().slice(0, 10)
+        : undefined,
+      restorationDate: hasRestoration
+        ? String(r.Lemuma_par_atjaunosanu_datums).trim()
+        : undefined,
+      checkedAt: now,
+    };
+  } catch {
+    return { isSuspended: false, checkedAt: now };
+  }
+}
+
+// ─── VID: Combined Status Check ─────────────────────────────
+
+/**
+ * Run both VID checks (VAT payer + suspended) in parallel for a registration number.
+ */
+export async function checkVidStatus(
+  regNumber: string,
+): Promise<VidStatusResult> {
+  const [vatPayer, suspended] = await Promise.all([
+    checkVidVatPayer(regNumber),
+    checkVidSuspended(regNumber),
+  ]);
+  return { vatPayer, suspended };
 }
