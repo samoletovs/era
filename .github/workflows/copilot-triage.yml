@@ -220,7 +220,7 @@ jobs:
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   issue_number: issue.number,
-                  assignees: ['copilot']
+                  assignees: ['copilot-swe-agent[bot]']
                 });
                 console.log('Assigned Copilot to issue');
               } catch (e) {
