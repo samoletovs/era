@@ -41,7 +41,6 @@ jobs:
               { pattern: '📝 Improvement', label: 'enhancement' },
               { pattern: '🔧 Tech Debt', label: 'tech-debt' },
             ];
-            const triggerLabels = ['enhancement', 'bug', 'game-balance', 'tech-debt'];
             const match = labelMap.find(m => title.includes(m.pattern));
 
             if (match && !existingLabels.includes(match.label)) {
@@ -55,12 +54,8 @@ jobs:
               console.log(`Auto-labeled: ${match.label}`);
             }
 
-            // ── Step 2: Check trigger label ────────────────────────────
-            const hasTrigger = existingLabels.some(l => triggerLabels.includes(l));
-            if (!hasTrigger) {
-              console.log('No trigger label — skipping triage');
-              return;
-            }
+            // ── Step 2: Triage all issues (no label gate) ─────────────
+            // Every issue gets AI triage regardless of labels
 
             // ── Step 3: Gather context ─────────────────────────────────
             const { data: recentIssues } = await github.rest.issues.listForRepo({
@@ -215,16 +210,40 @@ jobs:
 
             // Assign Copilot for approved issues
             if (label === 'approved') {
+              // Use GraphQL to assign Copilot — REST addAssignees doesn't work for bot accounts
               try {
-                await github.rest.issues.addAssignees({
+                const { data: issueData } = await github.rest.issues.get({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
-                  issue_number: issue.number,
-                  assignees: ['copilot-swe-agent[bot]']
+                  issue_number: issue.number
                 });
-                console.log('Assigned Copilot to issue');
+                const mutation = `
+                  mutation($issueId: ID!, $userId: ID!) {
+                    addAssigneesToAssignable(input: {
+                      assignableId: $issueId,
+                      assigneeIds: [$userId]
+                    }) {
+                      assignable { ... on Issue { number } }
+                    }
+                  }
+                `;
+                // Look up Copilot bot user ID
+                const { user } = await github.graphql(`{ user(login: "copilot-swe-agent[bot]") { id } }`).catch(() => ({ user: null }));
+                if (user) {
+                  await github.graphql(mutation, { issueId: issueData.node_id, userId: user.id });
+                  console.log('Assigned Copilot via GraphQL');
+                } else {
+                  // Fallback: REST with bot name (works on newer GitHub)
+                  await github.rest.issues.addAssignees({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issue.number,
+                    assignees: ['copilot-swe-agent[bot]']
+                  });
+                  console.log('Assigned Copilot via REST fallback');
+                }
               } catch (e) {
-                console.log(`Could not assign Copilot: ${e.message}`);
+                console.log(`Could not assign Copilot: ${e.message} — issue will need manual assignment`);
               }
             }
 
