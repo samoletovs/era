@@ -37,6 +37,12 @@ npm-debug.log*
 # Temp
 _temp_*/
 tmp/
+
+# Screenshots & dev artifacts
+screenshots/
+scripts/screenshots/
+test-screenshots/
+.playwright-mcp/
 *.png
 .playwright-mcp/
 
