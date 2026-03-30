@@ -1,66 +1,49 @@
-import React, { Suspense } from "react";
-import {
-  BrowserRouter,
-  Routes,
-  Route,
-  NavLink,
-  useNavigate,
-  useLocation,
-} from "react-router-dom";
-import { AppProvider, useApp } from "./utils/context";
-import { ErrorBoundary } from "./components/ErrorBoundary";
-import { Login } from "./pages/Login";
+import React, { Suspense } from 'react';
+import { BrowserRouter, Routes, Route, NavLink, useNavigate, useLocation } from 'react-router';
+import { AppProvider, useApp } from './utils/context';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { Login } from './pages/Login';
 
 // Code splitting — lazy-load pages for faster initial load
 const Dashboard = React.lazy(() =>
-  import("./pages/Dashboard").then((m) => ({ default: m.Dashboard })),
+  import('./pages/Dashboard').then((m) => ({ default: m.Dashboard })),
 );
-const Chat = React.lazy(() =>
-  import("./pages/Chat").then((m) => ({ default: m.Chat })),
-);
+const Chat = React.lazy(() => import('./pages/Chat').then((m) => ({ default: m.Chat })));
 const Accounts = React.lazy(() =>
-  import("./pages/Accounts").then((m) => ({ default: m.Accounts })),
+  import('./pages/Accounts').then((m) => ({ default: m.Accounts })),
 );
 const Invoices = React.lazy(() =>
-  import("./pages/Invoices").then((m) => ({ default: m.Invoices })),
+  import('./pages/Invoices').then((m) => ({ default: m.Invoices })),
 );
 const Contacts = React.lazy(() =>
-  import("./pages/Contacts").then((m) => ({ default: m.Contacts })),
+  import('./pages/Contacts').then((m) => ({ default: m.Contacts })),
 );
-const Items = React.lazy(() =>
-  import("./pages/Items").then((m) => ({ default: m.Items })),
-);
-const Reports = React.lazy(() =>
-  import("./pages/Reports").then((m) => ({ default: m.Reports })),
-);
+const Items = React.lazy(() => import('./pages/Items').then((m) => ({ default: m.Items })));
+const Reports = React.lazy(() => import('./pages/Reports').then((m) => ({ default: m.Reports })));
 const Onboarding = React.lazy(() =>
-  import("./pages/Onboarding").then((m) => ({ default: m.Onboarding })),
+  import('./pages/Onboarding').then((m) => ({ default: m.Onboarding })),
 );
 const Settings = React.lazy(() =>
-  import("./pages/Settings").then((m) => ({ default: m.Settings })),
+  import('./pages/Settings').then((m) => ({ default: m.Settings })),
 );
 const FixedAssets = React.lazy(() =>
-  import("./pages/FixedAssets").then((m) => ({ default: m.FixedAssets })),
+  import('./pages/FixedAssets').then((m) => ({ default: m.FixedAssets })),
 );
 const BankRecon = React.lazy(() =>
-  import("./pages/BankRecon").then((m) => ({ default: m.BankRecon })),
+  import('./pages/BankRecon').then((m) => ({ default: m.BankRecon })),
 );
 const JournalEntries = React.lazy(() =>
-  import("./pages/JournalEntries").then((m) => ({ default: m.JournalEntries })),
+  import('./pages/JournalEntries').then((m) => ({ default: m.JournalEntries })),
 );
 const EventLog = React.lazy(() =>
-  import("./pages/EventLog").then((m) => ({ default: m.EventLog })),
+  import('./pages/EventLog').then((m) => ({ default: m.EventLog })),
 );
 const Accounting = React.lazy(() =>
-  import("./pages/Accounting").then((m) => ({ default: m.Accounting })),
+  import('./pages/Accounting').then((m) => ({ default: m.Accounting })),
 );
 
 function PageLoader() {
-  return (
-    <div style={{ padding: 40, textAlign: "center", color: "#A0A0A0" }}>
-      Loading...
-    </div>
-  );
+  return <div style={{ padding: 40, textAlign: 'center', color: '#A0A0A0' }}>Loading...</div>;
 }
 
 function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -78,51 +61,38 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   return (
     <>
       {open && <div className="sidebar-overlay" onClick={onClose} />}
-      <aside className={`app-sidebar ${open ? "open" : ""}`}>
+      <aside className={`app-sidebar ${open ? 'open' : ''}`}>
         <div className="sidebar-top-row">
           <div className="logo">
             ERA <span>v0.1</span>
           </div>
-          <button
-            className="sidebar-close"
-            onClick={onClose}
-            aria-label="Close menu"
-          >
+          <button className="sidebar-close" onClick={onClose} aria-label="Close menu">
             ✕
           </button>
         </div>
 
         {companies.length > 0 && (
           <div className="company-switcher">
-            <button
-              className="switcher-btn"
-              onClick={() => setSwitcherOpen(!switcherOpen)}
-            >
-              <span className="switcher-code">
-                {activeCompany?.code || "—"}
-              </span>
+            <button className="switcher-btn" onClick={() => setSwitcherOpen(!switcherOpen)}>
+              <span className="switcher-code">{activeCompany?.code || '—'}</span>
               <span className="switcher-name">
-                {activeCompany?.shortName ||
-                  activeCompany?.name ||
-                  "Select company"}
+                {activeCompany?.shortName || activeCompany?.name || 'Select company'}
               </span>
-              <span className="switcher-arrow">{switcherOpen ? "▴" : "▾"}</span>
+              <span className="switcher-arrow">{switcherOpen ? '▴' : '▾'}</span>
             </button>
             {switcherOpen && (
               <div className="switcher-dropdown">
                 {companies.map((c) => (
                   <button
                     key={c.id}
-                    className={`switcher-option ${c.id === companyId ? "active" : ""}`}
+                    className={`switcher-option ${c.id === companyId ? 'active' : ''}`}
                     onClick={() => {
                       setCompanyId(c.id);
                       setSwitcherOpen(false);
                     }}
                   >
                     <span className="switcher-code">{c.code}</span>
-                    <span className="switcher-name">
-                      {c.shortName || c.name}
-                    </span>
+                    <span className="switcher-name">{c.shortName || c.name}</span>
                   </button>
                 ))}
               </div>
@@ -155,10 +125,7 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
         </nav>
 
         <div className="sidebar-bottom">
-          <button
-            className="btn-add-company"
-            onClick={() => navigate("/onboarding")}
-          >
+          <button className="btn-add-company" onClick={() => navigate('/onboarding')}>
             + Add company
           </button>
           {user && (
@@ -173,9 +140,7 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
                   />
                 ) : (
                   <div className="sidebar-avatar-placeholder">
-                    {user.displayName?.charAt(0) ||
-                      user.email?.charAt(0) ||
-                      "?"}
+                    {user.displayName?.charAt(0) || user.email?.charAt(0) || '?'}
                   </div>
                 )}
                 <span className="sidebar-user-email" title={user.email}>
@@ -198,19 +163,19 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   );
 }
 
-const GITHUB_REPO = "samoletovs/ERA";
+const GITHUB_REPO = 'samoletovs/ERA';
 const feedbackTypes = {
-  bug: { emoji: "🐛", label: "Bug report", ghLabel: "bug" },
-  enhancement: { emoji: "💡", label: "Feature idea", ghLabel: "enhancement" },
-  ux: { emoji: "🎨", label: "UI/UX improvement", ghLabel: "ui/ux" },
+  bug: { emoji: '🐛', label: 'Bug report', ghLabel: 'bug' },
+  enhancement: { emoji: '💡', label: 'Feature idea', ghLabel: 'enhancement' },
+  ux: { emoji: '🎨', label: 'UI/UX improvement', ghLabel: 'ui/ux' },
 } as const;
 type FeedbackType = keyof typeof feedbackTypes;
 
 function FeedbackButton() {
   const location = useLocation();
   const [open, setOpen] = React.useState(false);
-  const [message, setMessage] = React.useState("");
-  const [type, setType] = React.useState<FeedbackType>("bug");
+  const [message, setMessage] = React.useState('');
+  const [type, setType] = React.useState<FeedbackType>('bug');
   const [sent, setSent] = React.useState(false);
 
   function handleSubmit() {
@@ -219,16 +184,16 @@ function FeedbackButton() {
     const title = `[${info.emoji} ${info.label}] ${message.trim().slice(0, 80)}`;
     const body = [
       `## ${info.label}`,
-      "",
+      '',
       message.trim(),
-      "",
-      "---",
+      '',
+      '---',
       `*Page: \`${location.pathname}\` · Submitted via in-app feedback*`,
-    ].join("\n");
+    ].join('\n');
     const url = `https://github.com/${GITHUB_REPO}/issues/new?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}&labels=${encodeURIComponent(info.ghLabel)}`;
-    window.open(url, "_blank", "noopener");
+    window.open(url, '_blank', 'noopener');
     setSent(true);
-    setMessage("");
+    setMessage('');
     setTimeout(() => {
       setOpen(false);
       setSent(false);
@@ -245,7 +210,7 @@ function FeedbackButton() {
         }}
         title="Send feedback"
       >
-        {open ? "✕" : "💬"}
+        {open ? '✕' : '💬'}
       </button>
       {open && (
         <div className="feedback-popover">
@@ -260,7 +225,7 @@ function FeedbackButton() {
                 {(Object.keys(feedbackTypes) as FeedbackType[]).map((k) => (
                   <button
                     key={k}
-                    className={`feedback-type-btn${type === k ? " active" : ""}`}
+                    className={`feedback-type-btn${type === k ? ' active' : ''}`}
                     onClick={() => setType(k)}
                   >
                     {feedbackTypes[k].emoji} {feedbackTypes[k].label}
@@ -278,11 +243,7 @@ function FeedbackButton() {
               />
               <div className="feedback-footer">
                 <span className="feedback-page">{location.pathname}</span>
-                <button
-                  className="btn-primary"
-                  onClick={handleSubmit}
-                  disabled={!message.trim()}
-                >
+                <button className="btn-primary" onClick={handleSubmit} disabled={!message.trim()}>
                   Create issue
                 </button>
               </div>
@@ -324,9 +285,7 @@ function AppShell() {
   const { toasts, dismissToast } = useApp();
 
   return (
-    <div
-      className={`app${location.pathname === "/chat" ? " chat-active" : ""}`}
-    >
+    <div className={`app${location.pathname === '/chat' ? ' chat-active' : ''}`}>
       <div className="mobile-header">
         <button
           className="hamburger-btn"

@@ -1,36 +1,34 @@
-import React, { useEffect, useState, useCallback } from "react";
-import { useLocation } from "react-router-dom";
-import { api } from "../utils/api";
-import { useApp } from "../utils/context";
-import { formatMoney } from "../utils/format";
-import { GlPostings } from "../components/GlPostings";
-import { AiInput } from "../components/AiInput";
-import { UniversalGrid, type GridColumn } from "../components/UniversalGrid";
-import { EmptyState } from "../components/PageControls";
+import React, { useEffect, useState, useCallback } from 'react';
+import { useLocation } from 'react-router';
+import { api } from '../utils/api';
+import { useApp } from '../utils/context';
+import { formatMoney } from '../utils/format';
+import { GlPostings } from '../components/GlPostings';
+import { AiInput } from '../components/AiInput';
+import { UniversalGrid, type GridColumn } from '../components/UniversalGrid';
+import { EmptyState } from '../components/PageControls';
 
-import { getAuthToken } from "../utils/api";
+import { getAuthToken } from '../utils/api';
 
 // Cancel confirmation state type
 type CancelConfirm = { inv: any } | null;
 
 // ─── PDF rendering helpers (from UploadInvoice) ─────────────
 
-async function pdfToImage(
-  file: File,
-): Promise<{ base64: string; dataUrl: string }> {
+async function pdfToImage(file: File): Promise<{ base64: string; dataUrl: string }> {
   const pdfjsLib = await loadPdfJs();
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
   const page = await pdf.getPage(1);
   const scale = 2;
   const viewport = page.getViewport({ scale });
-  const canvas = document.createElement("canvas");
+  const canvas = document.createElement('canvas');
   canvas.width = viewport.width;
   canvas.height = viewport.height;
-  const ctx = canvas.getContext("2d")!;
+  const ctx = canvas.getContext('2d')!;
   await page.render({ canvasContext: ctx, viewport }).promise;
-  const dataUrl = canvas.toDataURL("image/png");
-  const base64 = dataUrl.split(",")[1];
+  const dataUrl = canvas.toDataURL('image/png');
+  const base64 = dataUrl.split(',')[1];
   return { base64, dataUrl };
 }
 
@@ -42,20 +40,19 @@ function loadPdfJs(): Promise<any> {
       resolve((window as any).pdfjsLib);
       return;
     }
-    const scriptClassic = document.createElement("script");
-    scriptClassic.src =
-      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+    const scriptClassic = document.createElement('script');
+    scriptClassic.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
     scriptClassic.onload = () => {
       const lib = (window as any).pdfjsLib;
       if (lib) {
         lib.GlobalWorkerOptions.workerSrc =
-          "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+          'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
         resolve(lib);
       } else {
-        reject(new Error("pdf.js failed to load"));
+        reject(new Error('pdf.js failed to load'));
       }
     };
-    scriptClassic.onerror = () => reject(new Error("Failed to load pdf.js"));
+    scriptClassic.onerror = () => reject(new Error('Failed to load pdf.js'));
     document.head.appendChild(scriptClassic);
   });
   return pdfJsPromise;
@@ -64,12 +61,12 @@ function loadPdfJs(): Promise<any> {
 // ─── Label style ────────────────────────────────────────────
 
 const labelStyle: React.CSSProperties = {
-  display: "block",
+  display: 'block',
   fontSize: 11,
   fontWeight: 500,
-  color: "var(--text-tertiary)",
-  textTransform: "uppercase",
-  letterSpacing: "0.02em",
+  color: 'var(--text-tertiary)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.02em',
   marginBottom: 4,
 };
 
@@ -81,12 +78,10 @@ export function Invoices() {
   const [selected, setSelected] = useState<any>(null);
   const [postings, setPostings] = useState<any[]>([]);
   const [loadingPostings, setLoadingPostings] = useState(false);
-  const [filter, setFilter] = useState<"" | "sales" | "purchase">("");
+  const [filter, setFilter] = useState<'' | 'sales' | 'purchase'>('');
 
   // Action panels
-  const [activePanel, setActivePanel] = useState<
-    "" | "create" | "upload" | "pay"
-  >("");
+  const [activePanel, setActivePanel] = useState<'' | 'create' | 'upload' | 'pay'>('');
 
   // Create invoice state
   const [aiLoading, setAiLoading] = useState(false);
@@ -95,18 +90,18 @@ export function Invoices() {
 
   // Upload invoice state
   const [dragging, setDragging] = useState(false);
-  const [uploadStatus, setUploadStatus] = useState<
-    "idle" | "processing" | "done" | "error"
-  >("idle");
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'processing' | 'done' | 'error'>(
+    'idle',
+  );
   const [uploadResult, setUploadResult] = useState<any>(null);
-  const [uploadError, setUploadError] = useState("");
+  const [uploadError, setUploadError] = useState('');
   const [_uploadPreview, setUploadPreview] = useState<string | null>(null);
 
   // Pay invoice state
   const [payInvoice, setPayInvoice] = useState<any>(null);
-  const [payAmount, setPayAmount] = useState("");
+  const [payAmount, setPayAmount] = useState('');
   const [payDate, setPayDate] = useState(new Date().toISOString().slice(0, 10));
-  const [payReference, setPayReference] = useState("");
+  const [payReference, setPayReference] = useState('');
   const [paying, setPaying] = useState(false);
   const [cancelConfirm, setCancelConfirm] = useState<CancelConfirm>(null);
 
@@ -122,9 +117,7 @@ export function Invoices() {
   useEffect(() => {
     const navState = location.state as { selectedInvoiceId?: string } | null;
     if (navState?.selectedInvoiceId && companyId && invoices.length > 0) {
-      const inv = invoices.find(
-        (i: any) => i.id === navState.selectedInvoiceId,
-      );
+      const inv = invoices.find((i: any) => i.id === navState.selectedInvoiceId);
       if (inv && selected?.id !== inv.id) handleSelect(inv);
     }
   }, [location.state, invoices]);
@@ -173,23 +166,23 @@ export function Invoices() {
     const inv = cancelConfirm.inv;
     setCancelConfirm(null);
     try {
-      await api.cancelInvoice(companyId, inv.id, "Cancelled by user");
+      await api.cancelInvoice(companyId, inv.id, 'Cancelled by user');
       loadInvoices();
       setSelected(null);
     } catch (e: any) {
-      toast(e.message || "Failed to cancel");
+      toast(e.message || 'Failed to cancel');
     }
   }
 
   // Credit note state
   const [creditNoteInv, setCreditNoteInv] = useState<any>(null);
-  const [creditReason, setCreditReason] = useState("");
+  const [creditReason, setCreditReason] = useState('');
   const [creditCorrect, setCreditCorrect] = useState(false);
   const [creditProcessing, setCreditProcessing] = useState(false);
 
   async function handleCreditNote(inv: any) {
     setCreditNoteInv(inv);
-    setCreditReason("");
+    setCreditReason('');
     setCreditCorrect(false);
   }
 
@@ -207,7 +200,7 @@ export function Invoices() {
             `Corrected invoice for ${creditNoteInv.contactName}, originally ${creditNoteInv.invoiceNumber}. ${creditReason}`,
           )) as any;
           if (fields?.lines?.length > 0) {
-            const contactId = creditNoteInv.contactId || "";
+            const contactId = creditNoteInv.contactId || '';
             const corrected = (await api.createInvoice(companyId, {
               type: creditNoteInv.type,
               contactId,
@@ -231,7 +224,7 @@ export function Invoices() {
       setSelected(null);
       setCreditNoteInv(null);
     } catch (e: any) {
-      toast(e.message || "Failed to create credit note");
+      toast(e.message || 'Failed to create credit note');
     } finally {
       setCreditProcessing(false);
     }
@@ -239,14 +232,14 @@ export function Invoices() {
 
   // ─── Toggle panel ─────────────────────────────────────────
 
-  function togglePanel(panel: "create" | "upload" | "pay") {
-    setActivePanel((prev) => (prev === panel ? "" : panel));
+  function togglePanel(panel: 'create' | 'upload' | 'pay') {
+    setActivePanel((prev) => (prev === panel ? '' : panel));
     // Reset states when closing
     if (activePanel === panel) return;
     setParsedInvoice(null);
-    setUploadStatus("idle");
+    setUploadStatus('idle');
     setUploadResult(null);
-    setUploadError("");
+    setUploadError('');
     setUploadPreview(null);
     setPayInvoice(null);
   }
@@ -257,10 +250,7 @@ export function Invoices() {
     if (!companyId) return;
     setAiLoading(true);
     try {
-      const fields = (await api.parseInvoiceDescription(
-        companyId,
-        desc,
-      )) as any;
+      const fields = (await api.parseInvoiceDescription(companyId, desc)) as any;
       setParsedInvoice(fields);
     } finally {
       setAiLoading(false);
@@ -272,20 +262,17 @@ export function Invoices() {
     setCreating(true);
     try {
       // Search for existing contact first to avoid duplicates
-      let contactId = "";
+      let contactId = '';
       if (parsedInvoice.contactName) {
         try {
-          const existing = (await api.findContact(
-            companyId,
-            parsedInvoice.contactName,
-          )) as any;
+          const existing = (await api.findContact(companyId, parsedInvoice.contactName)) as any;
           if (existing) {
             contactId = existing.id;
           } else {
             const contact = (await api.createContact(companyId, {
-              type: parsedInvoice.type === "sales" ? "customer" : "vendor",
+              type: parsedInvoice.type === 'sales' ? 'customer' : 'vendor',
               name: parsedInvoice.contactName,
-              address: { line1: "", city: "", postalCode: "", country: "LV" },
+              address: { line1: '', city: '', postalCode: '', country: 'LV' },
             })) as any;
             contactId = contact.id;
           }
@@ -307,11 +294,11 @@ export function Invoices() {
       } catch {
         /* draft is fine */
       }
-      setActivePanel("");
+      setActivePanel('');
       setParsedInvoice(null);
       loadInvoices();
     } catch (err: any) {
-      toast(err.message || "Failed to create invoice");
+      toast(err.message || 'Failed to create invoice');
     } finally {
       setCreating(false);
     }
@@ -322,22 +309,17 @@ export function Invoices() {
   const processFile = useCallback(
     async (file: File) => {
       if (!companyId) {
-        setUploadError("No company selected");
+        setUploadError('No company selected');
         return;
       }
-      const supportedImages = [
-        "image/jpeg",
-        "image/png",
-        "image/gif",
-        "image/webp",
-      ];
-      const isPdf = file.type === "application/pdf";
+      const supportedImages = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+      const isPdf = file.type === 'application/pdf';
       if (!supportedImages.includes(file.type) && !isPdf) {
-        setUploadError("Please upload an image (JPG, PNG, WebP) or PDF file");
+        setUploadError('Please upload an image (JPG, PNG, WebP) or PDF file');
         return;
       }
-      setUploadStatus("processing");
-      setUploadError("");
+      setUploadStatus('processing');
+      setUploadError('');
       setUploadResult(null);
       let base64: string;
       let mimeType: string;
@@ -345,31 +327,26 @@ export function Invoices() {
         try {
           const pdfData = await pdfToImage(file);
           base64 = pdfData.base64;
-          mimeType = "image/png";
+          mimeType = 'image/png';
           setUploadPreview(pdfData.dataUrl);
         } catch {
-          setUploadError(
-            "Could not render PDF. Try uploading a photo of the invoice instead.",
-          );
-          setUploadStatus("error");
+          setUploadError('Could not render PDF. Try uploading a photo of the invoice instead.');
+          setUploadStatus('error');
           return;
         }
       } else {
         const buffer = await file.arrayBuffer();
         base64 = btoa(
-          new Uint8Array(buffer).reduce(
-            (data, byte) => data + String.fromCharCode(byte),
-            "",
-          ),
+          new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), ''),
         );
         mimeType = file.type;
         setUploadPreview(URL.createObjectURL(file));
       }
       try {
         const res = await fetch(`/api/companies/${companyId}/invoices/upload`, {
-          method: "POST",
+          method: 'POST',
           headers: {
-            "Content-Type": "application/json",
+            'Content-Type': 'application/json',
             Authorization: `Bearer ${getAuthToken()}`,
           },
           body: JSON.stringify({ image: base64, mimeType }),
@@ -377,15 +354,15 @@ export function Invoices() {
         const json = await res.json();
         if (json.error) {
           setUploadError(json.error.message);
-          setUploadStatus("error");
+          setUploadStatus('error');
         } else {
           setUploadResult(json.data);
-          setUploadStatus("done");
+          setUploadStatus('done');
           loadInvoices();
         }
       } catch (err) {
-        setUploadError(err instanceof Error ? err.message : "Upload failed");
-        setUploadStatus("error");
+        setUploadError(err instanceof Error ? err.message : 'Upload failed');
+        setUploadStatus('error');
       }
     },
     [companyId],
@@ -395,14 +372,10 @@ export function Invoices() {
 
   function startPay(inv: any) {
     setPayInvoice(inv);
-    setPayAmount(
-      String(
-        Math.round(((inv.total || 0) - (inv.amountPaid || 0)) * 100) / 100,
-      ),
-    );
+    setPayAmount(String(Math.round(((inv.total || 0) - (inv.amountPaid || 0)) * 100) / 100));
     setPayDate(new Date().toISOString().slice(0, 10));
-    setPayReference("");
-    setActivePanel("pay");
+    setPayReference('');
+    setActivePanel('pay');
   }
 
   async function handlePayInvoice() {
@@ -412,12 +385,12 @@ export function Invoices() {
     setPaying(true);
     try {
       await api.createPayment(companyId, {
-        type: payInvoice.type === "sales" ? "incoming" : "outgoing",
+        type: payInvoice.type === 'sales' ? 'incoming' : 'outgoing',
         contactId: payInvoice.contactId,
         contactName: payInvoice.contactName,
         date: payDate,
         amount,
-        bankAccountIban: "",
+        bankAccountIban: '',
         reference: payReference || `Payment for ${payInvoice.invoiceNumber}`,
         invoiceAllocations: [
           {
@@ -427,11 +400,11 @@ export function Invoices() {
           },
         ],
       });
-      setActivePanel("");
+      setActivePanel('');
       setPayInvoice(null);
       loadInvoices();
     } catch (err: any) {
-      toast(err.message || "Failed to record payment");
+      toast(err.message || 'Failed to record payment');
     } finally {
       setPaying(false);
     }
@@ -448,60 +421,58 @@ export function Invoices() {
 
   const invoiceColumns: GridColumn<any>[] = [
     {
-      id: "invoiceNumber",
-      header: "Number",
-      accessor: (inv) => inv.invoiceNumber || "",
+      id: 'invoiceNumber',
+      header: 'Number',
+      accessor: (inv) => inv.invoiceNumber || '',
       render: (inv) => <span className="mono">{inv.invoiceNumber}</span>,
     },
     {
-      id: "type",
-      header: "Type",
-      accessor: (inv) => inv.type || "",
+      id: 'type',
+      header: 'Type',
+      accessor: (inv) => inv.type || '',
       render: (inv) => <span className="badge">{inv.type}</span>,
       hideOnMobile: true,
     },
     {
-      id: "contactName",
-      header: "Contact",
-      accessor: (inv) => inv.contactName || "",
+      id: 'contactName',
+      header: 'Contact',
+      accessor: (inv) => inv.contactName || '',
     },
     {
-      id: "date",
-      header: "Date",
-      accessor: (inv) => inv.date || "",
+      id: 'date',
+      header: 'Date',
+      accessor: (inv) => inv.date || '',
       hideOnMobile: true,
     },
     {
-      id: "total",
-      header: "Total",
+      id: 'total',
+      header: 'Total',
       accessor: (inv) => inv.total ?? 0,
       render: (inv) => (
         <span className="num" style={{ fontWeight: 500 }}>
           {formatMoney(inv.total, fmt)}
         </span>
       ),
-      align: "right",
+      align: 'right',
     },
     {
-      id: "status",
-      header: "Status",
-      accessor: (inv) => inv.status || "",
-      render: (inv) => (
-        <span className={`badge badge-${inv.status}`}>{inv.status}</span>
-      ),
+      id: 'status',
+      header: 'Status',
+      accessor: (inv) => inv.status || '',
+      render: (inv) => <span className={`badge badge-${inv.status}`}>{inv.status}</span>,
     },
     {
-      id: "actions",
-      header: "",
-      accessor: () => "",
+      id: 'actions',
+      header: '',
+      accessor: () => '',
       sortable: false,
       searchable: false,
       filterable: false,
       render: (inv) =>
-        inv.status === "posted" || inv.status === "overdue" ? (
+        inv.status === 'posted' || inv.status === 'overdue' ? (
           <button
             className="btn-secondary"
-            style={{ fontSize: 11, padding: "2px 8px" }}
+            style={{ fontSize: 11, padding: '2px 8px' }}
             onClick={(e) => {
               e.stopPropagation();
               startPay(inv);
@@ -576,15 +547,13 @@ export function Invoices() {
                 </div>
                 <div className="detail-row">
                   <span className="detail-label">Status</span>
-                  <span className={`badge badge-${selected.status}`}>
-                    {selected.status}
-                  </span>
+                  <span className={`badge badge-${selected.status}`}>{selected.status}</span>
                 </div>
                 {selected.recognitionConfidence && (
                   <div className="detail-row">
                     <span className="detail-label">AI confidence</span>
                     <span
-                      className={`badge badge-${selected.recognitionConfidence === "high" ? "paid" : "posted"}`}
+                      className={`badge badge-${selected.recognitionConfidence === 'high' ? 'paid' : 'posted'}`}
                     >
                       {selected.recognitionConfidence}
                     </span>
@@ -593,49 +562,38 @@ export function Invoices() {
               </div>
 
               <div className="btn-row" style={{ marginTop: 16 }}>
-                {selected.status === "draft" && (
-                  <button
-                    className="btn-primary"
-                    onClick={() => handlePost(selected)}
-                  >
+                {selected.status === 'draft' && (
+                  <button className="btn-primary" onClick={() => handlePost(selected)}>
                     Post to ledger
                   </button>
                 )}
-                {(selected.status === "posted" ||
-                  selected.status === "overdue") && (
-                  <button
-                    className="btn-primary"
-                    onClick={() => startPay(selected)}
-                  >
+                {(selected.status === 'posted' || selected.status === 'overdue') && (
+                  <button className="btn-primary" onClick={() => startPay(selected)}>
                     Record payment
                   </button>
                 )}
-                {selected.status !== "cancelled" &&
-                  selected.status !== "draft" && (
-                    <button
-                      className="btn-secondary"
-                      onClick={() => handleCreditNote(selected)}
-                    >
-                      Credit note
-                    </button>
-                  )}
+                {selected.status !== 'cancelled' && selected.status !== 'draft' && (
+                  <button className="btn-secondary" onClick={() => handleCreditNote(selected)}>
+                    Credit note
+                  </button>
+                )}
                 <a
                   href={api.invoicePdfUrl(companyId, selected.id)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="btn-secondary"
                   style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    textDecoration: "none",
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    textDecoration: 'none',
                   }}
                 >
                   PDF ↓
                 </a>
-                {selected.status !== "cancelled" && (
+                {selected.status !== 'cancelled' && (
                   <button
                     className="btn-secondary"
-                    style={{ color: "#FF3B30" }}
+                    style={{ color: '#FF3B30' }}
                     onClick={() => handleCancel(selected)}
                   >
                     Cancel invoice
@@ -648,39 +606,34 @@ export function Invoices() {
                 <div
                   style={{
                     marginTop: 12,
-                    padding: "12px 14px",
-                    background: "var(--error-bg)",
-                    border: "1px solid #FEE2E2",
-                    borderRadius: "var(--radius-sm)",
-                    fontSize: "var(--text-sm)",
+                    padding: '12px 14px',
+                    background: 'var(--error-bg)',
+                    border: '1px solid #FEE2E2',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: 'var(--text-sm)',
                   }}
                 >
                   <div
                     style={{
                       fontWeight: 500,
-                      color: "#D1242F",
+                      color: '#D1242F',
                       marginBottom: 6,
                     }}
                   >
                     Cancel invoice {cancelConfirm.inv.invoiceNumber}?
                   </div>
-                  <div
-                    style={{ color: "var(--text-secondary)", marginBottom: 10 }}
-                  >
+                  <div style={{ color: 'var(--text-secondary)', marginBottom: 10 }}>
                     This will reverse the GL entries.
                   </div>
-                  <div style={{ display: "flex", gap: 8 }}>
+                  <div style={{ display: 'flex', gap: 8 }}>
                     <button
                       className="btn-primary"
-                      style={{ background: "#FF3B30" }}
+                      style={{ background: '#FF3B30' }}
                       onClick={confirmCancel}
                     >
                       Confirm cancel
                     </button>
-                    <button
-                      className="btn-secondary"
-                      onClick={() => setCancelConfirm(null)}
-                    >
+                    <button className="btn-secondary" onClick={() => setCancelConfirm(null)}>
                       Keep
                     </button>
                   </div>
@@ -692,9 +645,7 @@ export function Invoices() {
           <div style={{ flex: 1 }}>
             {selected.lines?.length > 0 && (
               <div className="settings-card">
-                <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>
-                  Line items
-                </h3>
+                <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Line items</h3>
                 {/* Desktop table */}
                 <table className="data-table invoice-lines-table desktop-only-table">
                   <thead>
@@ -728,9 +679,7 @@ export function Invoices() {
                           {l.quantity} × {formatMoney(l.unitPrice, fmt)}
                         </span>
                         <span>{l.vatRate}% VAT</span>
-                        <span className="line-total">
-                          {formatMoney(l.lineTotal, fmt)}
-                        </span>
+                        <span className="line-total">{formatMoney(l.lineTotal, fmt)}</span>
                       </div>
                     </div>
                   ))}
@@ -739,9 +688,7 @@ export function Invoices() {
             )}
 
             <div className="settings-card" style={{ marginTop: 16 }}>
-              <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>
-                GL postings
-              </h3>
+              <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>GL postings</h3>
               <GlPostings
                 entries={postings}
                 loading={loadingPostings}
@@ -752,15 +699,13 @@ export function Invoices() {
             </div>
 
             {/* Pay invoice inline panel (from detail view) */}
-            {activePanel === "pay" && payInvoice?.id === selected.id && (
+            {activePanel === 'pay' && payInvoice?.id === selected.id && (
               <div className="settings-card" style={{ marginTop: 16 }}>
-                <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>
-                  Record payment
-                </h3>
+                <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Record payment</h3>
                 <div
                   style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
                     gap: 12,
                   }}
                 >
@@ -772,7 +717,7 @@ export function Invoices() {
                       value={payAmount}
                       onChange={(e) => setPayAmount(e.target.value)}
                       className="form-input"
-                      style={{ width: "100%" }}
+                      style={{ width: '100%' }}
                       aria-label="Payment amount"
                     />
                   </div>
@@ -783,11 +728,11 @@ export function Invoices() {
                       value={payDate}
                       onChange={(e) => setPayDate(e.target.value)}
                       className="form-input"
-                      style={{ width: "100%" }}
+                      style={{ width: '100%' }}
                       aria-label="Payment date"
                     />
                   </div>
-                  <div style={{ gridColumn: "span 2" }}>
+                  <div style={{ gridColumn: 'span 2' }}>
                     <label style={labelStyle}>Reference</label>
                     <input
                       type="text"
@@ -795,23 +740,23 @@ export function Invoices() {
                       onChange={(e) => setPayReference(e.target.value)}
                       placeholder="Bank reference or note"
                       className="form-input"
-                      style={{ width: "100%" }}
+                      style={{ width: '100%' }}
                       aria-label="Payment reference"
                     />
                   </div>
                 </div>
-                <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+                <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
                   <button
                     className="btn-primary"
                     onClick={handlePayInvoice}
                     disabled={paying || !payAmount}
                   >
-                    {paying ? "Processing..." : "Record payment"}
+                    {paying ? 'Processing...' : 'Record payment'}
                   </button>
                   <button
                     className="btn-secondary"
                     onClick={() => {
-                      setActivePanel("");
+                      setActivePanel('');
                       setPayInvoice(null);
                     }}
                   >
@@ -836,23 +781,19 @@ export function Invoices() {
                     value={creditReason}
                     onChange={(e) => setCreditReason(e.target.value)}
                     onKeyDown={(e) => {
-                      if (
-                        e.key === "Enter" &&
-                        creditReason.trim() &&
-                        !creditProcessing
-                      )
+                      if (e.key === 'Enter' && creditReason.trim() && !creditProcessing)
                         submitCreditNote();
                     }}
-                    style={{ width: "100%", fontSize: 16 }}
+                    style={{ width: '100%', fontSize: 16 }}
                     aria-label="Reason for credit note"
                   />
                 </div>
                 <label
                   style={{
-                    display: "flex",
-                    alignItems: "center",
+                    display: 'flex',
+                    alignItems: 'center',
                     gap: 8,
-                    fontSize: "var(--text-sm)",
+                    fontSize: 'var(--text-sm)',
                     marginBottom: 12,
                   }}
                 >
@@ -863,22 +804,19 @@ export function Invoices() {
                   />
                   Also create a corrected invoice based on the description
                 </label>
-                <div style={{ display: "flex", gap: 8 }}>
+                <div style={{ display: 'flex', gap: 8 }}>
                   <button
                     className="btn-primary"
                     onClick={submitCreditNote}
                     disabled={creditProcessing || !creditReason.trim()}
                   >
                     {creditProcessing
-                      ? "Processing..."
+                      ? 'Processing...'
                       : creditCorrect
-                        ? "Issue credit note + corrected invoice"
-                        : "Issue credit note"}
+                        ? 'Issue credit note + corrected invoice'
+                        : 'Issue credit note'}
                   </button>
-                  <button
-                    className="btn-secondary"
-                    onClick={() => setCreditNoteInv(null)}
-                  >
+                  <button className="btn-secondary" onClick={() => setCreditNoteInv(null)}>
                     Cancel
                   </button>
                 </div>
@@ -899,29 +837,29 @@ export function Invoices() {
         <div
           className="action-buttons"
           style={{
-            display: "flex",
+            display: 'flex',
             gap: 8,
-            alignItems: "center",
-            flexWrap: "wrap",
+            alignItems: 'center',
+            flexWrap: 'wrap',
           }}
         >
           <button
-            className={`btn-primary ${activePanel === "create" ? "active" : ""}`}
-            onClick={() => togglePanel("create")}
+            className={`btn-primary ${activePanel === 'create' ? 'active' : ''}`}
+            onClick={() => togglePanel('create')}
           >
-            {activePanel === "create" ? "Cancel" : "+ Create invoice"}
+            {activePanel === 'create' ? 'Cancel' : '+ Create invoice'}
           </button>
           <button
-            className={`btn-secondary ${activePanel === "upload" ? "active" : ""}`}
-            onClick={() => togglePanel("upload")}
+            className={`btn-secondary ${activePanel === 'upload' ? 'active' : ''}`}
+            onClick={() => togglePanel('upload')}
           >
-            {activePanel === "upload" ? "Cancel" : "📄 Upload"}
+            {activePanel === 'upload' ? 'Cancel' : '📄 Upload'}
           </button>
         </div>
       </div>
 
       {/* ─── Create Invoice Panel ─────────────────────────── */}
-      {activePanel === "create" && (
+      {activePanel === 'create' && (
         <div className="settings-card" style={{ marginBottom: 20 }}>
           <div style={{ marginBottom: 16 }}>
             <AiInput
@@ -936,8 +874,8 @@ export function Invoices() {
             <div>
               <div
                 style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
                   gap: 12,
                   marginBottom: 12,
                 }}
@@ -959,7 +897,7 @@ export function Invoices() {
                     <option value="purchase">Purchase</option>
                   </select>
                 </div>
-                <div style={{ gridColumn: "span 2" }}>
+                <div style={{ gridColumn: 'span 2' }}>
                   <label style={labelStyle}>Contact</label>
                   <input
                     type="text"
@@ -971,7 +909,7 @@ export function Invoices() {
                       }))
                     }
                     className="form-input"
-                    style={{ width: "100%" }}
+                    style={{ width: '100%' }}
                     aria-label="Contact name"
                   />
                 </div>
@@ -987,7 +925,7 @@ export function Invoices() {
                       }))
                     }
                     className="form-input"
-                    style={{ width: "100%" }}
+                    style={{ width: '100%' }}
                     aria-label="Invoice date"
                   />
                 </div>
@@ -1003,7 +941,7 @@ export function Invoices() {
                       }))
                     }
                     className="form-input"
-                    style={{ width: "100%" }}
+                    style={{ width: '100%' }}
                     aria-label="Due date"
                   />
                 </div>
@@ -1036,7 +974,7 @@ export function Invoices() {
                               setParsedInvoice((p: any) => ({ ...p, lines }));
                             }}
                             className="form-input"
-                            style={{ width: "100%", minWidth: 120 }}
+                            style={{ width: '100%', minWidth: 120 }}
                             aria-label={`Line ${i + 1} description`}
                           />
                         </td>
@@ -1092,10 +1030,7 @@ export function Invoices() {
                             aria-label={`Line ${i + 1} VAT rate`}
                           />
                         </td>
-                        <td
-                          className="mono"
-                          style={{ fontSize: "var(--text-sm)" }}
-                        >
+                        <td className="mono" style={{ fontSize: 'var(--text-sm)' }}>
                           {l.accountCode}
                         </td>
                       </tr>
@@ -1104,18 +1039,15 @@ export function Invoices() {
                 </table>
               )}
 
-              <div style={{ display: "flex", gap: 8 }}>
+              <div style={{ display: 'flex', gap: 8 }}>
                 <button
                   className="btn-primary"
                   onClick={handleCreateInvoice}
                   disabled={creating || !parsedInvoice.contactName}
                 >
-                  {creating ? "Creating..." : "Create & post invoice"}
+                  {creating ? 'Creating...' : 'Create & post invoice'}
                 </button>
-                <button
-                  className="btn-secondary"
-                  onClick={() => setParsedInvoice(null)}
-                >
+                <button className="btn-secondary" onClick={() => setParsedInvoice(null)}>
                   Reset
                 </button>
               </div>
@@ -1125,10 +1057,10 @@ export function Invoices() {
       )}
 
       {/* ─── Upload Invoice Panel ─────────────────────────── */}
-      {activePanel === "upload" && (
+      {activePanel === 'upload' && (
         <div className="settings-card" style={{ marginBottom: 20 }}>
           <div
-            className={`drop-zone ${dragging ? "active" : ""} ${uploadStatus === "processing" ? "processing" : ""}`}
+            className={`drop-zone ${dragging ? 'active' : ''} ${uploadStatus === 'processing' ? 'processing' : ''}`}
             onDragOver={(e) => {
               e.preventDefault();
               setDragging(true);
@@ -1140,9 +1072,7 @@ export function Invoices() {
               const file = e.dataTransfer.files[0];
               if (file) processFile(file);
             }}
-            onClick={() =>
-              document.getElementById("invoice-file-input")?.click()
-            }
+            onClick={() => document.getElementById('invoice-file-input')?.click()}
           >
             <input
               id="invoice-file-input"
@@ -1152,9 +1082,9 @@ export function Invoices() {
                 const file = e.target.files?.[0];
                 if (file) processFile(file);
               }}
-              style={{ display: "none" }}
+              style={{ display: 'none' }}
             />
-            {uploadStatus === "processing" ? (
+            {uploadStatus === 'processing' ? (
               <div className="drop-zone-content">
                 <div className="drop-zone-icon">⏳</div>
                 <div className="drop-zone-title">Recognizing invoice...</div>
@@ -1165,38 +1095,29 @@ export function Invoices() {
             ) : (
               <div className="drop-zone-content">
                 <div className="drop-zone-icon">📄</div>
-                <div className="drop-zone-title">
-                  Drop invoice here or click to upload
-                </div>
-                <div className="drop-zone-subtitle">
-                  Supports JPG, PNG, or PDF
-                </div>
+                <div className="drop-zone-title">Drop invoice here or click to upload</div>
+                <div className="drop-zone-subtitle">Supports JPG, PNG, or PDF</div>
               </div>
             )}
           </div>
           {uploadError && (
-            <p style={{ color: "#FF3B30", fontSize: 13, marginTop: 12 }}>
-              {uploadError}
-            </p>
+            <p style={{ color: '#FF3B30', fontSize: 13, marginTop: 12 }}>{uploadError}</p>
           )}
-          {uploadStatus === "done" && uploadResult && (
+          {uploadStatus === 'done' && uploadResult && (
             <div style={{ marginTop: 16 }}>
               <div
                 style={{
-                  display: "flex",
-                  alignItems: "center",
+                  display: 'flex',
+                  alignItems: 'center',
                   gap: 8,
-                  color: "var(--success)",
+                  color: 'var(--success)',
                   fontSize: 13,
                   marginBottom: 12,
                 }}
               >
                 <span>✅</span> {uploadResult.message}
                 {uploadResult.invoice?.invoiceNumber && (
-                  <span
-                    className="mono"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
+                  <span className="mono" style={{ color: 'var(--text-secondary)' }}>
                     — {uploadResult.invoice.invoiceNumber}
                   </span>
                 )}
@@ -1204,7 +1125,7 @@ export function Invoices() {
               <button
                 className="btn-secondary"
                 onClick={() => {
-                  setUploadStatus("idle");
+                  setUploadStatus('idle');
                   setUploadResult(null);
                   setUploadPreview(null);
                 }}
@@ -1219,28 +1140,28 @@ export function Invoices() {
       {/* ─── Type Filter ─────────────────────────────────── */}
       <div
         style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
           marginBottom: 12,
         }}
       >
         <div className="coa-level-controls">
           <button
-            className={`coa-level-btn ${!filter ? "active" : ""}`}
-            onClick={() => setFilter("")}
+            className={`coa-level-btn ${!filter ? 'active' : ''}`}
+            onClick={() => setFilter('')}
           >
             All
           </button>
           <button
-            className={`coa-level-btn ${filter === "purchase" ? "active" : ""}`}
-            onClick={() => setFilter("purchase")}
+            className={`coa-level-btn ${filter === 'purchase' ? 'active' : ''}`}
+            onClick={() => setFilter('purchase')}
           >
             Purchase
           </button>
           <button
-            className={`coa-level-btn ${filter === "sales" ? "active" : ""}`}
-            onClick={() => setFilter("sales")}
+            className={`coa-level-btn ${filter === 'sales' ? 'active' : ''}`}
+            onClick={() => setFilter('sales')}
           >
             Sales
           </button>
@@ -1248,7 +1169,7 @@ export function Invoices() {
       </div>
 
       {loading ? (
-        <p style={{ color: "#A0A0A0" }}>Loading...</p>
+        <p style={{ color: '#A0A0A0' }}>Loading...</p>
       ) : invoices.length === 0 ? (
         <EmptyState
           icon="📄"
@@ -1263,7 +1184,7 @@ export function Invoices() {
           onRowClick={handleSelect}
           searchPlaceholder="Search invoices..."
           emptyMessage="No matching invoices. Try adjusting your search."
-          initialSort={{ columnId: "contactName", direction: "asc" }}
+          initialSort={{ columnId: 'contactName', direction: 'asc' }}
         />
       )}
     </div>
