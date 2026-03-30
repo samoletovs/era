@@ -1,22 +1,13 @@
-import { AzureOpenAI } from "openai";
-import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
-import { AGENT_TOOLS } from "./agent-tools.js";
-import { createCompany } from "./company.js";
-import { createContact, listContacts, findContactByName } from "./contact.js";
-import {
-  createInvoice,
-  postInvoice,
-  listInvoices,
-  createCreditNote,
-} from "./invoice.js";
-import { createAndPostPayment } from "./payment.js";
-import {
-  postJournalEntry,
-  getTrialBalance,
-  getAccountBalance,
-} from "./ledger.js";
-import type { JournalLine } from "@shared/types";
-import { createItem, listItems } from "./inventory.js";
+import { AzureOpenAI } from 'openai';
+import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
+import { AGENT_TOOLS } from './agent-tools.js';
+import { createCompany } from './company.js';
+import { createContact, listContacts, findContactByName } from './contact.js';
+import { createInvoice, postInvoice, listInvoices, createCreditNote } from './invoice.js';
+import { createAndPostPayment } from './payment.js';
+import { postJournalEntry, getTrialBalance, getAccountBalance } from './ledger.js';
+import type { JournalLine } from '@shared/types';
+import { createItem, listItems } from './inventory.js';
 import {
   generateVatReturn,
   getBalanceSheet,
@@ -24,19 +15,12 @@ import {
   generateVatDeclaration,
   generateAnnualReport,
   getAgingReport,
-} from "./reporting.js";
-import {
-  searchCompanyByName,
-  searchCompanyByRegNumber,
-} from "./company-lookup.js";
-import {
-  runMonthEnd,
-  runYearEnd,
-  checkCompanyHealth,
-} from "./autonomous-tasks.js";
-import { acquireAsset } from "./fixed-assets.js";
-import { createRecurringTemplate } from "./recurring-entries.js";
-import { getBudgetVsActual } from "./budget.js";
+} from './reporting.js';
+import { searchCompanyByName, searchCompanyByRegNumber } from './company-lookup.js';
+import { runMonthEnd, runYearEnd, checkCompanyHealth } from './autonomous-tasks.js';
+import { acquireAsset } from './fixed-assets.js';
+import { createRecurringTemplate } from './recurring-entries.js';
+import { getBudgetVsActual } from './budget.js';
 
 // ─── OpenAI Client ──────────────────────────────────────────
 
@@ -46,18 +30,18 @@ function getClient(): AzureOpenAI {
   if (!client) {
     const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
     const apiKey = process.env.AZURE_OPENAI_API_KEY;
-    if (!endpoint || !apiKey) throw new Error("Azure OpenAI not configured");
+    if (!endpoint || !apiKey) throw new Error('Azure OpenAI not configured');
 
     client = new AzureOpenAI({
       endpoint,
       apiKey,
-      apiVersion: "2024-10-21",
+      apiVersion: '2024-10-21',
     });
   }
   return client;
 }
 
-const DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT || "gpt-4o";
+const DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o';
 
 // ─── System Prompt ──────────────────────────────────────────
 
@@ -112,17 +96,17 @@ async function executeTool(
   userId: string,
 ): Promise<unknown> {
   switch (name) {
-    case "lookup_company": {
+    case 'lookup_company': {
       const query = args.query as string;
       // Detect if query looks like a registration number (all digits, 11 chars)
-      const isRegNumber = /^\d{11}$/.test(query.replace(/\s/g, ""));
+      const isRegNumber = /^\d{11}$/.test(query.replace(/\s/g, ''));
       if (isRegNumber) {
-        return searchCompanyByRegNumber(query.replace(/\s/g, ""));
+        return searchCompanyByRegNumber(query.replace(/\s/g, ''));
       }
       return searchCompanyByName(query);
     }
 
-    case "create_company":
+    case 'create_company':
       return createCompany({
         name: args.name as string,
         registrationNumber: args.registrationNumber as string,
@@ -136,7 +120,7 @@ async function executeTool(
         createdBy: userId,
       });
 
-    case "find_contact": {
+    case 'find_contact': {
       const contact = await findContactByName(
         args.companyId as string,
         args.name as string,
@@ -150,10 +134,10 @@ async function executeTool(
       );
     }
 
-    case "create_contact":
+    case 'create_contact':
       return createContact({
         companyId: args.companyId as string,
-        type: args.type as "customer" | "vendor" | "both",
+        type: args.type as 'customer' | 'vendor' | 'both',
         name: args.name as string,
         registrationNumber: args.registrationNumber as string | undefined,
         vatNumber: args.vatNumber as string | undefined,
@@ -168,10 +152,10 @@ async function executeTool(
         createdBy: userId,
       });
 
-    case "create_invoice":
+    case 'create_invoice':
       return createInvoice({
         companyId: args.companyId as string,
-        type: args.type as "sales" | "purchase",
+        type: args.type as 'sales' | 'purchase',
         contactId: args.contactId as string,
         contactName: args.contactName as string,
         date: args.date as string,
@@ -186,23 +170,18 @@ async function executeTool(
         createdBy: userId,
       });
 
-    case "post_invoice":
-      return postInvoice(
-        args.companyId as string,
-        args.invoiceId as string,
-        userId,
-      );
+    case 'post_invoice':
+      return postInvoice(args.companyId as string, args.invoiceId as string, userId);
 
-    case "record_payment":
+    case 'record_payment':
       return createAndPostPayment({
         companyId: args.companyId as string,
-        type: args.type as "incoming" | "outgoing",
+        type: args.type as 'incoming' | 'outgoing',
         contactId: args.contactId as string,
         contactName: args.contactName as string,
         date: args.date as string,
         amount: args.amount as number,
-        bankAccountIban:
-          (args.bankAccountIban as string) || "LV00HABA0000000000000",
+        bankAccountIban: (args.bankAccountIban as string) || 'LV00HABA0000000000000',
         reference: args.reference as string,
         invoiceAllocations: args.invoiceAllocations as Array<{
           invoiceId: string;
@@ -212,59 +191,53 @@ async function executeTool(
         createdBy: userId,
       });
 
-    case "get_trial_balance":
+    case 'get_trial_balance':
       return getTrialBalance(args.companyId as string);
 
-    case "list_invoices":
-      return listInvoices(
-        args.companyId as string,
-        args.type as "sales" | "purchase" | undefined,
-      );
+    case 'list_invoices':
+      return listInvoices(args.companyId as string, args.type as 'sales' | 'purchase' | undefined);
 
-    case "list_contacts":
+    case 'list_contacts':
       return listContacts(
         args.companyId as string,
-        args.type as "customer" | "vendor" | "both" | undefined,
+        args.type as 'customer' | 'vendor' | 'both' | undefined,
       );
 
-    case "post_journal_entry":
+    case 'post_journal_entry':
       return postJournalEntry({
         companyId: args.companyId as string,
         date: args.date as string,
         description: args.description as string,
         lines: args.lines as JournalLine[],
-        sourceType: "manual",
+        sourceType: 'manual',
         createdBy: userId,
       });
 
-    case "get_account_balance": {
-      const balance = await getAccountBalance(
-        args.companyId as string,
-        args.accountCode as string,
-      );
+    case 'get_account_balance': {
+      const balance = await getAccountBalance(args.companyId as string, args.accountCode as string);
       return { accountCode: args.accountCode, balance };
     }
 
-    case "create_item":
+    case 'create_item':
       return createItem({
         companyId: args.companyId as string,
         code: args.code as string,
         name: args.name as string,
         description: args.description as string | undefined,
-        type: args.type as "product" | "service",
+        type: args.type as 'product' | 'service',
         unitOfMeasure: args.unitOfMeasure as string,
         costPrice: args.costPrice as number,
         sellingPrice: args.sellingPrice as number,
         vatRate: (args.vatRate as number) ?? 21,
-        purchaseAccountCode: (args.purchaseAccountCode as string) || "6350",
-        salesAccountCode: (args.salesAccountCode as string) || "5120",
+        purchaseAccountCode: (args.purchaseAccountCode as string) || '6350',
+        salesAccountCode: (args.salesAccountCode as string) || '5120',
         createdBy: userId,
       });
 
-    case "list_items":
+    case 'list_items':
       return listItems(args.companyId as string);
 
-    case "generate_vat_return":
+    case 'generate_vat_return':
       return generateVatReturn(
         args.companyId as string,
         args.year as number,
@@ -272,32 +245,24 @@ async function executeTool(
         userId,
       );
 
-    case "get_balance_sheet":
+    case 'get_balance_sheet':
       return getBalanceSheet(args.companyId as string);
 
-    case "get_profit_and_loss":
+    case 'get_profit_and_loss':
       return getProfitAndLoss(args.companyId as string);
 
     // ─── Autonomous / Agentic Tools ───────────────────────
 
-    case "run_month_end":
-      return runMonthEnd(
-        args.companyId as string,
-        args.period as string,
-        userId,
-      );
+    case 'run_month_end':
+      return runMonthEnd(args.companyId as string, args.period as string, userId);
 
-    case "run_year_end":
-      return runYearEnd(
-        args.companyId as string,
-        args.fiscalYear as number,
-        userId,
-      );
+    case 'run_year_end':
+      return runYearEnd(args.companyId as string, args.fiscalYear as number, userId);
 
-    case "check_company_health":
+    case 'check_company_health':
       return checkCompanyHealth(args.companyId as string);
 
-    case "create_credit_note":
+    case 'create_credit_note':
       return createCreditNote({
         companyId: args.companyId as string,
         originalInvoiceId: args.originalInvoiceId as string,
@@ -305,35 +270,32 @@ async function executeTool(
         createdBy: userId,
       });
 
-    case "generate_invoice_pdf":
+    case 'generate_invoice_pdf':
       return {
         pdfUrl: `/api/companies/${args.companyId}/invoices/${args.invoiceId}/pdf`,
       };
 
-    case "get_aging_report":
-      return getAgingReport(args.companyId as string, args.type as "ar" | "ap");
+    case 'get_aging_report':
+      return getAgingReport(args.companyId as string, args.type as 'ar' | 'ap');
 
-    case "generate_vat_declaration":
+    case 'generate_vat_declaration':
       return generateVatDeclaration(
         args.companyId as string,
         args.year as number,
         args.month as number,
       );
 
-    case "generate_annual_report":
-      return generateAnnualReport(
-        args.companyId as string,
-        args.fiscalYear as number,
-      );
+    case 'generate_annual_report':
+      return generateAnnualReport(args.companyId as string, args.fiscalYear as number);
 
-    case "acquire_fixed_asset":
+    case 'acquire_fixed_asset':
       return acquireAsset({
         companyId: args.companyId as string,
         code: args.code as string,
         name: args.name as string,
         assetAccountCode: args.assetAccountCode as string,
-        depreciationAccountCode: "1240",
-        expenseAccountCode: "6380",
+        depreciationAccountCode: '1240',
+        expenseAccountCode: '6380',
         acquisitionDate: args.acquisitionDate as string,
         acquisitionCost: args.acquisitionCost as number,
         residualValue: (args.residualValue as number) ?? 0,
@@ -341,22 +303,19 @@ async function executeTool(
         createdBy: userId,
       });
 
-    case "create_recurring_template":
+    case 'create_recurring_template':
       return createRecurringTemplate({
         companyId: args.companyId as string,
         name: args.name as string,
         description: args.description as string,
-        frequency: args.frequency as "monthly" | "quarterly" | "yearly",
+        frequency: args.frequency as 'monthly' | 'quarterly' | 'yearly',
         lines: args.lines as any[],
         nextRunDate: args.nextRunDate as string | undefined,
         createdBy: userId,
       });
 
-    case "get_budget_vs_actual":
-      return getBudgetVsActual(
-        args.companyId as string,
-        args.fiscalYear as number,
-      );
+    case 'get_budget_vs_actual':
+      return getBudgetVsActual(args.companyId as string, args.fiscalYear as number);
 
     default:
       return { error: `Unknown tool: ${name}` };
@@ -368,19 +327,17 @@ async function executeTool(
 export interface ChatInput {
   companyId?: string;
   message: string;
-  history: Array<{ role: "user" | "assistant"; content: string }>;
+  history: Array<{ role: 'user' | 'assistant'; content: string }>;
   userId: string;
 }
 
 export async function handleChat(input: ChatInput): Promise<string> {
-  const messages: ChatCompletionMessageParam[] = [
-    { role: "system", content: SYSTEM_PROMPT },
-  ];
+  const messages: ChatCompletionMessageParam[] = [{ role: 'system', content: SYSTEM_PROMPT }];
 
   // Add context about current company if available
   if (input.companyId) {
     messages.push({
-      role: "system",
+      role: 'system',
       content: `Current active company ID: ${input.companyId}. Use this companyId for all operations unless the user specifies otherwise.`,
     });
   }
@@ -392,7 +349,7 @@ export async function handleChat(input: ChatInput): Promise<string> {
   }
 
   // Add current user message
-  messages.push({ role: "user", content: input.message });
+  messages.push({ role: 'user', content: input.message });
 
   // Agent loop — keep calling tools until we get a final text response
   const maxIterations = 10;
@@ -412,15 +369,13 @@ export async function handleChat(input: ChatInput): Promise<string> {
     messages.push(assistantMessage);
 
     // If no tool calls, return the text response
-    if (
-      !assistantMessage.tool_calls ||
-      assistantMessage.tool_calls.length === 0
-    ) {
-      return assistantMessage.content || "Done.";
+    if (!assistantMessage.tool_calls || assistantMessage.tool_calls.length === 0) {
+      return assistantMessage.content || 'Done.';
     }
 
     // Execute tool calls
     for (const toolCall of assistantMessage.tool_calls) {
+      if (toolCall.type !== 'function') continue;
       const args = JSON.parse(toolCall.function.arguments);
       let result: unknown;
 
@@ -431,14 +386,14 @@ export async function handleChat(input: ChatInput): Promise<string> {
       }
 
       messages.push({
-        role: "tool",
+        role: 'tool',
         tool_call_id: toolCall.id,
         content: JSON.stringify(result, null, 2),
       });
     }
   }
 
-  return "I performed multiple operations. Let me know if you need anything else.";
+  return 'I performed multiple operations. Let me know if you need anything else.';
 }
 
 // ─── AI: Parse Item Description ─────────────────────────────
@@ -446,7 +401,7 @@ export async function handleChat(input: ChatInput): Promise<string> {
 export interface ParsedItemFields {
   name: string;
   description: string;
-  type: "product" | "service";
+  type: 'product' | 'service';
   unitOfMeasure: string;
   costPrice: number;
   sellingPrice: number;
@@ -478,46 +433,42 @@ Default to 21% VAT unless the item clearly falls into a reduced category.
 If no price is mentioned, use 0.
 Respond with the JSON object only, no markdown fences.`;
 
-export async function parseItemDescription(
-  description: string,
-): Promise<ParsedItemFields> {
+export async function parseItemDescription(description: string): Promise<ParsedItemFields> {
   const response = await getClient().chat.completions.create({
     model: DEPLOYMENT,
     messages: [
-      { role: "system", content: PARSE_ITEM_PROMPT },
-      { role: "user", content: description },
+      { role: 'system', content: PARSE_ITEM_PROMPT },
+      { role: 'user', content: description },
     ],
     temperature: 0.1,
     max_tokens: 500,
   });
 
-  const content = response.choices[0]?.message?.content || "{}";
+  const content = response.choices[0]?.message?.content || '{}';
   // Strip markdown fences if present
   const cleaned = content
-    .replace(/```json?\n?/g, "")
-    .replace(/```/g, "")
+    .replace(/```json?\n?/g, '')
+    .replace(/```/g, '')
     .trim();
   const parsed = JSON.parse(cleaned);
 
   return {
-    name: String(parsed.name || "").slice(0, 80),
-    description: String(parsed.description || ""),
-    type: parsed.type === "service" ? "service" : "product",
-    unitOfMeasure: String(parsed.unitOfMeasure || "pcs"),
+    name: String(parsed.name || '').slice(0, 80),
+    description: String(parsed.description || ''),
+    type: parsed.type === 'service' ? 'service' : 'product',
+    unitOfMeasure: String(parsed.unitOfMeasure || 'pcs'),
     costPrice: Number(parsed.costPrice) || 0,
     sellingPrice: Number(parsed.sellingPrice) || 0,
-    vatRate: [0, 5, 12, 21].includes(Number(parsed.vatRate))
-      ? Number(parsed.vatRate)
-      : 21,
-    purchaseAccountCode: String(parsed.purchaseAccountCode || "6110"),
-    salesAccountCode: String(parsed.salesAccountCode || "5110"),
+    vatRate: [0, 5, 12, 21].includes(Number(parsed.vatRate)) ? Number(parsed.vatRate) : 21,
+    purchaseAccountCode: String(parsed.purchaseAccountCode || '6110'),
+    salesAccountCode: String(parsed.salesAccountCode || '5110'),
   };
 }
 
 // ─── AI: Parse Invoice Description ──────────────────────────
 
 export interface ParsedInvoiceFields {
-  type: "sales" | "purchase";
+  type: 'sales' | 'purchase';
   contactName: string;
   date: string;
   dueDate: string;
@@ -551,46 +502,38 @@ Latvian chart of accounts context for account codes:
 Default to 21% VAT unless clearly reduced. Default to "sales" if type is ambiguous.
 Respond with the JSON object only, no markdown fences.`;
 
-export async function parseInvoiceDescription(
-  description: string,
-): Promise<ParsedInvoiceFields> {
+export async function parseInvoiceDescription(description: string): Promise<ParsedInvoiceFields> {
   const response = await getClient().chat.completions.create({
     model: DEPLOYMENT,
     messages: [
-      { role: "system", content: PARSE_INVOICE_PROMPT },
-      { role: "user", content: description },
+      { role: 'system', content: PARSE_INVOICE_PROMPT },
+      { role: 'user', content: description },
     ],
     temperature: 0.1,
     max_tokens: 800,
   });
 
-  const content = response.choices[0]?.message?.content || "{}";
+  const content = response.choices[0]?.message?.content || '{}';
   const cleaned = content
-    .replace(/```json?\n?/g, "")
-    .replace(/```/g, "")
+    .replace(/```json?\n?/g, '')
+    .replace(/```/g, '')
     .trim();
   const parsed = JSON.parse(cleaned);
 
   const today = new Date().toISOString().slice(0, 10);
-  const defaultDue = new Date(Date.now() + 30 * 86400000)
-    .toISOString()
-    .slice(0, 10);
+  const defaultDue = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
 
   return {
-    type: parsed.type === "purchase" ? "purchase" : "sales",
-    contactName: String(parsed.contactName || "").slice(0, 120),
+    type: parsed.type === 'purchase' ? 'purchase' : 'sales',
+    contactName: String(parsed.contactName || '').slice(0, 120),
     date: String(parsed.date || today),
     dueDate: String(parsed.dueDate || defaultDue),
     lines: (parsed.lines || []).map((l: any) => ({
-      description: String(l.description || "Item"),
+      description: String(l.description || 'Item'),
       quantity: Number(l.quantity) || 1,
       unitPrice: Number(l.unitPrice) || 0,
-      vatRate: [0, 5, 12, 21].includes(Number(l.vatRate))
-        ? Number(l.vatRate)
-        : 21,
-      accountCode: String(
-        l.accountCode || (parsed.type === "purchase" ? "6350" : "5110"),
-      ),
+      vatRate: [0, 5, 12, 21].includes(Number(l.vatRate)) ? Number(l.vatRate) : 21,
+      accountCode: String(l.accountCode || (parsed.type === 'purchase' ? '6350' : '5110')),
     })),
   };
 }
@@ -598,7 +541,7 @@ export async function parseInvoiceDescription(
 // ─── AI: Parse Contact Description ──────────────────────────
 
 export interface ParsedContactFields {
-  type: "customer" | "vendor" | "both";
+  type: 'customer' | 'vendor' | 'both';
   name: string;
   registrationNumber: string;
   vatNumber: string;
@@ -628,48 +571,44 @@ If a field is not mentioned, use an empty string (or 30 for paymentTermsDays).
 For Latvian companies, country defaults to "Latvia".
 Respond with the JSON object only, no markdown fences.`;
 
-export async function parseContactDescription(
-  description: string,
-): Promise<ParsedContactFields> {
+export async function parseContactDescription(description: string): Promise<ParsedContactFields> {
   const response = await getClient().chat.completions.create({
     model: DEPLOYMENT,
     messages: [
-      { role: "system", content: PARSE_CONTACT_PROMPT },
-      { role: "user", content: description },
+      { role: 'system', content: PARSE_CONTACT_PROMPT },
+      { role: 'user', content: description },
     ],
     temperature: 0.1,
     max_tokens: 600,
   });
 
-  const content = response.choices[0]?.message?.content || "{}";
+  const content = response.choices[0]?.message?.content || '{}';
   const cleaned = content
-    .replace(/```json?\n?/g, "")
-    .replace(/```/g, "")
+    .replace(/```json?\n?/g, '')
+    .replace(/```/g, '')
     .trim();
   const parsed = JSON.parse(cleaned);
 
   return {
-    type: ["customer", "vendor", "both"].includes(parsed.type)
-      ? parsed.type
-      : "customer",
-    name: String(parsed.name || "").slice(0, 120),
-    registrationNumber: String(parsed.registrationNumber || ""),
-    vatNumber: String(parsed.vatNumber || ""),
-    email: String(parsed.email || ""),
-    phone: String(parsed.phone || ""),
+    type: ['customer', 'vendor', 'both'].includes(parsed.type) ? parsed.type : 'customer',
+    name: String(parsed.name || '').slice(0, 120),
+    registrationNumber: String(parsed.registrationNumber || ''),
+    vatNumber: String(parsed.vatNumber || ''),
+    email: String(parsed.email || ''),
+    phone: String(parsed.phone || ''),
     address: {
-      line1: String(parsed.address?.line1 || ""),
-      city: String(parsed.address?.city || ""),
-      postalCode: String(parsed.address?.postalCode || ""),
-      country: String(parsed.address?.country || "Latvia"),
+      line1: String(parsed.address?.line1 || ''),
+      city: String(parsed.address?.city || ''),
+      postalCode: String(parsed.address?.postalCode || ''),
+      country: String(parsed.address?.country || 'Latvia'),
     },
     bankAccount: {
-      iban: String(parsed.bankAccount?.iban || ""),
-      swift: String(parsed.bankAccount?.swift || ""),
-      bankName: String(parsed.bankAccount?.bankName || ""),
+      iban: String(parsed.bankAccount?.iban || ''),
+      swift: String(parsed.bankAccount?.swift || ''),
+      bankName: String(parsed.bankAccount?.bankName || ''),
     },
     paymentTermsDays: Number(parsed.paymentTermsDays) || 30,
-    notes: String(parsed.notes || ""),
+    notes: String(parsed.notes || ''),
   };
 }
 
@@ -704,37 +643,31 @@ Latvian fixed asset categories:
 If no price is mentioned, use 0.
 Respond with the JSON object only, no markdown fences.`;
 
-export async function parseAssetDescription(
-  description: string,
-): Promise<ParsedAssetFields> {
+export async function parseAssetDescription(description: string): Promise<ParsedAssetFields> {
   const response = await getClient().chat.completions.create({
     model: DEPLOYMENT,
     messages: [
-      { role: "system", content: PARSE_ASSET_PROMPT },
-      { role: "user", content: description },
+      { role: 'system', content: PARSE_ASSET_PROMPT },
+      { role: 'user', content: description },
     ],
     temperature: 0.1,
     max_tokens: 500,
   });
 
-  const content = response.choices[0]?.message?.content || "{}";
+  const content = response.choices[0]?.message?.content || '{}';
   const cleaned = content
-    .replace(/```json?\n?/g, "")
-    .replace(/```/g, "")
+    .replace(/```json?\n?/g, '')
+    .replace(/```/g, '')
     .trim();
   const parsed = JSON.parse(cleaned);
 
   return {
-    code: String(parsed.code || "FA-001").slice(0, 20),
-    name: String(parsed.name || "").slice(0, 80),
-    assetAccountCode: ["1210", "1220", "1230"].includes(
-      String(parsed.assetAccountCode),
-    )
+    code: String(parsed.code || 'FA-001').slice(0, 20),
+    name: String(parsed.name || '').slice(0, 80),
+    assetAccountCode: ['1210', '1220', '1230'].includes(String(parsed.assetAccountCode))
       ? String(parsed.assetAccountCode)
-      : "1220",
-    acquisitionDate: String(
-      parsed.acquisitionDate || new Date().toISOString().slice(0, 10),
-    ),
+      : '1220',
+    acquisitionDate: String(parsed.acquisitionDate || new Date().toISOString().slice(0, 10)),
     acquisitionCost: Number(parsed.acquisitionCost) || 0,
     residualValue: Number(parsed.residualValue) || 0,
     usefulLifeMonths: Number(parsed.usefulLifeMonths) || 60,
