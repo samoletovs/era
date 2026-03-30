@@ -1,8 +1,8 @@
-import { config } from "dotenv";
+import { config } from 'dotenv';
 config(); // Load .env file
 
 // Fail fast on missing required configuration
-const REQUIRED_ENV = ["COSMOS_ENDPOINT"];
+const REQUIRED_ENV = ['COSMOS_ENDPOINT'];
 for (const key of REQUIRED_ENV) {
   if (!process.env[key]) {
     console.error(`FATAL: Missing required environment variable: ${key}`);
@@ -10,43 +10,40 @@ for (const key of REQUIRED_ENV) {
   }
 }
 
-import express from "express";
-import cors from "cors";
-import helmet from "helmet";
-import rateLimit from "express-rate-limit";
-import path from "path";
-import { fileURLToPath } from "url";
-import { router } from "./api/router.js";
-import { getCosmosClient } from "./services/cosmos.js";
-import { idempotency } from "./middleware/idempotency.js";
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { router } from './api/router.js';
+import { getCosmosClient } from './services/cosmos.js';
+import { idempotency } from './middleware/idempotency.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const port = process.env.PORT || 3000;
 
 // Serve frontend static files BEFORE any middleware — same-origin assets must not go through CORS
-import fs from "fs";
+import fs from 'fs';
 
-if (process.env.NODE_ENV === "production") {
-  const frontendPath = path.join(__dirname, "../frontend");
-  const indexPath = path.join(frontendPath, "index.html");
+if (process.env.NODE_ENV === 'production') {
+  const frontendPath = path.join(__dirname, '../frontend');
+  const indexPath = path.join(frontendPath, 'index.html');
 
   // Cache index.html with injected runtime config (Google Client ID)
   let indexHtml: string | null = null;
   function getIndexHtml(): string {
     if (!indexHtml) {
-      const raw = fs.readFileSync(indexPath, "utf-8");
-      indexHtml = raw.replace(
-        "%%GOOGLE_CLIENT_ID%%",
-        process.env.GOOGLE_CLIENT_ID || "",
-      );
+      const raw = fs.readFileSync(indexPath, 'utf-8');
+      indexHtml = raw.replace('%%GOOGLE_CLIENT_ID%%', process.env.GOOGLE_CLIENT_ID || '');
     }
     return indexHtml;
   }
 
   // Serve index.html with injected config for root and SPA routes
-  app.get("/", (_req, res) => {
-    res.type("html").send(getIndexHtml());
+  app.get('/', (_req, res) => {
+    res.type('html').send(getIndexHtml());
   });
 
   // Static assets (JS, CSS, images) — excludes index.html since GET / is handled above
@@ -54,14 +51,12 @@ if (process.env.NODE_ENV === "production") {
 }
 
 // Security headers — crossOriginOpenerPolicy: false allows Google OAuth popup to communicate back
-app.use(
-  helmet({ contentSecurityPolicy: false, crossOriginOpenerPolicy: false }),
-);
+app.use(helmet({ contentSecurityPolicy: false, crossOriginOpenerPolicy: false }));
 
 // CORS — whitelist known origins
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(",")
-  : ["http://localhost:5173", "http://localhost:3000"];
+  ? process.env.ALLOWED_ORIGINS.split(',')
+  : ['http://localhost:5173', 'http://localhost:3000'];
 
 app.use(
   cors({
@@ -84,8 +79,8 @@ app.use(
     legacyHeaders: false,
     message: {
       error: {
-        code: "RATE_LIMITED",
-        message: "Too many requests, please try again later",
+        code: 'RATE_LIMITED',
+        message: 'Too many requests, please try again later',
       },
     },
   }),
@@ -97,34 +92,33 @@ const financialWriteLimiter = rateLimit({
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => req.method === "GET",
+  skip: (req) => req.method === 'GET',
   message: {
     error: {
-      code: "RATE_LIMITED",
-      message: "Too many write operations, please retry shortly",
+      code: 'RATE_LIMITED',
+      message: 'Too many write operations, please retry shortly',
     },
   },
 });
-app.use("/api/companies/:companyId/journal-entries", financialWriteLimiter);
-app.use("/api/companies/:companyId/invoices", financialWriteLimiter);
-app.use("/api/companies/:companyId/payments", financialWriteLimiter);
+app.use('/api/companies/:companyId/journal-entries', financialWriteLimiter);
+app.use('/api/companies/:companyId/invoices', financialWriteLimiter);
+app.use('/api/companies/:companyId/payments', financialWriteLimiter);
 
-app.use(express.json({ limit: "10mb" }));
+app.use(express.json({ limit: '10mb' }));
 
 // Idempotency — ensures agent retries don't create duplicate operations
 app.use(idempotency);
 
 // Request ID + structured logging
 app.use((req, _res, next) => {
-  const requestId =
-    (req.headers["x-request-id"] as string) || crypto.randomUUID();
+  const requestId = (req.headers['x-request-id'] as string) || crypto.randomUUID();
   (req as any).requestId = requestId;
-  _res.setHeader("x-request-id", requestId);
+  _res.setHeader('x-request-id', requestId);
 
   const start = Date.now();
-  _res.on("finish", () => {
+  _res.on('finish', () => {
     const duration = Date.now() - start;
-    if (req.path !== "/health") {
+    if (req.path !== '/health') {
       const log = {
         method: req.method,
         path: req.path,
@@ -140,44 +134,43 @@ app.use((req, _res, next) => {
 });
 
 // Health check (no auth) — includes dependency checks
-app.get("/health", async (_req, res) => {
-  const checks: Record<string, string> = { api: "healthy" };
+app.get('/health', async (_req, res) => {
+  const checks: Record<string, string> = { api: 'healthy' };
   try {
     const client = getCosmosClient();
     await client.getDatabaseAccount();
-    checks.database = "healthy";
+    checks.database = 'healthy';
   } catch {
-    checks.database = "unhealthy";
+    checks.database = 'unhealthy';
   }
-  const overall = Object.values(checks).every((s) => s === "healthy")
-    ? "healthy"
-    : "degraded";
-  res.status(overall === "healthy" ? 200 : 503).json({
+  const overall = Object.values(checks).every((s) => s === 'healthy') ? 'healthy' : 'degraded';
+  res.status(overall === 'healthy' ? 200 : 503).json({
     status: overall,
-    version: "0.1.0",
+    version: '0.1.0',
     timestamp: new Date().toISOString(),
     checks,
   });
 });
 
 // API routes
-app.use("/api", router);
+app.use('/api', router);
 
 // SPA catch-all — serve index.html for client-side routes
-if (process.env.NODE_ENV === "production") {
-  app.get("*", (_req, res) => {
-    const frontendPath = path.join(__dirname, "../frontend");
-    const indexPath = path.join(frontendPath, "index.html");
-    const raw = fs.readFileSync(indexPath, "utf-8");
-    const html = raw.replace(
-      "%%GOOGLE_CLIENT_ID%%",
-      process.env.GOOGLE_CLIENT_ID || "",
-    );
-    res.type("html").send(html);
+if (process.env.NODE_ENV === 'production') {
+  app.get('/{*splat}', (_req, res) => {
+    const frontendPath = path.join(__dirname, '../frontend');
+    const indexPath = path.join(frontendPath, 'index.html');
+    const raw = fs.readFileSync(indexPath, 'utf-8');
+    const html = raw.replace('%%GOOGLE_CLIENT_ID%%', process.env.GOOGLE_CLIENT_ID || '');
+    res.type('html').send(html);
   });
 }
 
-const server = app.listen(port, () => {
+const server = app.listen(port, (error?: Error) => {
+  if (error) {
+    console.error(`Failed to start server: ${error.message}`);
+    process.exit(1);
+  }
   console.warn(`ERA API running on port ${port}`);
 });
 
@@ -185,13 +178,13 @@ const server = app.listen(port, () => {
 function shutdown(signal: string) {
   console.warn(`Received ${signal}, shutting down gracefully...`);
   server.close(() => {
-    console.warn("HTTP server closed");
+    console.warn('HTTP server closed');
     process.exit(0);
   });
   // Force exit after 10s if connections don't close
   setTimeout(() => process.exit(1), 10_000);
 }
-process.on("SIGTERM", () => shutdown("SIGTERM"));
-process.on("SIGINT", () => shutdown("SIGINT"));
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
 
 export default app;
