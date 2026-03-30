@@ -1,24 +1,37 @@
 // Zod schemas for API request body validation
 // Used with the validate() middleware at route entry points
 
-import { z } from "zod";
-import { AccountCode, ISODate, MoneyAmount, FiscalPeriodFormat, CurrencyCode } from "@shared/types/data-types";
+import { z } from 'zod';
+import {
+  AccountCode,
+  ISODate,
+  MoneyAmount,
+  FiscalPeriodFormat,
+  CurrencyCode,
+} from '@shared/types/data-types';
 
 // ─── Company ────────────────────────────────────────────────
 
-export const CreateCompanySchema = z.object({
-  name: z.string().min(1).max(200),
-  code: z.string().regex(/^[A-Z0-9]{1,5}$/).optional(),
-  registrationNumber: z.string().max(20).optional(),
-  vatNumber: z.string().max(20).optional(),
-  legalAddress: z.object({
-    street: z.string().max(200).optional(),
-    city: z.string().max(100).optional(),
-    postalCode: z.string().max(20).optional(),
+export const CreateCompanySchema = z
+  .object({
+    name: z.string().min(1).max(200),
+    code: z
+      .string()
+      .regex(/^[A-Z0-9]{1,5}$/)
+      .optional(),
+    registrationNumber: z.string().max(20).optional(),
+    vatNumber: z.string().max(20).optional(),
+    legalAddress: z
+      .object({
+        street: z.string().max(200).optional(),
+        city: z.string().max(100).optional(),
+        postalCode: z.string().max(20).optional(),
+        country: z.string().max(2).optional(),
+      })
+      .optional(),
     country: z.string().max(2).optional(),
-  }).optional(),
-  country: z.string().max(2).optional(),
-}).strict();
+  })
+  .strict();
 
 export const UpdateCompanySchema = CreateCompanySchema.partial();
 
@@ -56,7 +69,7 @@ const InvoiceLineSchema = z.object({
 });
 
 export const CreateInvoiceSchema = z.object({
-  type: z.enum(["sales", "purchase"]),
+  type: z.enum(['sales', 'purchase']),
   contactId: z.string().min(1),
   contactName: z.string().min(1).max(200),
   date: ISODate,
@@ -71,28 +84,35 @@ export const CreateInvoiceSchema = z.object({
 // ─── Payment ────────────────────────────────────────────────
 
 export const CreatePaymentSchema = z.object({
-  type: z.enum(["incoming", "outgoing"]),
+  type: z.enum(['incoming', 'outgoing']),
   contactId: z.string().min(1),
   contactName: z.string().min(1).max(200),
   date: ISODate,
   amount: z.number().positive(),
   bankAccountIban: z.string().max(34).optional(),
   reference: z.string().max(100).optional(),
-  invoiceAllocations: z.array(z.object({
-    invoiceId: z.string().min(1),
-    invoiceNumber: z.string().min(1),
-    amount: z.number().positive(),
-  })).optional().default([]),
+  invoiceAllocations: z
+    .array(
+      z.object({
+        invoiceId: z.string().min(1),
+        invoiceNumber: z.string().min(1),
+        amount: z.number().positive(),
+      }),
+    )
+    .optional()
+    .default([]),
+  currencyCode: CurrencyCode.optional(),
+  exchangeRate: z.number().positive().optional(),
 });
 
 // ─── Contact ────────────────────────────────────────────────
 
 export const CreateContactSchema = z.object({
   name: z.string().min(1).max(200),
-  type: z.enum(["customer", "vendor", "both"]).optional(),
+  type: z.enum(['customer', 'vendor', 'both']).optional(),
   registrationNumber: z.string().max(20).optional(),
   vatNumber: z.string().max(20).optional(),
-  email: z.string().email().optional().or(z.literal("")),
+  email: z.string().email().optional().or(z.literal('')),
   phone: z.string().max(20).optional(),
   address: z.string().max(500).optional(),
   bankAccount: z.string().max(34).optional(),
@@ -132,5 +152,5 @@ export const AcquireAssetSchema = z.object({
   acquisitionCost: z.number().positive(),
   usefulLifeMonths: z.number().int().positive(),
   residualValue: MoneyAmount.optional(),
-  depreciationMethod: z.enum(["straight-line"]).optional(),
+  depreciationMethod: z.enum(['straight-line']).optional(),
 });

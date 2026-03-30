@@ -47,14 +47,14 @@ export interface CompanySettings {
 
 // Configurable number sequences for all document/record types
 export type SequenceType =
-  | "salesInvoice"
-  | "purchaseInvoice"
-  | "creditNote"
-  | "payment"
-  | "journalEntry"
-  | "fixedAsset"
-  | "item"
-  | "contact";
+  | 'salesInvoice'
+  | 'purchaseInvoice'
+  | 'creditNote'
+  | 'payment'
+  | 'journalEntry'
+  | 'fixedAsset'
+  | 'item'
+  | 'contact';
 
 export interface NumberSequence {
   prefix: string; // e.g. "INV", "PAY", "FA"
@@ -66,34 +66,34 @@ export interface NumberSequence {
 
 // Default sequences applied when a company is created
 export const DEFAULT_SEQUENCES: Record<SequenceType, NumberSequence> = {
-  salesInvoice: { prefix: "INV", nextNumber: 1, separator: "-" },
-  purchaseInvoice: { prefix: "PINV", nextNumber: 1, separator: "-" },
-  creditNote: { prefix: "CN", nextNumber: 1, separator: "-" },
-  payment: { prefix: "PAY", nextNumber: 1, separator: "-" },
-  journalEntry: { prefix: "JE", nextNumber: 1, separator: "-" },
-  fixedAsset: { prefix: "FA", nextNumber: 1, separator: "-" },
-  item: { prefix: "ITEM", nextNumber: 1, separator: "-" },
-  contact: { prefix: "C", nextNumber: 1, separator: "-" },
+  salesInvoice: { prefix: 'INV', nextNumber: 1, separator: '-' },
+  purchaseInvoice: { prefix: 'PINV', nextNumber: 1, separator: '-' },
+  creditNote: { prefix: 'CN', nextNumber: 1, separator: '-' },
+  payment: { prefix: 'PAY', nextNumber: 1, separator: '-' },
+  journalEntry: { prefix: 'JE', nextNumber: 1, separator: '-' },
+  fixedAsset: { prefix: 'FA', nextNumber: 1, separator: '-' },
+  item: { prefix: 'ITEM', nextNumber: 1, separator: '-' },
+  contact: { prefix: 'C', nextNumber: 1, separator: '-' },
 };
 
 export const SEQUENCE_LABELS: Record<SequenceType, string> = {
-  salesInvoice: "Sales invoices",
-  purchaseInvoice: "Purchase invoices",
-  creditNote: "Credit notes",
-  payment: "Payments",
-  journalEntry: "Journal entries",
-  fixedAsset: "Fixed assets",
-  item: "Items",
-  contact: "Contacts",
+  salesInvoice: 'Sales invoices',
+  purchaseInvoice: 'Purchase invoices',
+  creditNote: 'Credit notes',
+  payment: 'Payments',
+  journalEntry: 'Journal entries',
+  fixedAsset: 'Fixed assets',
+  item: 'Items',
+  contact: 'Contacts',
 };
 
 export type NumberFormat =
-  | "space_comma"
-  | "dot_comma"
-  | "comma_dot"
-  | "space_dot"
-  | "none_dot"
-  | "none_comma";
+  | 'space_comma'
+  | 'dot_comma'
+  | 'comma_dot'
+  | 'space_dot'
+  | 'none_dot'
+  | 'none_comma';
 // "space_comma"  → 1 234 567,89  (Latvian/French)
 // "dot_comma"    → 1.234.567,89  (German/Italian)
 // "comma_dot"    → 1,234,567.89  (English/US)
@@ -102,12 +102,12 @@ export type NumberFormat =
 // "none_comma"   → 1234567,89
 
 export type DateFormat =
-  | "dd.MM.yyyy"
-  | "dd/MM/yyyy"
-  | "MM/dd/yyyy"
-  | "yyyy-MM-dd"
-  | "dd-MM-yyyy"
-  | "dd MMM yyyy";
+  | 'dd.MM.yyyy'
+  | 'dd/MM/yyyy'
+  | 'MM/dd/yyyy'
+  | 'yyyy-MM-dd'
+  | 'dd-MM-yyyy'
+  | 'dd MMM yyyy';
 // "dd.MM.yyyy"   → 22.03.2026  (Latvia, Germany)
 // "dd/MM/yyyy"   → 22/03/2026  (UK, France)
 // "MM/dd/yyyy"   → 03/22/2026  (US)
@@ -115,7 +115,7 @@ export type DateFormat =
 // "dd-MM-yyyy"   → 22-03-2026
 // "dd MMM yyyy"  → 22 Mar 2026
 
-export type DateTimeFormat = "24h" | "12h";
+export type DateTimeFormat = '24h' | '12h';
 // "24h" → 14:30   (European)
 // "12h" → 2:30 PM (US/UK)
 
@@ -141,16 +141,16 @@ export interface BankAccount {
 // Monthly average = calculated from stored daily rates (auto-derived)
 // No user selection needed — the system determines which rate to use per IAS 21.
 
-export type ExchangeRateType = "daily" | "budget";
+export type ExchangeRateType = 'daily' | 'budget';
 
 // System rate sources (shared globally across all users and companies):
 //   "ecb" — European Central Bank, auto-imported ~16:00 CET daily
 //           Latvian Accounting Law §5 mandates ECB reference rates for all accounting.
 // Custom sources are user-defined, identified by UUID, stored in company settings.
-export type SystemRateSource = "ecb";
+export type SystemRateSource = 'ecb';
 
 export const SYSTEM_RATE_SOURCES: { id: SystemRateSource; name: string }[] = [
-  { id: "ecb", name: "European Central Bank (ECB)" },
+  { id: 'ecb', name: 'European Central Bank (ECB)' },
 ];
 
 export interface CustomRateSource {
@@ -171,7 +171,7 @@ export interface CurrencySettings {
 
 export interface ExchangeRate {
   id: string;
-  docType?: "exchange-rate"; // Cosmos discriminator
+  docType?: 'exchange-rate'; // Cosmos discriminator
   fromCurrency: string; // ISO 4217
   toCurrency: string; // ISO 4217
   rateType: ExchangeRateType; // "daily" for imported/manual, "budget" for forecasts
@@ -185,7 +185,7 @@ export interface ExchangeRate {
 // ─── Chart of Accounts ──────────────────────────────────────
 
 export interface Account extends BaseEntity {
-  docType: "account";
+  docType: 'account';
   code: string; // e.g. "1210" per LV CoA
   name: string;
   nameLv: string; // Latvian name for official reports
@@ -194,18 +194,13 @@ export interface Account extends BaseEntity {
   level: number; // 1=class, 2=group, 3=account, 4=sub-account
   isPostable: boolean; // only level 3-4 accounts accept journal entries
   balance: number;
-  normalSide: "debit" | "credit";
+  normalSide: 'debit' | 'credit';
   // Foreign currency revaluation (D365 F&O: per-account flag)
   currencyCode?: string; // foreign currency if denominated (e.g., USD bank account)
   isForeignCurrencyRevaluation?: boolean; // include in month-end FX revaluation
 }
 
-export type AccountType =
-  | "asset"
-  | "liability"
-  | "equity"
-  | "revenue"
-  | "expense";
+export type AccountType = 'asset' | 'liability' | 'equity' | 'revenue' | 'expense';
 
 // ─── General Ledger ─────────────────────────────────────────
 
@@ -218,22 +213,22 @@ export type AccountType =
 //   fixed-asset — asset posting: fixedAssetId required, accountCode = asset GL account
 //   item        — inventory posting: itemId required, accountCode = inventory GL account
 export type JournalLineAccountType =
-  | "ledger"
-  | "customer"
-  | "vendor"
-  | "bank"
-  | "fixed-asset"
-  | "item";
+  | 'ledger'
+  | 'customer'
+  | 'vendor'
+  | 'bank'
+  | 'fixed-asset'
+  | 'item';
 
 export interface JournalEntry extends BaseEntity {
-  docType: "journal-entry";
+  docType: 'journal-entry';
   entryNumber: string;
   date: string; // ISO date
   description: string;
   lines: JournalLine[];
-  status: "draft" | "posted" | "reversed";
+  status: 'draft' | 'posted' | 'reversed';
   period: string; // "2026-03"
-  sourceType?: "manual" | "invoice" | "payment" | "adjustment" | "closing";
+  sourceType?: 'manual' | 'invoice' | 'payment' | 'adjustment' | 'closing';
   sourceId?: string; // reference to originating document
   totalDebit: number;
   totalCredit: number;
@@ -291,7 +286,7 @@ export interface VidSuspendedStatus {
 
 export interface Contact extends BaseEntity {
   contactNumber?: string;
-  type: "customer" | "vendor" | "both";
+  type: 'customer' | 'vendor' | 'both';
   name: string;
   shortName?: string; // Display name / "known as" — auto-generated from official name
   registrationNumber?: string;
@@ -310,10 +305,10 @@ export interface Contact extends BaseEntity {
 // ─── Invoices ───────────────────────────────────────────────
 
 export interface Invoice extends BaseEntity {
-  docType: "invoice";
+  docType: 'invoice';
   invoiceNumber: string; // ERA internal number (INV-00001, PINV-00002)
   vendorInvoiceNumber?: string; // Original invoice number from vendor/supplier
-  type: "sales" | "purchase";
+  type: 'sales' | 'purchase';
   contactId: string;
   contactName: string;
   date: string;
@@ -323,14 +318,9 @@ export interface Invoice extends BaseEntity {
   vatAmount: number;
   total: number;
   amountPaid: number;
-  status:
-    | "draft"
-    | "posted"
-    | "partially_paid"
-    | "paid"
-    | "overdue"
-    | "cancelled";
-  currency: "EUR";
+  status: 'draft' | 'posted' | 'partially_paid' | 'paid' | 'overdue' | 'cancelled';
+  currency: string; // ISO 4217 (default "EUR")
+  exchangeRate?: number; // override rate (transaction → EUR); omit = system rate
   // Latvian source document requirements (Section 7)
   documentNumber: string; // registration number
   documentDate: string;
@@ -339,7 +329,7 @@ export interface Invoice extends BaseEntity {
   reversalJournalEntryId?: string;
   paymentJournalEntryIds: string[];
   // Recognition metadata
-  recognitionConfidence?: "high" | "medium" | "low";
+  recognitionConfidence?: 'high' | 'medium' | 'low';
   sourceFile?: string; // original filename
 }
 
@@ -357,19 +347,20 @@ export interface InvoiceLine {
 // ─── Payments ───────────────────────────────────────────────
 
 export interface Payment extends BaseEntity {
-  docType: "payment";
+  docType: 'payment';
   paymentNumber?: string;
-  type: "incoming" | "outgoing";
+  type: 'incoming' | 'outgoing';
   contactId: string;
   contactName: string;
   date: string;
   amount: number;
-  currency: "EUR";
+  currency: string; // ISO 4217 (default "EUR")
+  exchangeRate?: number; // override rate (transaction → EUR); omit = system rate
   bankAccountIban: string;
   reference: string;
   invoiceAllocations: PaymentAllocation[];
   journalEntryId?: string;
-  status: "draft" | "posted";
+  status: 'draft' | 'posted';
 }
 
 export interface PaymentAllocation {
@@ -381,11 +372,11 @@ export interface PaymentAllocation {
 // ─── Inventory ──────────────────────────────────────────────
 
 export interface Item extends BaseEntity {
-  docType: "item";
+  docType: 'item';
   code: string;
   name: string;
   description?: string;
-  type: "product" | "service";
+  type: 'product' | 'service';
   unitOfMeasure: string;
   costPrice: number;
   sellingPrice: number;
@@ -396,14 +387,14 @@ export interface Item extends BaseEntity {
 }
 
 export interface StockMovement extends BaseEntity {
-  docType: "stock-movement";
+  docType: 'stock-movement';
   itemId: string;
   itemCode: string;
-  type: "purchase_receipt" | "sales_delivery" | "adjustment";
+  type: 'purchase_receipt' | 'sales_delivery' | 'adjustment';
   quantity: number; // positive = in, negative = out
   unitCost: number;
   totalCost: number;
-  sourceType: "invoice" | "manual";
+  sourceType: 'invoice' | 'manual';
   sourceId?: string;
   date: string;
   balanceAfter: number;
@@ -412,14 +403,14 @@ export interface StockMovement extends BaseEntity {
 // ─── VAT ────────────────────────────────────────────────────
 
 export interface VatReturn extends BaseEntity {
-  docType: "vat-return";
+  docType: 'vat-return';
   period: string; // "2026-03"
   startDate: string;
   endDate: string;
   outputVat: number; // VAT on sales
   inputVat: number; // VAT on purchases
   vatPayable: number; // output - input
-  status: "draft" | "submitted" | "accepted";
+  status: 'draft' | 'submitted' | 'accepted';
   lines: VatReturnLine[];
 }
 
@@ -427,16 +418,16 @@ export interface VatReturnLine {
   vatRate: number;
   taxableAmount: number;
   vatAmount: number;
-  type: "output" | "input";
+  type: 'output' | 'input';
 }
 
 // ─── Agent ──────────────────────────────────────────────────
 
 export interface AgentAction extends BaseEntity {
-  agentType: "orchestrator" | "finance" | "purchase" | "sales";
+  agentType: 'orchestrator' | 'finance' | 'purchase' | 'sales';
   action: string;
   description: string;
-  status: "pending" | "approved" | "rejected" | "executed" | "failed";
+  status: 'pending' | 'approved' | 'rejected' | 'executed' | 'failed';
   payload: Record<string, unknown>;
   result?: Record<string, unknown>;
   isApprovalRequired: boolean;
@@ -448,7 +439,7 @@ export interface AgentAction extends BaseEntity {
 export interface ChatMessage {
   id: string;
   companyId: string;
-  role: "user" | "assistant" | "system";
+  role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: string;
   agentType?: string;
@@ -473,14 +464,14 @@ export interface BusinessEvent {
 
 export type PostingRuleCondition = {
   field: string; // e.g. "invoice.type", "line.vatRate"
-  operator: "eq" | "neq" | "gt" | "lt" | "in" | "exists";
+  operator: 'eq' | 'neq' | 'gt' | 'lt' | 'in' | 'exists';
   value: unknown;
 };
 
 export interface PostingRuleLine {
   accountCode: string;
   accountName: string;
-  side: "debit" | "credit";
+  side: 'debit' | 'credit';
   amountExpr: string; // e.g. "invoice.total", "line.netAmount", "line.vatAmount"
   description?: string;
   taxCode?: string;
@@ -490,12 +481,12 @@ export interface PostingRule {
   id: string;
   country: string; // ISO 3166-1 alpha-2
   documentType:
-    | "sales-invoice"
-    | "purchase-invoice"
-    | "incoming-payment"
-    | "outgoing-payment"
-    | "manual-entry"
-    | "fx-revaluation";
+    | 'sales-invoice'
+    | 'purchase-invoice'
+    | 'incoming-payment'
+    | 'outgoing-payment'
+    | 'manual-entry'
+    | 'fx-revaluation';
   name: string;
   description: string;
   version: number;
@@ -516,7 +507,7 @@ export interface Feedback {
   id: string;
   page: string;
   message: string;
-  status: "open" | "in-progress" | "done" | "dismissed";
+  status: 'open' | 'in-progress' | 'done' | 'dismissed';
   submittedBy: string;
   submittedAt: string;
   resolvedAt?: string;
@@ -530,7 +521,7 @@ export interface UserProfile {
   email: string;
   displayName: string;
   photoUrl?: string;
-  provider: "google" | "microsoft";
+  provider: 'google' | 'microsoft';
   companies: UserCompanyRole[];
   createdAt: string;
   lastLoginAt: string;
@@ -539,7 +530,7 @@ export interface UserProfile {
 export interface UserCompanyRole {
   companyId: string;
   companyName: string;
-  role: "owner" | "accountant" | "viewer";
+  role: 'owner' | 'accountant' | 'viewer';
   sharedBy?: string; // userId of the user who shared this company (absent for owners)
   sharedAt?: string; // ISO timestamp when access was granted
 }
@@ -550,7 +541,7 @@ export interface CompanySharingEntry {
   userId: string;
   email: string;
   displayName: string;
-  role: "accountant" | "viewer";
+  role: 'accountant' | 'viewer';
   sharedBy: string;
   sharedAt: string;
 }
@@ -560,9 +551,9 @@ export interface CompanySharingEntry {
 export interface FiscalPeriod {
   id: string;
   companyId: string;
-  docType: "fiscal-period";
+  docType: 'fiscal-period';
   period: string; // "2026-03"
-  status: "open" | "closed";
+  status: 'open' | 'closed';
   closedBy?: string;
   closedAt?: string;
   createdAt: string;
@@ -573,7 +564,7 @@ export interface FiscalPeriod {
 
 export interface PeriodCloseStep {
   name: string;
-  status: "completed" | "skipped" | "failed";
+  status: 'completed' | 'skipped' | 'failed';
   detail: string;
   error?: string;
   journalEntryIds?: string[];
@@ -582,14 +573,14 @@ export interface PeriodCloseStep {
 export interface PeriodCloseRun {
   id: string;
   companyId: string;
-  docType: "period-close-run";
-  type: "month-end" | "year-end" | "vat-return";
+  docType: 'period-close-run';
+  type: 'month-end' | 'year-end' | 'vat-return';
   period?: string; // "2026-03" for month-end
   fiscalYear?: number; // 2025 for year-end
   steps: PeriodCloseStep[];
   closingEntryId?: string; // year-end closing journal entry
   netResult?: number; // year-end P&L transfer amount
-  status: "completed" | "partial" | "failed";
+  status: 'completed' | 'partial' | 'failed';
   startedBy: string;
   startedAt: string;
   completedAt: string;
@@ -634,29 +625,21 @@ export interface ApiError {
 // 4. What to do next (suggestedActions)
 
 export interface OperationResult {
-  operation:
-    | "create"
-    | "update"
-    | "delete"
-    | "post"
-    | "reverse"
-    | "close"
-    | "match"
-    | "execute";
+  operation: 'create' | 'update' | 'delete' | 'post' | 'reverse' | 'close' | 'match' | 'execute';
   entityType:
-    | "company"
-    | "invoice"
-    | "payment"
-    | "contact"
-    | "item"
-    | "journal-entry"
-    | "fixed-asset"
-    | "bank-reconciliation"
-    | "recurring-template"
-    | "period"
-    | "vat-return";
+    | 'company'
+    | 'invoice'
+    | 'payment'
+    | 'contact'
+    | 'item'
+    | 'journal-entry'
+    | 'fixed-asset'
+    | 'bank-reconciliation'
+    | 'recurring-template'
+    | 'period'
+    | 'vat-return';
   entityId: string;
-  status: "success" | "partial" | "failed";
+  status: 'success' | 'partial' | 'failed';
   message: string;
   /** IDs of related entities affected by this operation */
   relatedEntities?: { type: string; id: string; description?: string }[];
@@ -669,22 +652,11 @@ export interface OperationResult {
 
 export interface AgentTask {
   id: string;
-  type:
-    | "invoice"
-    | "payment"
-    | "journal-entry"
-    | "period-close"
-    | "report"
-    | "reconciliation";
+  type: 'invoice' | 'payment' | 'journal-entry' | 'period-close' | 'report' | 'reconciliation';
   intent: string; // Natural language description of what to do
   parameters: Record<string, unknown>; // Structured parameters for the operation
-  priority: "low" | "normal" | "high" | "critical";
-  status:
-    | "pending"
-    | "in-progress"
-    | "completed"
-    | "failed"
-    | "requires-approval";
+  priority: 'low' | 'normal' | 'high' | 'critical';
+  status: 'pending' | 'in-progress' | 'completed' | 'failed' | 'requires-approval';
   createdAt: string;
   completedAt?: string;
   result?: OperationResult;
