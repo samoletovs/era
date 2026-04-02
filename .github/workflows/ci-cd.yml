@@ -79,3 +79,13 @@ jobs:
             -H "Content-Type: application/json" \
             -d "{\"message\": \"❌ ERA deploy FAILED\\n\\nBranch: ${{ github.ref_name }}\\nCommit: ${COMMIT_MSG}\\nCheck: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
             || echo "::warning::Telegram notification failed"
+
+      - name: Sync landing page order
+        if: success()
+        run: |
+          curl -sf -X POST \
+            -H "Authorization: token ${{ secrets.GH_PAT }}" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/samoletovs/naurolabs/dispatches \
+            -d '{"event_type": "project-deployed", "client_payload": {"project": "era"}}' \
+            || echo "::warning::Landing page sync dispatch failed"
