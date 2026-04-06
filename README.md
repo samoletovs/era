@@ -1,4 +1,4 @@
-# ERA - Enterprise Resource Application
+# era - Enterprise Resource Application
 
 Cloud-based ERP system built with modern web technologies and deployed on Microsoft Azure.
 

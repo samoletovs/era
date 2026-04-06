@@ -82,7 +82,7 @@ export function Chat() {
           id: '1',
           role: 'system',
           content:
-            'ERA agent is ready. Ask me to create a company, invoices, record payments, or check your finances.',
+            'era agent is ready. Ask me to create a company, invoices, record payments, or check your finances.',
         },
       ]);
       setHistoryLoaded(true);
@@ -95,7 +95,7 @@ export function Chat() {
           id: '1',
           role: 'system',
           content:
-            'ERA agent is ready. Ask me to create a company, invoices, record payments, or check your finances.',
+            'era agent is ready. Ask me to create a company, invoices, record payments, or check your finances.',
         };
         if (history && history.length > 0) {
           const loaded: Message[] = [
@@ -118,7 +118,7 @@ export function Chat() {
             id: '1',
             role: 'system',
             content:
-              'ERA agent is ready. Ask me to create a company, invoices, record payments, or check your finances.',
+              'era agent is ready. Ask me to create a company, invoices, record payments, or check your finances.',
           },
         ]);
         setHistoryLoaded(true);
@@ -208,7 +208,7 @@ export function Chat() {
         </div>
       )}
       <div className="chat-container">
-        <div className="chat-header">ERA orchestrator agent</div>
+        <div className="chat-header">era orchestrator agent</div>
         <div className="chat-messages">
           {messages.map((msg) => (
             <div key={msg.id} className={`chat-message ${msg.role}`}>

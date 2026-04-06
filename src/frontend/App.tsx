@@ -64,7 +64,7 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
       <aside className={`app-sidebar ${open ? 'open' : ''}`}>
         <div className="sidebar-top-row">
           <div className="logo">
-            ERA <span>v0.1</span>
+            era <span>v0.1</span>
           </div>
           <button className="sidebar-close" onClick={onClose} aria-label="Close menu">
             ✕
@@ -296,7 +296,7 @@ function AppShell() {
           <span />
           <span />
         </button>
-        <div className="mobile-logo">ERA</div>
+        <div className="mobile-logo">era</div>
       </div>
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <main className="app-main">
