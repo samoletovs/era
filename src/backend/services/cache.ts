@@ -4,7 +4,7 @@
 
 interface CacheEntry<T> {
   data: T;
-  expiresAt: number;
+  expiresAtMs: number;
 }
 
 const store = new Map<string, CacheEntry<unknown>>();
@@ -13,7 +13,7 @@ const store = new Map<string, CacheEntry<unknown>>();
 export function cacheGet<T>(key: string): T | undefined {
   const entry = store.get(key);
   if (!entry) return undefined;
-  if (Date.now() > entry.expiresAt) {
+  if (Date.now() > entry.expiresAtMs) {
     store.delete(key);
     return undefined;
   }
@@ -22,7 +22,7 @@ export function cacheGet<T>(key: string): T | undefined {
 
 /** Set a cached value with TTL in seconds */
 export function cacheSet<T>(key: string, data: T, ttlSeconds: number): void {
-  store.set(key, { data, expiresAt: Date.now() + ttlSeconds * 1000 });
+  store.set(key, { data, expiresAtMs: Date.now() + ttlSeconds * 1000 });
 }
 
 /** Invalidate a specific key or all keys matching a prefix */
@@ -42,7 +42,7 @@ export function cacheStats(): { size: number; keys: string[] } {
   // Clean expired entries
   const now = Date.now();
   for (const [key, entry] of store.entries()) {
-    if (now > entry.expiresAt) store.delete(key);
+    if (now > entry.expiresAtMs) store.delete(key);
   }
   return { size: store.size, keys: [...store.keys()] };
 }
@@ -53,14 +53,14 @@ export const CACHE_KEYS = {
   exchangeRate: (from: string, to: string, date: string) => `fx:${from}:${to}:${date}`,
   postingRules: (country: string) => `rules:${country}`,
   chartOfAccounts: (companyId: string) => `coa:${companyId}`,
-  companyList: () => "companies:list",
+  companyList: () => 'companies:list',
 } as const;
 
 // ─── TTL constants (seconds) ────────────────────────────────
 
 export const CACHE_TTL = {
-  EXCHANGE_RATE: 3600,       // 1 hour — rates update daily
-  POSTING_RULES: 1800,       // 30 min — rules rarely change
-  CHART_OF_ACCOUNTS: 300,    // 5 min — accounts change infrequently
-  COMPANY_LIST: 60,          // 1 min — companies list is small
+  EXCHANGE_RATE: 3600, // 1 hour — rates update daily
+  POSTING_RULES: 1800, // 30 min — rules rarely change
+  CHART_OF_ACCOUNTS: 300, // 5 min — accounts change infrequently
+  COMPANY_LIST: 60, // 1 min — companies list is small
 } as const;

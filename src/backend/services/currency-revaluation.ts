@@ -4,20 +4,15 @@
 //   - Posts unrealized gain/loss entries using closing exchange rate
 //   - Incremental: posts difference from current balance vs. revalued balance
 
-import { v4 as uuidv4 } from "uuid";
-import { containers } from "./cosmos.js";
-import { postJournalEntry, GLError } from "./ledger.js";
-import { emitEvent } from "./events.js";
-import { getActiveRule } from "./posting-rules.js";
-import { cacheGet, cacheSet, CACHE_KEYS, CACHE_TTL } from "./cache.js";
-import type {
-  Account,
-  Company,
-  ExchangeRate,
-  ExchangeRateType,
-  JournalLine,
-} from "@shared/types";
-import type { SystemRateSource } from "@shared/types";
+import { v4 as uuidv4 } from 'uuid';
+import { containers } from './cosmos.js';
+import { postJournalEntry, GLError } from './ledger.js';
+import { emitEvent } from './events.js';
+import { getActiveRule } from './posting-rules.js';
+import { cacheGet, cacheSet, CACHE_KEYS, CACHE_TTL } from './cache.js';
+import { normalizeExchangeRateListLimit } from './exchange-rate-utils.js';
+import type { Account, Company, ExchangeRate, ExchangeRateType, JournalLine } from '@shared/types';
+import type { SystemRateSource } from '@shared/types';
 
 function roundCurrency(n: number): number {
   return Math.round(n * 100) / 100;
@@ -46,7 +41,7 @@ async function ensureEcbRates(date: string): Promise<void> {
               WHERE c.docType = 'exchange-rate'
                 AND c.source = 'ecb'
                 AND c.effectiveDate = @date`,
-      parameters: [{ name: "@date", value: date }],
+      parameters: [{ name: '@date', value: date }],
     })
     .fetchAll();
 
@@ -57,7 +52,7 @@ async function ensureEcbRates(date: string): Promise<void> {
 
   // No rates for this date — auto-import from ECB (singleton to avoid races)
   if (!_ecbImportPromise) {
-    _ecbImportPromise = importEcbXml(date, "ecb")
+    _ecbImportPromise = importEcbXml(date, 'ecb')
       .then(() => {
         cacheSet(cacheKey, true, CACHE_TTL.EXCHANGE_RATE);
       })
@@ -80,7 +75,18 @@ async function lookupDirectRate(
   toCurrency: string,
   rateType: ExchangeRateType,
   effectiveDate: string,
+  companyId?: string,
 ): Promise<number | undefined> {
+  const normalizedCompanyId = companyId ?? '';
+  const baseParams = [
+    { name: '@from', value: fromCurrency },
+    { name: '@to', value: toCurrency },
+    { name: '@rateType', value: rateType },
+    { name: '@date', value: effectiveDate },
+    { name: '@companyId', value: normalizedCompanyId },
+  ];
+  const directParams = baseParams;
+
   // Direct lookup
   const { resources } = await containers
     .ledger()
@@ -91,17 +97,25 @@ async function lookupDirectRate(
                 AND c.toCurrency = @to
                 AND c.rateType = @rateType
                 AND c.effectiveDate <= @date
+                AND (
+                  (@companyId = '' AND (NOT IS_DEFINED(c.companyId) OR IS_NULL(c.companyId)))
+                  OR
+                  (@companyId != '' AND (c.companyId = @companyId OR NOT IS_DEFINED(c.companyId) OR IS_NULL(c.companyId)))
+                )
               ORDER BY c.effectiveDate DESC`,
-      parameters: [
-        { name: "@from", value: fromCurrency },
-        { name: "@to", value: toCurrency },
-        { name: "@rateType", value: rateType },
-        { name: "@date", value: effectiveDate },
-      ],
+      parameters: directParams,
     })
     .fetchAll();
 
   if (resources.length > 0) return resources[0].rate;
+
+  const reverseParams = [
+    { name: '@to', value: toCurrency },
+    { name: '@from', value: fromCurrency },
+    { name: '@rateType', value: rateType },
+    { name: '@date', value: effectiveDate },
+    { name: '@companyId', value: normalizedCompanyId },
+  ];
 
   // Reverse lookup
   const { resources: reverse } = await containers
@@ -113,13 +127,13 @@ async function lookupDirectRate(
                 AND c.toCurrency = @from
                 AND c.rateType = @rateType
                 AND c.effectiveDate <= @date
+                AND (
+                  (@companyId = '' AND (NOT IS_DEFINED(c.companyId) OR IS_NULL(c.companyId)))
+                  OR
+                  (@companyId != '' AND (c.companyId = @companyId OR NOT IS_DEFINED(c.companyId) OR IS_NULL(c.companyId)))
+                )
               ORDER BY c.effectiveDate DESC`,
-      parameters: [
-        { name: "@to", value: toCurrency },
-        { name: "@from", value: fromCurrency },
-        { name: "@rateType", value: rateType },
-        { name: "@date", value: effectiveDate },
-      ],
+      parameters: reverseParams,
     })
     .fetchAll();
 
@@ -148,21 +162,12 @@ export async function getExchangeRate(
   if (fromCurrency === toCurrency) return 1;
 
   // Check cache first
-  const cacheKey = CACHE_KEYS.exchangeRate(
-    fromCurrency,
-    toCurrency,
-    effectiveDate,
-  );
+  const cacheKey = CACHE_KEYS.exchangeRate(fromCurrency, toCurrency, effectiveDate);
   const cached = cacheGet<number>(cacheKey);
   if (cached !== undefined) return cached;
 
   // 1. Direct lookup
-  let rate = await lookupDirectRate(
-    fromCurrency,
-    toCurrency,
-    rateType,
-    effectiveDate,
-  );
+  let rate = await lookupDirectRate(fromCurrency, toCurrency, rateType, effectiveDate, companyId);
   if (rate !== undefined) {
     cacheSet(cacheKey, rate, CACHE_TTL.EXCHANGE_RATE);
     return rate;
@@ -172,30 +177,27 @@ export async function getExchangeRate(
   await ensureEcbRates(effectiveDate);
 
   // 3. Retry direct lookup after import
-  rate = await lookupDirectRate(
-    fromCurrency,
-    toCurrency,
-    rateType,
-    effectiveDate,
-  );
+  rate = await lookupDirectRate(fromCurrency, toCurrency, rateType, effectiveDate, companyId);
   if (rate !== undefined) {
     cacheSet(cacheKey, rate, CACHE_TTL.EXCHANGE_RATE);
     return rate;
   }
 
   // 4. Triangulate via EUR (ECB publishes all rates as EUR→X)
-  if (fromCurrency !== "EUR" && toCurrency !== "EUR") {
+  if (fromCurrency !== 'EUR' && toCurrency !== 'EUR') {
     const fromToEur = await lookupDirectRate(
       fromCurrency,
-      "EUR",
+      'EUR',
       rateType,
       effectiveDate,
+      companyId,
     );
     const eurToTarget = await lookupDirectRate(
-      "EUR",
+      'EUR',
       toCurrency,
       rateType,
       effectiveDate,
+      companyId,
     );
     if (fromToEur !== undefined && eurToTarget !== undefined) {
       const triangulated = roundCurrency(fromToEur * eurToTarget);
@@ -205,18 +207,12 @@ export async function getExchangeRate(
   }
 
   // 5. Fall back to "daily" rate type if requested type not found
-  if (rateType !== "daily") {
-    return getExchangeRate(
-      fromCurrency,
-      toCurrency,
-      "daily",
-      effectiveDate,
-      companyId,
-    );
+  if (rateType !== 'daily') {
+    return getExchangeRate(fromCurrency, toCurrency, 'daily', effectiveDate, companyId);
   }
 
   throw new GLError(
-    "RATE_NOT_FOUND",
+    'RATE_NOT_FOUND',
     `No exchange rate found for ${fromCurrency}→${toCurrency} (${rateType}) on or before ${effectiveDate}`,
   );
 }
@@ -230,33 +226,43 @@ export async function listExchangeRates(opts: {
   toDate?: string;
   baseCurrency?: string;
   limit?: number;
+  companyId?: string;
 }): Promise<ExchangeRate[]> {
   const conditions = ["c.docType = 'exchange-rate'"];
   const params: { name: string; value: string | number }[] = [];
 
-  if (opts.source) {
-    conditions.push("c.source = @source");
-    params.push({ name: "@source", value: opts.source });
-  }
-  if (opts.rateType) {
-    conditions.push("c.rateType = @rateType");
-    params.push({ name: "@rateType", value: opts.rateType });
-  }
-  if (opts.fromDate) {
-    conditions.push("c.effectiveDate >= @fromDate");
-    params.push({ name: "@fromDate", value: opts.fromDate });
-  }
-  if (opts.toDate) {
-    conditions.push("c.effectiveDate <= @toDate");
-    params.push({ name: "@toDate", value: opts.toDate });
-  }
-  if (opts.baseCurrency) {
-    conditions.push("c.fromCurrency = @baseCurrency");
-    params.push({ name: "@baseCurrency", value: opts.baseCurrency });
+  if (opts.companyId) {
+    conditions.push(
+      '(c.companyId = @companyId OR NOT IS_DEFINED(c.companyId) OR IS_NULL(c.companyId))',
+    );
+    params.push({ name: '@companyId', value: opts.companyId });
+  } else {
+    conditions.push('(NOT IS_DEFINED(c.companyId) OR IS_NULL(c.companyId))');
   }
 
-  const limit = opts.limit || 200;
-  const query = `SELECT TOP ${limit} * FROM c WHERE ${conditions.join(" AND ")} ORDER BY c.effectiveDate DESC, c.toCurrency ASC`;
+  if (opts.source) {
+    conditions.push('c.source = @source');
+    params.push({ name: '@source', value: opts.source });
+  }
+  if (opts.rateType) {
+    conditions.push('c.rateType = @rateType');
+    params.push({ name: '@rateType', value: opts.rateType });
+  }
+  if (opts.fromDate) {
+    conditions.push('c.effectiveDate >= @fromDate');
+    params.push({ name: '@fromDate', value: opts.fromDate });
+  }
+  if (opts.toDate) {
+    conditions.push('c.effectiveDate <= @toDate');
+    params.push({ name: '@toDate', value: opts.toDate });
+  }
+  if (opts.baseCurrency) {
+    conditions.push('c.fromCurrency = @baseCurrency');
+    params.push({ name: '@baseCurrency', value: opts.baseCurrency });
+  }
+
+  const limit = normalizeExchangeRateListLimit(opts.limit);
+  const query = `SELECT TOP ${limit} * FROM c WHERE (IS_DEFINED(c.companyId) OR NOT IS_DEFINED(c.companyId)) AND ${conditions.join(' AND ')} ORDER BY c.effectiveDate DESC, c.toCurrency ASC`;
 
   const { resources } = await containers
     .ledger()
@@ -269,11 +275,11 @@ export async function listExchangeRates(opts: {
 // ─── Save Exchange Rate ─────────────────────────────────────
 
 export async function saveExchangeRate(
-  rate: Omit<ExchangeRate, "id" | "createdAt">,
+  rate: Omit<ExchangeRate, 'id' | 'createdAt'>,
 ): Promise<ExchangeRate> {
   const record: ExchangeRate = {
     id: uuidv4(),
-    docType: "exchange-rate",
+    docType: 'exchange-rate',
     ...rate,
     createdAt: new Date().toISOString(),
   };
@@ -293,23 +299,20 @@ export async function importSystemRates(
   source: SystemRateSource,
   date: string,
 ): Promise<{ imported: number; date: string; source: string }> {
-  if (source === "ecb") {
+  if (source === 'ecb') {
     return importEcbXml(date, source);
   }
-  throw new GLError("INVALID_SOURCE", `Unknown system rate source: ${source}`);
+  throw new GLError('INVALID_SOURCE', `Unknown system rate source: ${source}`);
 }
 
 async function importEcbXml(
   date: string,
   source: SystemRateSource,
 ): Promise<{ imported: number; date: string; source: string }> {
-  const url = "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml";
+  const url = 'https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml';
   const response = await fetch(url);
   if (!response.ok)
-    throw new GLError(
-      "ECB_FETCH_FAILED",
-      `ECB rate fetch failed: ${response.status}`,
-    );
+    throw new GLError('ECB_FETCH_FAILED', `ECB rate fetch failed: ${response.status}`);
 
   const xml = await response.text();
   const rateRegex = /currency='([A-Z]{3})'\s+rate='([\d.]+)'/g;
@@ -321,9 +324,9 @@ async function importEcbXml(
     const rate = parseFloat(rateStr);
     if (rate > 0) {
       await saveExchangeRate({
-        fromCurrency: "EUR",
+        fromCurrency: 'EUR',
         toCurrency: currency,
-        rateType: "daily",
+        rateType: 'daily',
         rate,
         effectiveDate: date,
         source,
@@ -338,9 +341,9 @@ async function importEcbXml(
 /** @deprecated Use importSystemRates("ecb", date) instead */
 export async function importEcbRates(
   date: string,
-  _rateType: ExchangeRateType = "daily",
+  _rateType: ExchangeRateType = 'daily',
 ): Promise<{ imported: number; date: string }> {
-  return importSystemRates("ecb", date);
+  return importSystemRates('ecb', date);
 }
 
 // ─── Foreign Currency Revaluation ───────────────────────────
@@ -386,7 +389,7 @@ export async function runForeignCurrencyRevaluation(
     .companies()
     .item(companyId, companyId)
     .read<Company>();
-  if (!company) throw new GLError("NOT_FOUND", "Company not found");
+  if (!company) throw new GLError('NOT_FOUND', 'Company not found');
 
   const currencySettings = company.settings.currency;
   if (!currencySettings) {
@@ -401,22 +404,18 @@ export async function runForeignCurrencyRevaluation(
   const accountingCurrency = currencySettings.accountingCurrency;
 
   // Resolve FX gain/loss accounts from posting rules (zero-config: no manual setup needed)
-  const fxRule = await getActiveRule(company.country || "LV", "fx-revaluation");
+  const fxRule = await getActiveRule(company.country || 'LV', 'fx-revaluation');
   if (!fxRule) {
     throw new GLError(
-      "CONFIG_MISSING",
-      `No FX revaluation posting rule found for country ${company.country || "LV"}. Add a rule with documentType 'fx-revaluation'.`,
+      'CONFIG_MISSING',
+      `No FX revaluation posting rule found for country ${company.country || 'LV'}. Add a rule with documentType 'fx-revaluation'.`,
     );
   }
-  const gainLine = fxRule.lines.find(
-    (l) => l.amountExpr === "revaluation.gain",
-  );
-  const lossLine = fxRule.lines.find(
-    (l) => l.amountExpr === "revaluation.loss",
-  );
+  const gainLine = fxRule.lines.find((l) => l.amountExpr === 'revaluation.gain');
+  const lossLine = fxRule.lines.find((l) => l.amountExpr === 'revaluation.loss');
   if (!gainLine || !lossLine) {
     throw new GLError(
-      "CONFIG_MISSING",
+      'CONFIG_MISSING',
       "FX revaluation posting rule must define lines for 'revaluation.gain' and 'revaluation.loss'",
     );
   }
@@ -432,7 +431,7 @@ export async function runForeignCurrencyRevaluation(
                 AND c.docType = 'account'
                 AND c.isPostable = true
                 AND c.isForeignCurrencyRevaluation = true`,
-      parameters: [{ name: "@cid", value: companyId }],
+      parameters: [{ name: '@cid', value: companyId }],
     })
     .fetchAll();
 
@@ -446,9 +445,9 @@ export async function runForeignCurrencyRevaluation(
   }
 
   // Calculate period-end date
-  const [year, month] = period.split("-").map(Number);
+  const [year, month] = period.split('-').map(Number);
   const lastDay = new Date(year, month, 0).getDate();
-  const periodEndDate = `${period}-${String(lastDay).padStart(2, "0")}`;
+  const periodEndDate = `${period}-${String(lastDay).padStart(2, '0')}`;
 
   // 2. For each account, get foreign currency balances from posted journal lines
   const details: RevaluationDetail[] = [];
@@ -468,8 +467,8 @@ export async function runForeignCurrencyRevaluation(
                   AND c.status = 'posted'
                   AND c.date <= @endDate`,
         parameters: [
-          { name: "@cid", value: companyId },
-          { name: "@endDate", value: periodEndDate },
+          { name: '@cid', value: companyId },
+          { name: '@endDate', value: periodEndDate },
         ],
       })
       .fetchAll();
@@ -502,7 +501,7 @@ export async function runForeignCurrencyRevaluation(
     const closingRate = await getExchangeRate(
       foreignCurrency,
       accountingCurrency,
-      "daily",
+      'daily',
       periodEndDate,
       companyId,
     );
@@ -537,7 +536,7 @@ export async function runForeignCurrencyRevaluation(
       });
       lines.push({
         accountCode: gainAccount,
-        accountName: "Unrealized exchange gain",
+        accountName: 'Unrealized exchange gain',
         debit: 0,
         credit: adjustment,
         description: `FX revaluation ${period}: ${account.code} ${account.name}`,
@@ -547,7 +546,7 @@ export async function runForeignCurrencyRevaluation(
       const absAdj = Math.abs(adjustment);
       lines.push({
         accountCode: lossAccount,
-        accountName: "Unrealized exchange loss",
+        accountName: 'Unrealized exchange loss',
         debit: absAdj,
         credit: 0,
         description: `FX revaluation ${period}: ${account.code} ${account.name}`,
@@ -566,9 +565,7 @@ export async function runForeignCurrencyRevaluation(
   const result: RevaluationResult = {
     accountsRevalued: details.length,
     totalUnrealizedGain: roundCurrency(
-      details
-        .filter((d) => d.adjustmentAmount > 0)
-        .reduce((s, d) => s + d.adjustmentAmount, 0),
+      details.filter((d) => d.adjustmentAmount > 0).reduce((s, d) => s + d.adjustmentAmount, 0),
     ),
     totalUnrealizedLoss: roundCurrency(
       details
@@ -585,14 +582,14 @@ export async function runForeignCurrencyRevaluation(
       date: periodEndDate,
       description: `Foreign currency revaluation — ${period}`,
       lines,
-      sourceType: "adjustment",
+      sourceType: 'adjustment',
       createdBy: actor,
     });
     result.journalEntryId = entry.id;
 
     await emitEvent({
       companyId,
-      type: "currency.revaluation",
+      type: 'currency.revaluation',
       actor,
       journalEntryId: entry.id,
       data: {

@@ -1,9 +1,9 @@
-import { Router } from "express";
-import { z } from "zod";
-import { authMiddleware } from "../middleware/auth.js";
-import { validate } from "../middleware/validate.js";
-import { companyAccess } from "../middleware/company-access.js";
-import { idempotency } from "../middleware/idempotency.js";
+import { Router } from 'express';
+import { z } from 'zod';
+import { authMiddleware } from '../middleware/auth.js';
+import { validate } from '../middleware/validate.js';
+import { companyAccess } from '../middleware/company-access.js';
+import { idempotency } from '../middleware/idempotency.js';
 import {
   CreateCompanySchema,
   UpdateCompanySchema,
@@ -13,7 +13,7 @@ import {
   CreateContactSchema,
   CreateItemSchema,
   SubmitFeedbackSchema,
-} from "./schemas.js";
+} from './schemas.js';
 import {
   createCompany,
   getCompany,
@@ -21,13 +21,13 @@ import {
   deleteCompany,
   getCompanyStats,
   generateShortName,
-} from "../services/company.js";
+} from '../services/company.js';
 import {
   postJournalEntry,
   reverseJournalEntry,
   getTrialBalance,
   GLError,
-} from "../services/ledger.js";
+} from '../services/ledger.js';
 import {
   createInvoice,
   postInvoice,
@@ -36,8 +36,8 @@ import {
   cancelInvoice,
   getInvoicePostings,
   createCreditNote,
-} from "../services/invoice.js";
-import { createAndPostPayment, listPayments } from "../services/payment.js";
+} from '../services/invoice.js';
+import { createAndPostPayment, listPayments } from '../services/payment.js';
 import {
   createContact,
   getContact,
@@ -47,8 +47,8 @@ import {
   findDuplicateContacts,
   checkContactRegister,
   applyRegisterData,
-} from "../services/contact.js";
-import { createItem } from "../services/inventory.js";
+} from '../services/contact.js';
+import { createItem } from '../services/inventory.js';
 import {
   generateVatReturn,
   getBalanceSheet,
@@ -57,29 +57,29 @@ import {
   generateAnnualReport,
   getAgingReport,
   markOverdueInvoices,
-} from "../services/reporting.js";
+} from '../services/reporting.js';
 import {
   searchCompanyByName,
   searchCompanyByRegNumber,
   checkViesVat,
   checkVidStatus,
-} from "../services/company-lookup.js";
-import { recognizeInvoice } from "../services/invoice-recognition.js";
+} from '../services/company-lookup.js';
+import { recognizeInvoice } from '../services/invoice-recognition.js';
 import {
   handleChat,
   parseItemDescription,
   parseInvoiceDescription,
   parseContactDescription,
   parseAssetDescription,
-} from "../services/agent.js";
-import { seedRules } from "../services/posting-rules.js";
+} from '../services/agent.js';
+import { seedRules } from '../services/posting-rules.js';
 import {
   closePeriod,
   reopenPeriod,
   yearEndClose,
   getPeriodStatus,
-} from "../services/period-close.js";
-import { generateInvoicePdf } from "../services/invoice-pdf.js";
+} from '../services/period-close.js';
+import { generateInvoicePdf } from '../services/invoice-pdf.js';
 import {
   importBankStatement,
   postUnmatchedLine,
@@ -90,40 +90,41 @@ import {
   suggestLedgerAccount,
   matchLineToInvoice,
   addManualTransaction,
-} from "../services/bank-reconciliation.js";
+} from '../services/bank-reconciliation.js';
 import {
   createRecurringTemplate,
   listRecurringTemplates,
   executeRecurringTemplate,
-} from "../services/recurring-entries.js";
+} from '../services/recurring-entries.js';
 import {
   acquireAsset,
   runDepreciation,
   disposeAsset,
   listFixedAssets,
-} from "../services/fixed-assets.js";
-import { setBudget, getBudgetVsActual } from "../services/budget.js";
+} from '../services/fixed-assets.js';
+import { setBudget, getBudgetVsActual } from '../services/budget.js';
 import {
   runMonthEnd,
   runYearEnd,
   checkCompanyHealth,
   listCloseRuns,
   getCloseRun,
-} from "../services/autonomous-tasks.js";
+} from '../services/autonomous-tasks.js';
 import {
   saveExchangeRate,
   getExchangeRate,
   listExchangeRates,
   importSystemRates,
   runForeignCurrencyRevaluation,
-} from "../services/currency-revaluation.js";
-import { containers } from "../services/cosmos.js";
+} from '../services/currency-revaluation.js';
 import {
-  parsePagination,
-  paginationClause,
-  paginatedResponse,
-} from "../middleware/pagination.js";
-import { safeError } from "../middleware/error-handler.js";
+  normalizeCurrencyCode,
+  parseOptionalExchangeRateListLimit,
+  parseOptionalExchangeRateType,
+} from '../services/exchange-rate-utils.js';
+import { containers } from '../services/cosmos.js';
+import { parsePagination, paginationClause, paginatedResponse } from '../middleware/pagination.js';
+import { safeError } from '../middleware/error-handler.js';
 import type {
   ApiResponse,
   Account,
@@ -133,18 +134,16 @@ import type {
   BusinessEvent,
   UserProfile,
   CompanySharingEntry,
-} from "@shared/types";
+} from '@shared/types';
 
 export const router = Router();
 
-const IsoDateSchema = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, "Expected YYYY-MM-DD");
+const IsoDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD');
 const AccountsQuerySchema = z.object({
   asOf: IsoDateSchema.optional(),
 });
 const InvoicesQuerySchema = z.object({
-  type: z.enum(["sales", "purchase"]).optional(),
+  type: z.enum(['sales', 'purchase']).optional(),
 });
 const TrialBalanceQuerySchema = z.object({
   from: IsoDateSchema.optional(),
@@ -152,33 +151,33 @@ const TrialBalanceQuerySchema = z.object({
 });
 
 // Public
-router.get("/", (_req, res) => {
+router.get('/', (_req, res) => {
   res.json({
-    name: "ERA API",
-    version: "0.1.0",
-    modules: ["finance", "inventory", "sales", "procurement", "reporting"],
+    name: 'ERA API',
+    version: '0.1.0',
+    modules: ['finance', 'inventory', 'sales', 'procurement', 'reporting'],
   });
 });
 
 // ─── Public: Register Search (Latvian Enterprise Register) ──
 
-router.get("/register/search", async (req, res) => {
+router.get('/register/search', async (req, res) => {
   try {
-    const q = (req.query.q as string) || "";
+    const q = (req.query.q as string) || '';
     if (!q || q.length < 2) {
       res.json({
-        data: { found: false, results: [], source: "" },
+        data: { found: false, results: [], source: '' },
       } as ApiResponse);
       return;
     }
-    const isRegNumber = /^\d{9,11}$/.test(q.replace(/\s/g, ""));
+    const isRegNumber = /^\d{9,11}$/.test(q.replace(/\s/g, ''));
     const result = isRegNumber
-      ? await searchCompanyByRegNumber(q.replace(/\s/g, ""))
+      ? await searchCompanyByRegNumber(q.replace(/\s/g, ''))
       : await searchCompanyByName(q);
     res.json({ data: result } as ApiResponse);
   } catch (err) {
     {
-      const e = safeError(err, "SEARCH_FAILED");
+      const e = safeError(err, 'SEARCH_FAILED');
       res.status(e.status).json(e.body);
     }
   }
@@ -191,12 +190,12 @@ router.use(idempotency);
 
 // ─── EU VIES VAT Validation ─────────────────────────────────
 
-router.get("/vies/check", async (req, res) => {
+router.get('/vies/check', async (req, res) => {
   try {
-    const vatNumber = (req.query.vatNumber as string) || "";
+    const vatNumber = (req.query.vatNumber as string) || '';
     if (!vatNumber || vatNumber.length < 4) {
       res.json({
-        data: { valid: false, source: "VAT number too short" },
+        data: { valid: false, source: 'VAT number too short' },
       } as ApiResponse);
       return;
     }
@@ -204,7 +203,7 @@ router.get("/vies/check", async (req, res) => {
     res.json({ data: result } as ApiResponse);
   } catch (err) {
     {
-      const e = safeError(err, "VIES_CHECK_FAILED");
+      const e = safeError(err, 'VIES_CHECK_FAILED');
       res.status(e.status).json(e.body);
     }
   }
@@ -212,10 +211,10 @@ router.get("/vies/check", async (req, res) => {
 
 // ─── VID Status Check (VAT payer + Suspended) ───────────────
 
-router.get("/vid/status", async (req, res) => {
+router.get('/vid/status', async (req, res) => {
   try {
-    const regNumber = (req.query.regNumber as string) || "";
-    if (!regNumber || regNumber.replace(/\s/g, "").length < 9) {
+    const regNumber = (req.query.regNumber as string) || '';
+    if (!regNumber || regNumber.replace(/\s/g, '').length < 9) {
       res.json({
         data: {
           vatPayer: {
@@ -230,11 +229,11 @@ router.get("/vid/status", async (req, res) => {
       } as ApiResponse);
       return;
     }
-    const result = await checkVidStatus(regNumber.replace(/\s/g, ""));
+    const result = await checkVidStatus(regNumber.replace(/\s/g, ''));
     res.json({ data: result } as ApiResponse);
   } catch (err) {
     {
-      const e = safeError(err, "VID_CHECK_FAILED");
+      const e = safeError(err, 'VID_CHECK_FAILED');
       res.status(e.status).json(e.body);
     }
   }
@@ -242,16 +241,13 @@ router.get("/vid/status", async (req, res) => {
 
 // ─── Auth ───────────────────────────────────────────────────
 
-router.get("/auth/me", async (req, res) => {
+router.get('/auth/me', async (req, res) => {
   try {
     const userId = req.user!.id;
     let profile: UserProfile | null = null;
 
     try {
-      const { resource } = await containers
-        .users()
-        .item(userId, userId)
-        .read<UserProfile>();
+      const { resource } = await containers.users().item(userId, userId).read<UserProfile>();
       profile = resource ?? null;
     } catch {
       // Not found — create on first login
@@ -290,8 +286,7 @@ router.get("/auth/me", async (req, res) => {
     } else {
       // Update last login and potentially missing fields
       profile.lastLoginAt = now;
-      if (req.user!.email && profile.email !== req.user!.email)
-        profile.email = req.user!.email;
+      if (req.user!.email && profile.email !== req.user!.email) profile.email = req.user!.email;
       if (req.user!.name && profile.displayName !== req.user!.name)
         profile.displayName = req.user!.name;
       await containers.users().items.upsert(profile);
@@ -307,24 +302,24 @@ router.get("/auth/me", async (req, res) => {
       },
     } as ApiResponse);
   } catch (err) {
-    const e = safeError(err, "AUTH_PROFILE_FAILED");
+    const e = safeError(err, 'AUTH_PROFILE_FAILED');
     res.status(e.status).json(e.body);
   }
 });
 
 // Company-level access control for all /companies/:companyId/* routes
-router.use("/companies/:companyId", companyAccess);
-router.use("/companies/:id", companyAccess);
+router.use('/companies/:companyId', companyAccess);
+router.use('/companies/:id', companyAccess);
 
 // ─── Companies ──────────────────────────────────────────────
 
-router.get("/companies", async (req, res) => {
+router.get('/companies', async (req, res) => {
   try {
     // Cross-partition query is acceptable here — companies container is small and rarely queried
     const { resources } = await containers
       .companies()
       .items.query<Company>({
-        query: "SELECT * FROM c ORDER BY c.name", // eslint-disable-line era/no-cross-partition-query
+        query: 'SELECT * FROM c ORDER BY c.name', // eslint-disable-line era/no-cross-partition-query
         parameters: [],
       })
       .fetchAll();
@@ -353,7 +348,7 @@ router.get("/companies", async (req, res) => {
           .replace(c)
           .catch((err) => {
             console.error(
-              "Failed to backfill shortName:",
+              'Failed to backfill shortName:',
               c.id,
               err instanceof Error ? err.message : String(err),
             );
@@ -363,14 +358,14 @@ router.get("/companies", async (req, res) => {
     res.json({ data: visibleCompanies } as ApiResponse);
   } catch (err) {
     {
-      const e = safeError(err, "QUERY_FAILED");
+      const e = safeError(err, 'QUERY_FAILED');
       res.status(e.status).json(e.body);
     }
   }
 });
 
 // Company
-router.post("/companies", validate(CreateCompanySchema), async (req, res) => {
+router.post('/companies', validate(CreateCompanySchema), async (req, res) => {
   try {
     const company = await createCompany({
       ...req.body,
@@ -383,68 +378,60 @@ router.post("/companies", validate(CreateCompanySchema), async (req, res) => {
     res.status(201).json(response);
   } catch (err) {
     {
-      const e = safeError(err, "CREATE_FAILED");
+      const e = safeError(err, 'CREATE_FAILED');
       res.status(e.status).json(e.body);
     }
   }
 });
 
-router.get("/companies/:id", async (req, res) => {
+router.get('/companies/:id', async (req, res) => {
   const company = await getCompany(req.params.id);
   if (!company) {
-    res
-      .status(404)
-      .json({ error: { code: "NOT_FOUND", message: "Company not found" } });
+    res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Company not found' } });
     return;
   }
   const response: ApiResponse = { data: company };
   res.json(response);
 });
 
-router.patch(
-  "/companies/:id",
-  validate(UpdateCompanySchema),
-  async (req, res) => {
-    try {
-      const company = await updateCompany(req.params.id as string, req.body);
-      if (!company) {
-        res
-          .status(404)
-          .json({ error: { code: "NOT_FOUND", message: "Company not found" } });
-        return;
-      }
-      res.json({ data: company } as ApiResponse);
-    } catch (err) {
-      {
-        const e = safeError(err, "UPDATE_FAILED");
-        res.status(e.status).json(e.body);
-      }
-    }
-  },
-);
-
-router.get("/companies/:id/stats", async (req, res) => {
+router.patch('/companies/:id', validate(UpdateCompanySchema), async (req, res) => {
   try {
-    const stats = await getCompanyStats(req.params.id);
-    res.json({ data: stats } as ApiResponse);
+    const company = await updateCompany(req.params.id as string, req.body);
+    if (!company) {
+      res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Company not found' } });
+      return;
+    }
+    res.json({ data: company } as ApiResponse);
   } catch (err) {
     {
-      const e = safeError(err, "SYS-001");
+      const e = safeError(err, 'UPDATE_FAILED');
       res.status(e.status).json(e.body);
     }
   }
 });
 
-router.delete("/companies/:id", async (req, res) => {
+router.get('/companies/:id/stats', async (req, res) => {
+  try {
+    const stats = await getCompanyStats(req.params.id);
+    res.json({ data: stats } as ApiResponse);
+  } catch (err) {
+    {
+      const e = safeError(err, 'SYS-001');
+      res.status(e.status).json(e.body);
+    }
+  }
+});
+
+router.delete('/companies/:id', async (req, res) => {
   try {
     const result = await deleteCompany(req.params.id);
     res.json({ data: result } as ApiResponse);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    const status = message === "Company not found" ? 404 : 500;
+    const status = message === 'Company not found' ? 404 : 500;
     res.status(status).json({
       error: {
-        code: status === 404 ? "NOT_FOUND" : "DELETE_FAILED",
+        code: status === 404 ? 'NOT_FOUND' : 'DELETE_FAILED',
         message,
       },
     });
@@ -454,7 +441,7 @@ router.delete("/companies/:id", async (req, res) => {
 // ─── Company Sharing ────────────────────────────────────────
 
 // List users with access to this company
-router.get("/companies/:companyId/sharing", async (req, res) => {
+router.get('/companies/:companyId/sharing', async (req, res) => {
   try {
     const companyId = req.params.companyId;
     // Verify caller is owner
@@ -462,14 +449,12 @@ router.get("/companies/:companyId/sharing", async (req, res) => {
       .users()
       .item(req.user!.id, req.user!.id)
       .read<UserProfile>();
-    const callerRole = callerProfile?.companies?.find(
-      (c) => c.companyId === companyId,
-    )?.role;
-    if (callerRole !== "owner") {
+    const callerRole = callerProfile?.companies?.find((c) => c.companyId === companyId)?.role;
+    if (callerRole !== 'owner') {
       res.status(403).json({
         error: {
-          code: "AUTH-003",
-          message: "Only the company owner can manage sharing",
+          code: 'AUTH-003',
+          message: 'Only the company owner can manage sharing',
         },
       });
       return;
@@ -479,21 +464,20 @@ router.get("/companies/:companyId/sharing", async (req, res) => {
     const { resources: users } = await containers
       .users()
       .items.query<UserProfile>({
-        query:
-          'SELECT * FROM c WHERE ARRAY_CONTAINS(c.companies, {"companyId": @companyId}, true)',
-        parameters: [{ name: "@companyId", value: companyId }],
+        query: 'SELECT * FROM c WHERE ARRAY_CONTAINS(c.companies, {"companyId": @companyId}, true)',
+        parameters: [{ name: '@companyId', value: companyId }],
       })
       .fetchAll();
 
     const entries: CompanySharingEntry[] = [];
     for (const u of users) {
       const role = u.companies.find((c) => c.companyId === companyId);
-      if (role && role.role !== "owner") {
+      if (role && role.role !== 'owner') {
         entries.push({
           userId: u.id,
           email: u.email,
           displayName: u.displayName,
-          role: role.role as "accountant" | "viewer",
+          role: role.role as 'accountant' | 'viewer',
           sharedBy: role.sharedBy || req.user!.id,
           sharedAt: role.sharedAt || u.createdAt,
         });
@@ -502,27 +486,27 @@ router.get("/companies/:companyId/sharing", async (req, res) => {
 
     res.json({ data: entries } as ApiResponse);
   } catch (err) {
-    const e = safeError(err, "QUERY_FAILED");
+    const e = safeError(err, 'QUERY_FAILED');
     res.status(e.status).json(e.body);
   }
 });
 
 // Share company with a user by email
-router.post("/companies/:companyId/sharing", async (req, res) => {
+router.post('/companies/:companyId/sharing', async (req, res) => {
   try {
     const companyId = req.params.companyId;
     const { email, role } = req.body as { email?: string; role?: string };
 
-    if (!email || typeof email !== "string" || !email.includes("@")) {
+    if (!email || typeof email !== 'string' || !email.includes('@')) {
       res.status(400).json({
-        error: { code: "VAL-001", message: "Valid email is required" },
+        error: { code: 'VAL-001', message: 'Valid email is required' },
       });
       return;
     }
-    if (!role || !["accountant", "viewer"].includes(role)) {
+    if (!role || !['accountant', 'viewer'].includes(role)) {
       res.status(400).json({
         error: {
-          code: "VAL-001",
+          code: 'VAL-001',
           message: "Role must be 'accountant' or 'viewer'",
         },
       });
@@ -534,14 +518,12 @@ router.post("/companies/:companyId/sharing", async (req, res) => {
       .users()
       .item(req.user!.id, req.user!.id)
       .read<UserProfile>();
-    const callerRole = callerProfile?.companies?.find(
-      (c) => c.companyId === companyId,
-    )?.role;
-    if (callerRole !== "owner") {
+    const callerRole = callerProfile?.companies?.find((c) => c.companyId === companyId)?.role;
+    if (callerRole !== 'owner') {
       res.status(403).json({
         error: {
-          code: "AUTH-003",
-          message: "Only the company owner can share",
+          code: 'AUTH-003',
+          message: 'Only the company owner can share',
         },
       });
       return;
@@ -550,9 +532,7 @@ router.post("/companies/:companyId/sharing", async (req, res) => {
     // Get company name
     const company = await getCompany(companyId);
     if (!company) {
-      res
-        .status(404)
-        .json({ error: { code: "NOT_FOUND", message: "Company not found" } });
+      res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Company not found' } });
       return;
     }
 
@@ -560,8 +540,8 @@ router.post("/companies/:companyId/sharing", async (req, res) => {
     const { resources: matchingUsers } = await containers
       .users()
       .items.query<UserProfile>({
-        query: "SELECT * FROM c WHERE c.email = @email OFFSET 0 LIMIT 1", // eslint-disable-line era/no-cross-partition-query
-        parameters: [{ name: "@email", value: email.toLowerCase().trim() }],
+        query: 'SELECT * FROM c WHERE c.email = @email OFFSET 0 LIMIT 1', // eslint-disable-line era/no-cross-partition-query
+        parameters: [{ name: '@email', value: email.toLowerCase().trim() }],
       })
       .fetchAll();
 
@@ -573,13 +553,13 @@ router.post("/companies/:companyId/sharing", async (req, res) => {
       const placeholderProfile: UserProfile = {
         id: `pending:${email.toLowerCase().trim()}`,
         email: email.toLowerCase().trim(),
-        displayName: email.split("@")[0],
-        provider: "google",
+        displayName: email.split('@')[0],
+        provider: 'google',
         companies: [
           {
             companyId,
             companyName: company.name,
-            role: role as "accountant" | "viewer",
+            role: role as 'accountant' | 'viewer',
             sharedBy: req.user!.id,
             sharedAt: now,
           },
@@ -588,59 +568,53 @@ router.post("/companies/:companyId/sharing", async (req, res) => {
         lastLoginAt: now,
       };
       await containers.users().items.upsert(placeholderProfile);
-      res
-        .status(201)
-        .json({ data: { email, role, status: "invited" } } as ApiResponse);
+      res.status(201).json({ data: { email, role, status: 'invited' } } as ApiResponse);
       return;
     }
 
     // Don't allow sharing with yourself
     if (targetUser.id === req.user!.id) {
       res.status(400).json({
-        error: { code: "BIZ-001", message: "Cannot share with yourself" },
+        error: { code: 'BIZ-001', message: 'Cannot share with yourself' },
       });
       return;
     }
 
     // Check if already shared
-    const existing = targetUser.companies.find(
-      (c) => c.companyId === companyId,
-    );
+    const existing = targetUser.companies.find((c) => c.companyId === companyId);
     if (existing) {
       // Update role
-      existing.role = role as "accountant" | "viewer";
+      existing.role = role as 'accountant' | 'viewer';
       existing.sharedBy = req.user!.id;
       existing.sharedAt = now;
     } else {
       targetUser.companies.push({
         companyId,
         companyName: company.name,
-        role: role as "accountant" | "viewer",
+        role: role as 'accountant' | 'viewer',
         sharedBy: req.user!.id,
         sharedAt: now,
       });
     }
 
     await containers.users().items.upsert(targetUser);
-    res
-      .status(201)
-      .json({ data: { email, role, status: "shared" } } as ApiResponse);
+    res.status(201).json({ data: { email, role, status: 'shared' } } as ApiResponse);
   } catch (err) {
-    const e = safeError(err, "SHARE_FAILED");
+    const e = safeError(err, 'SHARE_FAILED');
     res.status(e.status).json(e.body);
   }
 });
 
 // Update sharing role
-router.patch("/companies/:companyId/sharing/:userId", async (req, res) => {
+router.patch('/companies/:companyId/sharing/:userId', async (req, res) => {
   try {
     const { companyId, userId } = req.params;
     const { role } = req.body as { role?: string };
 
-    if (!role || !["accountant", "viewer"].includes(role)) {
+    if (!role || !['accountant', 'viewer'].includes(role)) {
       res.status(400).json({
         error: {
-          code: "VAL-001",
+          code: 'VAL-001',
           message: "Role must be 'accountant' or 'viewer'",
         },
       });
@@ -652,14 +626,12 @@ router.patch("/companies/:companyId/sharing/:userId", async (req, res) => {
       .users()
       .item(req.user!.id, req.user!.id)
       .read<UserProfile>();
-    const callerRole = callerProfile?.companies?.find(
-      (c) => c.companyId === companyId,
-    )?.role;
-    if (callerRole !== "owner") {
+    const callerRole = callerProfile?.companies?.find((c) => c.companyId === companyId)?.role;
+    if (callerRole !== 'owner') {
       res.status(403).json({
         error: {
-          code: "AUTH-003",
-          message: "Only the company owner can update sharing",
+          code: 'AUTH-003',
+          message: 'Only the company owner can update sharing',
         },
       });
       return;
@@ -671,36 +643,32 @@ router.patch("/companies/:companyId/sharing/:userId", async (req, res) => {
       .item(userId, userId)
       .read<UserProfile>();
     if (!targetUser) {
-      res
-        .status(404)
-        .json({ error: { code: "NOT_FOUND", message: "User not found" } });
+      res.status(404).json({ error: { code: 'NOT_FOUND', message: 'User not found' } });
       return;
     }
 
-    const companyRole = targetUser.companies.find(
-      (c) => c.companyId === companyId,
-    );
-    if (!companyRole || companyRole.role === "owner") {
+    const companyRole = targetUser.companies.find((c) => c.companyId === companyId);
+    if (!companyRole || companyRole.role === 'owner') {
       res.status(404).json({
         error: {
-          code: "NOT_FOUND",
-          message: "No sharing entry found for this user",
+          code: 'NOT_FOUND',
+          message: 'No sharing entry found for this user',
         },
       });
       return;
     }
 
-    companyRole.role = role as "accountant" | "viewer";
+    companyRole.role = role as 'accountant' | 'viewer';
     await containers.users().items.upsert(targetUser);
     res.json({ data: { userId, role } } as ApiResponse);
   } catch (err) {
-    const e = safeError(err, "UPDATE_FAILED");
+    const e = safeError(err, 'UPDATE_FAILED');
     res.status(e.status).json(e.body);
   }
 });
 
 // Remove sharing
-router.delete("/companies/:companyId/sharing/:userId", async (req, res) => {
+router.delete('/companies/:companyId/sharing/:userId', async (req, res) => {
   try {
     const { companyId, userId } = req.params;
 
@@ -709,14 +677,12 @@ router.delete("/companies/:companyId/sharing/:userId", async (req, res) => {
       .users()
       .item(req.user!.id, req.user!.id)
       .read<UserProfile>();
-    const callerRole = callerProfile?.companies?.find(
-      (c) => c.companyId === companyId,
-    )?.role;
-    if (callerRole !== "owner") {
+    const callerRole = callerProfile?.companies?.find((c) => c.companyId === companyId)?.role;
+    if (callerRole !== 'owner') {
       res.status(403).json({
         error: {
-          code: "AUTH-003",
-          message: "Only the company owner can remove sharing",
+          code: 'AUTH-003',
+          message: 'Only the company owner can remove sharing',
         },
       });
       return;
@@ -728,18 +694,14 @@ router.delete("/companies/:companyId/sharing/:userId", async (req, res) => {
       .item(userId, userId)
       .read<UserProfile>();
     if (!targetUser) {
-      res
-        .status(404)
-        .json({ error: { code: "NOT_FOUND", message: "User not found" } });
+      res.status(404).json({ error: { code: 'NOT_FOUND', message: 'User not found' } });
       return;
     }
 
-    const idx = targetUser.companies.findIndex(
-      (c) => c.companyId === companyId,
-    );
-    if (idx === -1 || targetUser.companies[idx].role === "owner") {
+    const idx = targetUser.companies.findIndex((c) => c.companyId === companyId);
+    if (idx === -1 || targetUser.companies[idx].role === 'owner') {
       res.status(404).json({
-        error: { code: "NOT_FOUND", message: "No sharing entry found" },
+        error: { code: 'NOT_FOUND', message: 'No sharing entry found' },
       });
       return;
     }
@@ -748,18 +710,18 @@ router.delete("/companies/:companyId/sharing/:userId", async (req, res) => {
     await containers.users().items.upsert(targetUser);
     res.json({ data: { removed: true } } as ApiResponse);
   } catch (err) {
-    const e = safeError(err, "DELETE_FAILED");
+    const e = safeError(err, 'DELETE_FAILED');
     res.status(e.status).json(e.body);
   }
 });
 
 // Chart of Accounts
-router.get("/companies/:companyId/accounts", async (req, res) => {
+router.get('/companies/:companyId/accounts', async (req, res) => {
   try {
     const queryValidation = AccountsQuerySchema.safeParse(req.query);
     if (!queryValidation.success) {
       res.status(400).json({
-        error: { code: "VAL-001", message: "Invalid query parameters" },
+        error: { code: 'VAL-001', message: 'Invalid query parameters' },
         meta: { issues: queryValidation.error.issues },
       });
       return;
@@ -770,7 +732,7 @@ router.get("/companies/:companyId/accounts", async (req, res) => {
       .items.query<Account>({
         query:
           "SELECT * FROM c WHERE c.companyId = @companyId AND (c.docType = 'account' OR (IS_DEFINED(c.code) AND IS_DEFINED(c.normalSide))) ORDER BY c.code",
-        parameters: [{ name: "@companyId", value: req.params.companyId }],
+        parameters: [{ name: '@companyId', value: req.params.companyId }],
       })
       .fetchAll();
 
@@ -783,8 +745,8 @@ router.get("/companies/:companyId/accounts", async (req, res) => {
           query:
             "SELECT * FROM c WHERE c.companyId = @cid AND (c.docType = 'journal-entry' OR IS_DEFINED(c.entryNumber)) AND c.status = 'posted' AND c.date <= @asOf",
           parameters: [
-            { name: "@cid", value: req.params.companyId },
-            { name: "@asOf", value: asOf },
+            { name: '@cid', value: req.params.companyId },
+            { name: '@asOf', value: asOf },
           ],
         })
         .fetchAll();
@@ -795,9 +757,7 @@ router.get("/companies/:companyId/accounts", async (req, res) => {
           if (!line.accountCode) continue;
           deltas.set(
             line.accountCode,
-            (deltas.get(line.accountCode) || 0) +
-              (line.debit || 0) -
-              (line.credit || 0),
+            (deltas.get(line.accountCode) || 0) + (line.debit || 0) - (line.credit || 0),
           );
         }
       }
@@ -806,9 +766,7 @@ router.get("/companies/:companyId/accounts", async (req, res) => {
         if (account.isPostable) {
           const delta = deltas.get(account.code) || 0;
           account.balance =
-            Math.round(
-              (account.normalSide === "credit" ? -delta : delta) * 100,
-            ) / 100;
+            Math.round((account.normalSide === 'credit' ? -delta : delta) * 100) / 100;
         }
       }
     }
@@ -817,152 +775,143 @@ router.get("/companies/:companyId/accounts", async (req, res) => {
     res.json(response);
   } catch (err) {
     {
-      const e = safeError(err, "QUERY_FAILED");
+      const e = safeError(err, 'QUERY_FAILED');
       res.status(e.status).json(e.body);
     }
   }
 });
 
 // Account transactions (journal entry lines for a specific account)
-router.get(
-  "/companies/:companyId/accounts/:accountCode/transactions",
-  async (req, res) => {
+router.get('/companies/:companyId/accounts/:accountCode/transactions', async (req, res) => {
+  try {
+    const { companyId, accountCode } = req.params;
+    const asOf = req.query.asOf as string | undefined;
+    const pg = parsePagination(req);
+
+    // Use Cosmos UDF-free approach: filter entries that contain this account code in lines
+    // ARRAY_CONTAINS with partial match filters server-side, reducing data transfer
+    let query =
+      "SELECT * FROM c WHERE c.companyId = @cid AND (c.docType = 'journal-entry' OR IS_DEFINED(c.entryNumber)) AND c.status = 'posted'";
+    const parameters: { name: string; value: string }[] = [{ name: '@cid', value: companyId }];
+    if (asOf) {
+      query += ' AND c.date <= @asOf';
+      parameters.push({ name: '@asOf', value: asOf });
+    }
+    query += ' ORDER BY c.date DESC';
+
+    const { resources: entries } = await containers
+      .ledger()
+      .items.query<any>({ query, parameters })
+      .fetchAll();
+
+    // Look up account to determine normal side
+    const accountId = `${companyId}-acct-${accountCode}`;
+    let normalSide: 'debit' | 'credit' = 'debit';
     try {
-      const { companyId, accountCode } = req.params;
-      const asOf = req.query.asOf as string | undefined;
-      const pg = parsePagination(req);
+      const { resource } = await containers.ledger().item(accountId, companyId).read<Account>();
+      if (resource) normalSide = resource.normalSide;
+    } catch {
+      /* use default */
+    }
 
-      // Use Cosmos UDF-free approach: filter entries that contain this account code in lines
-      // ARRAY_CONTAINS with partial match filters server-side, reducing data transfer
-      let query =
-        "SELECT * FROM c WHERE c.companyId = @cid AND (c.docType = 'journal-entry' OR IS_DEFINED(c.entryNumber)) AND c.status = 'posted'";
-      const parameters: { name: string; value: string }[] = [
-        { name: "@cid", value: companyId },
-      ];
-      if (asOf) {
-        query += " AND c.date <= @asOf";
-        parameters.push({ name: "@asOf", value: asOf });
-      }
-      query += " ORDER BY c.date DESC";
+    // Build filtered + paginated transaction list
+    const allTransactions: {
+      entryId: string;
+      entryNumber: string;
+      date: string;
+      description: string;
+      debit: number;
+      credit: number;
+      sourceType: string;
+    }[] = [];
+    let runningBalance = 0;
 
-      const { resources: entries } = await containers
-        .ledger()
-        .items.query<any>({ query, parameters })
-        .fetchAll();
+    // Process in chronological order for running balance
+    const sorted = [...entries].sort(
+      (a, b) =>
+        a.date.localeCompare(b.date) || (a.entryNumber || '').localeCompare(b.entryNumber || ''),
+    );
 
-      // Look up account to determine normal side
-      const accountId = `${companyId}-acct-${accountCode}`;
-      let normalSide: "debit" | "credit" = "debit";
-      try {
-        const { resource } = await containers
-          .ledger()
-          .item(accountId, companyId)
-          .read<Account>();
-        if (resource) normalSide = resource.normalSide;
-      } catch {
-        /* use default */
-      }
-
-      // Build filtered + paginated transaction list
-      const allTransactions: {
-        entryId: string;
-        entryNumber: string;
-        date: string;
-        description: string;
-        debit: number;
-        credit: number;
-        sourceType: string;
-      }[] = [];
-      let runningBalance = 0;
-
-      // Process in chronological order for running balance
-      const sorted = [...entries].sort(
-        (a, b) =>
-          a.date.localeCompare(b.date) ||
-          (a.entryNumber || "").localeCompare(b.entryNumber || ""),
-      );
-
-      for (const entry of sorted) {
-        for (const line of entry.lines || []) {
-          if (line.accountCode !== accountCode) continue;
-          const delta =
-            normalSide === "credit"
-              ? (line.credit || 0) - (line.debit || 0)
-              : (line.debit || 0) - (line.credit || 0);
-          runningBalance = Math.round((runningBalance + delta) * 100) / 100;
-          allTransactions.push({
-            entryId: entry.id,
-            entryNumber: entry.entryNumber,
-            date: entry.date,
-            description: entry.description,
-            debit: line.debit || 0,
-            credit: line.credit || 0,
-            sourceType: entry.sourceType || "manual",
-          });
-        }
-      }
-
-      // Reverse to show newest first, then paginate
-      allTransactions.reverse();
-      const paged = allTransactions.slice(pg.offset, pg.offset + pg.limit);
-
-      res.json({
-        data: { transactions: paged, balance: runningBalance },
-        meta: {
-          limit: pg.limit,
-          offset: pg.offset,
-          count: paged.length,
-          total: allTransactions.length,
-        },
-      });
-    } catch (err) {
-      {
-        const e = safeError(err, "QUERY_FAILED");
-        res.status(e.status).json(e.body);
+    for (const entry of sorted) {
+      for (const line of entry.lines || []) {
+        if (line.accountCode !== accountCode) continue;
+        const delta =
+          normalSide === 'credit'
+            ? (line.credit || 0) - (line.debit || 0)
+            : (line.debit || 0) - (line.credit || 0);
+        runningBalance = Math.round((runningBalance + delta) * 100) / 100;
+        allTransactions.push({
+          entryId: entry.id,
+          entryNumber: entry.entryNumber,
+          date: entry.date,
+          description: entry.description,
+          debit: line.debit || 0,
+          credit: line.credit || 0,
+          sourceType: entry.sourceType || 'manual',
+        });
       }
     }
-  },
-);
+
+    // Reverse to show newest first, then paginate
+    allTransactions.reverse();
+    const paged = allTransactions.slice(pg.offset, pg.offset + pg.limit);
+
+    res.json({
+      data: { transactions: paged, balance: runningBalance },
+      meta: {
+        limit: pg.limit,
+        offset: pg.offset,
+        count: paged.length,
+        total: allTransactions.length,
+      },
+    });
+  } catch (err) {
+    {
+      const e = safeError(err, 'QUERY_FAILED');
+      res.status(e.status).json(e.body);
+    }
+  }
+});
 
 // Journal Entries
-router.get("/companies/:companyId/journal-entries", async (req, res) => {
+router.get('/companies/:companyId/journal-entries', async (req, res) => {
   try {
     const pg = parsePagination(req);
     const { resources } = await containers
       .ledger()
       .items.query({
         query: `SELECT * FROM c WHERE c.companyId = @companyId AND (c.docType = 'journal-entry' OR IS_DEFINED(c.entryNumber)) ORDER BY c.date DESC ${paginationClause(pg)}`,
-        parameters: [{ name: "@companyId", value: req.params.companyId }],
+        parameters: [{ name: '@companyId', value: req.params.companyId }],
       })
       .fetchAll();
     res.json(paginatedResponse(resources, pg));
   } catch (err) {
     {
-      const e = safeError(err, "QUERY_FAILED");
+      const e = safeError(err, 'QUERY_FAILED');
       res.status(e.status).json(e.body);
     }
   }
 });
 
 // Invoices
-router.get("/companies/:companyId/invoices", async (req, res) => {
+router.get('/companies/:companyId/invoices', async (req, res) => {
   try {
     const queryValidation = InvoicesQuerySchema.safeParse(req.query);
     if (!queryValidation.success) {
       res.status(400).json({
-        error: { code: "VAL-001", message: "Invalid query parameters" },
+        error: { code: 'VAL-001', message: 'Invalid query parameters' },
         meta: { issues: queryValidation.error.issues },
       });
       return;
     }
 
     const pg = parsePagination(req);
-    const typeFilter = queryValidation.data.type ? "AND c.type = @type" : "";
+    const typeFilter = queryValidation.data.type ? 'AND c.type = @type' : '';
     const params: { name: string; value: string }[] = [
-      { name: "@companyId", value: req.params.companyId },
+      { name: '@companyId', value: req.params.companyId },
     ];
     if (queryValidation.data.type) {
-      params.push({ name: "@type", value: queryValidation.data.type });
+      params.push({ name: '@type', value: queryValidation.data.type });
     }
     const { resources } = await containers
       .documents()
@@ -974,125 +923,116 @@ router.get("/companies/:companyId/invoices", async (req, res) => {
     res.json(paginatedResponse(resources, pg));
   } catch (err) {
     {
-      const e = safeError(err, "QUERY_FAILED");
+      const e = safeError(err, 'QUERY_FAILED');
       res.status(e.status).json(e.body);
     }
   }
 });
 
 // Contacts
-router.get("/companies/:companyId/contacts", async (req, res) => {
+router.get('/companies/:companyId/contacts', async (req, res) => {
   try {
     const pg = parsePagination(req);
     const { resources } = await containers
       .contacts()
       .items.query({
         query: `SELECT * FROM c WHERE c.companyId = @companyId ORDER BY c.name ${paginationClause(pg)}`,
-        parameters: [{ name: "@companyId", value: req.params.companyId }],
+        parameters: [{ name: '@companyId', value: req.params.companyId }],
       })
       .fetchAll();
     res.json(paginatedResponse(resources, pg));
   } catch (err) {
     {
-      const e = safeError(err, "QUERY_FAILED");
+      const e = safeError(err, 'QUERY_FAILED');
       res.status(e.status).json(e.body);
     }
   }
 });
 
-router.patch("/companies/:companyId/contacts/:contactId", async (req, res) => {
+router.patch('/companies/:companyId/contacts/:contactId', async (req, res) => {
   try {
-    const contact = await updateContact(
-      req.params.companyId,
-      req.params.contactId,
-      req.body,
-    );
+    const contact = await updateContact(req.params.companyId, req.params.contactId, req.body);
     if (!contact) {
-      res
-        .status(404)
-        .json({ error: { code: "NOT_FOUND", message: "Contact not found" } });
+      res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Contact not found' } });
       return;
     }
     res.json({ data: contact } as ApiResponse);
   } catch (err) {
     {
-      const e = safeError(err, "UPDATE_FAILED");
+      const e = safeError(err, 'UPDATE_FAILED');
       res.status(e.status).json(e.body);
     }
   }
 });
 
 // Items
-router.get("/companies/:companyId/items", async (req, res) => {
+router.get('/companies/:companyId/items', async (req, res) => {
   try {
     const pg = parsePagination(req);
     const { resources } = await containers
       .inventory()
       .items.query({
         query: `SELECT * FROM c WHERE c.companyId = @companyId AND (c.docType = 'item' OR IS_DEFINED(c.sellingPrice)) ORDER BY c.name ${paginationClause(pg)}`,
-        parameters: [{ name: "@companyId", value: req.params.companyId }],
+        parameters: [{ name: '@companyId', value: req.params.companyId }],
       })
       .fetchAll();
     res.json(paginatedResponse(resources, pg));
   } catch (err) {
     {
-      const e = safeError(err, "QUERY_FAILED");
+      const e = safeError(err, 'QUERY_FAILED');
       res.status(e.status).json(e.body);
     }
   }
 });
 
 // Item transactions (GL entries that reference this item)
-router.get(
-  "/companies/:companyId/items/:itemCode/transactions",
-  async (req, res) => {
-    try {
-      const { companyId, itemCode } = req.params;
-      const { resources: entries } = await containers
-        .ledger()
-        .items.query<any>({
-          query:
-            "SELECT * FROM c WHERE c.companyId = @cid AND (c.docType = 'journal-entry' OR IS_DEFINED(c.entryNumber)) AND c.status = 'posted' ORDER BY c.date DESC",
-          parameters: [{ name: "@cid", value: companyId }],
-        })
-        .fetchAll();
+router.get('/companies/:companyId/items/:itemCode/transactions', async (req, res) => {
+  try {
+    const { companyId, itemCode } = req.params;
+    const { resources: entries } = await containers
+      .ledger()
+      .items.query<any>({
+        query:
+          "SELECT * FROM c WHERE c.companyId = @cid AND (c.docType = 'journal-entry' OR IS_DEFINED(c.entryNumber)) AND c.status = 'posted' ORDER BY c.date DESC",
+        parameters: [{ name: '@cid', value: companyId }],
+      })
+      .fetchAll();
 
-      // Filter to entries that have lines referencing this item
-      const result: any[] = [];
-      for (const entry of entries) {
-        const matchingLines = (entry.lines || []).filter(
-          (l: any) => l.itemCode === itemCode || l.itemId === itemCode,
-        );
-        if (matchingLines.length > 0) {
-          result.push({ ...entry, lines: matchingLines });
-        }
-      }
-      res.json({ data: result } as ApiResponse);
-    } catch (err) {
-      {
-        const e = safeError(err, "QUERY_FAILED");
-        res.status(e.status).json(e.body);
+    // Filter to entries that have lines referencing this item
+    const result: any[] = [];
+    for (const entry of entries) {
+      const matchingLines = (entry.lines || []).filter(
+        (l: any) => l.itemCode === itemCode || l.itemId === itemCode,
+      );
+      if (matchingLines.length > 0) {
+        result.push({ ...entry, lines: matchingLines });
       }
     }
-  },
-);
+    res.json({ data: result } as ApiResponse);
+  } catch (err) {
+    {
+      const e = safeError(err, 'QUERY_FAILED');
+      res.status(e.status).json(e.body);
+    }
+  }
+});
 
 // Chat (Agent interaction)
-router.get("/companies/:companyId/chat", async (req, res) => {
+router.get('/companies/:companyId/chat', async (req, res) => {
   try {
     const { resources } = await containers
       .chat()
       .items.query({
         query:
-          "SELECT * FROM c WHERE c.companyId = @companyId ORDER BY c.timestamp DESC OFFSET 0 LIMIT 50",
-        parameters: [{ name: "@companyId", value: req.params.companyId }],
+          'SELECT * FROM c WHERE c.companyId = @companyId ORDER BY c.timestamp DESC OFFSET 0 LIMIT 50',
+        parameters: [{ name: '@companyId', value: req.params.companyId }],
       })
       .fetchAll();
     const response: ApiResponse = { data: resources.reverse() };
     res.json(response);
   } catch (err) {
     {
-      const e = safeError(err, "QUERY_FAILED");
+      const e = safeError(err, 'QUERY_FAILED');
       res.status(e.status).json(e.body);
     }
   }
@@ -1100,19 +1040,19 @@ router.get("/companies/:companyId/chat", async (req, res) => {
 
 // ─── Finance: Journal Entries ───────────────────────────────
 
-function handleGLError(err: unknown, res: import("express").Response) {
+function handleGLError(err: unknown, res: import('express').Response) {
   if (err instanceof GLError) {
     res.status(400).json({ error: { code: err.code, message: err.message } });
   } else {
     {
-      const e = safeError(err, "SYS-001");
+      const e = safeError(err, 'SYS-001');
       res.status(e.status).json(e.body);
     }
   }
 }
 
 router.post(
-  "/companies/:companyId/journal-entries",
+  '/companies/:companyId/journal-entries',
   validate(PostJournalEntrySchema),
   async (req, res) => {
     try {
@@ -1128,28 +1068,21 @@ router.post(
   },
 );
 
-router.post(
-  "/companies/:companyId/journal-entries/:entryId/reverse",
-  async (req, res) => {
-    try {
-      const entry = await reverseJournalEntry(
-        req.params.companyId,
-        req.params.entryId,
-        req.user!.id,
-      );
-      res.json({ data: entry } as ApiResponse);
-    } catch (err) {
-      handleGLError(err, res);
-    }
-  },
-);
+router.post('/companies/:companyId/journal-entries/:entryId/reverse', async (req, res) => {
+  try {
+    const entry = await reverseJournalEntry(req.params.companyId, req.params.entryId, req.user!.id);
+    res.json({ data: entry } as ApiResponse);
+  } catch (err) {
+    handleGLError(err, res);
+  }
+});
 
-router.get("/companies/:companyId/trial-balance", async (req, res) => {
+router.get('/companies/:companyId/trial-balance', async (req, res) => {
   try {
     const queryValidation = TrialBalanceQuerySchema.safeParse(req.query);
     if (!queryValidation.success) {
       res.status(400).json({
-        error: { code: "VAL-001", message: "Invalid query parameters" },
+        error: { code: 'VAL-001', message: 'Invalid query parameters' },
         meta: { issues: queryValidation.error.issues },
       });
       return;
@@ -1161,7 +1094,7 @@ router.get("/companies/:companyId/trial-balance", async (req, res) => {
     res.json({ data: result } as ApiResponse);
   } catch (err) {
     {
-      const e = safeError(err, "QUERY_FAILED");
+      const e = safeError(err, 'QUERY_FAILED');
       res.status(e.status).json(e.body);
     }
   }
@@ -1169,14 +1102,14 @@ router.get("/companies/:companyId/trial-balance", async (req, res) => {
 
 // ─── Invoice Upload & Recognition ───────────────────────────
 
-router.post("/companies/:companyId/invoices/upload", async (req, res) => {
+router.post('/companies/:companyId/invoices/upload', async (req, res) => {
   try {
     const { image, mimeType } = req.body; // base64 image, mime type
     if (!image || !mimeType) {
       res.status(400).json({
         error: {
-          code: "MISSING_DATA",
-          message: "image and mimeType required",
+          code: 'MISSING_DATA',
+          message: 'image and mimeType required',
         },
       });
       return;
@@ -1186,8 +1119,8 @@ router.post("/companies/:companyId/invoices/upload", async (req, res) => {
     const recognized = await recognizeInvoice(image, mimeType);
 
     // Step 2: Find or create vendor contact
-    let contactId = "";
-    const contactName = recognized.vendorName || "Unknown vendor";
+    let contactId = '';
+    const contactName = recognized.vendorName || 'Unknown vendor';
 
     if (recognized.vendorName) {
       const existing = await findContactByName(
@@ -1201,15 +1134,15 @@ router.post("/companies/:companyId/invoices/upload", async (req, res) => {
       } else {
         const newContact = await createContact({
           companyId: req.params.companyId,
-          type: "vendor",
+          type: 'vendor',
           name: recognized.vendorName,
           registrationNumber: recognized.vendorRegistrationNumber,
           vatNumber: recognized.vendorVatNumber,
           address: {
-            line1: recognized.vendorAddress || "",
-            city: "",
-            postalCode: "",
-            country: "LV",
+            line1: recognized.vendorAddress || '',
+            city: '',
+            postalCode: '',
+            country: 'LV',
           },
           createdBy: req.user!.id,
         });
@@ -1230,7 +1163,7 @@ router.post("/companies/:companyId/invoices/upload", async (req, res) => {
           await cancelInvoice(
             req.params.companyId,
             duplicate.id,
-            "Replaced by re-upload",
+            'Replaced by re-upload',
             req.user!.id,
           );
         } catch {
@@ -1243,31 +1176,30 @@ router.post("/companies/:companyId/invoices/upload", async (req, res) => {
     const invoiceLines = recognized.lines
       .filter((l) => l.quantity > 0 && l.unitPrice > 0)
       .map((l) => ({
-        description: l.description || "Item",
+        description: l.description || 'Item',
         quantity: l.quantity,
         unitPrice: l.unitPrice,
         vatRate: [0, 5, 12, 21].includes(l.vatRate) ? l.vatRate : 21,
-        accountCode: "6350", // Default: professional services
+        accountCode: '6350', // Default: professional services
       }));
 
     // If no valid lines, fall back to using the total as a single line
     if (invoiceLines.length === 0 && recognized.total > 0) {
       const net = recognized.subtotal || recognized.total / 1.21;
       invoiceLines.push({
-        description: `Invoice ${recognized.invoiceNumber || ""}`.trim(),
+        description: `Invoice ${recognized.invoiceNumber || ''}`.trim(),
         quantity: 1,
         unitPrice: Math.round(net * 100) / 100,
         vatRate: 21,
-        accountCode: "6350",
+        accountCode: '6350',
       });
     }
 
     if (invoiceLines.length === 0) {
       res.status(400).json({
         error: {
-          code: "NO_LINES",
-          message:
-            "Could not extract any line items with amounts from the invoice.",
+          code: 'NO_LINES',
+          message: 'Could not extract any line items with amounts from the invoice.',
         },
       });
       return;
@@ -1275,13 +1207,12 @@ router.post("/companies/:companyId/invoices/upload", async (req, res) => {
 
     const invoice = await createInvoice({
       companyId: req.params.companyId,
-      type: "purchase",
+      type: 'purchase',
       contactId,
       contactName,
       date: recognized.invoiceDate,
       dueDate:
-        recognized.dueDate ||
-        new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
+        recognized.dueDate || new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
       vendorInvoiceNumber: recognized.invoiceNumber,
       recognitionConfidence: recognized.confidence,
       lines: invoiceLines,
@@ -1289,11 +1220,7 @@ router.post("/companies/:companyId/invoices/upload", async (req, res) => {
     });
 
     // Step 4: Auto-post to ledger
-    const postedInvoice = await postInvoice(
-      req.params.companyId,
-      invoice.id,
-      req.user!.id,
-    );
+    const postedInvoice = await postInvoice(req.params.companyId, invoice.id, req.user!.id);
 
     res.status(201).json({
       data: {
@@ -1305,7 +1232,7 @@ router.post("/companies/:companyId/invoices/upload", async (req, res) => {
     } as ApiResponse);
   } catch (err) {
     {
-      const e = safeError(err, "UPLOAD_FAILED");
+      const e = safeError(err, 'UPLOAD_FAILED');
       res.status(e.status).json(e.body);
     }
   }
@@ -1313,139 +1240,114 @@ router.post("/companies/:companyId/invoices/upload", async (req, res) => {
 
 // ─── Finance: Invoices (CRUD + post) ────────────────────────
 
-router.post(
-  "/companies/:companyId/invoices",
-  validate(CreateInvoiceSchema),
-  async (req, res) => {
-    try {
-      const invoice = await createInvoice({
-        companyId: req.params.companyId,
-        ...req.body,
-        createdBy: req.user!.id,
-      });
-      res.status(201).json({
-        data: invoice,
-        meta: {
-          operation: {
-            operation: "create",
-            entityType: "invoice",
-            entityId: invoice.id,
-            status: "success",
-            message: `Invoice ${invoice.invoiceNumber} created`,
-            suggestedActions: ["post", "edit", "attach-document"],
-          },
+router.post('/companies/:companyId/invoices', validate(CreateInvoiceSchema), async (req, res) => {
+  try {
+    const invoice = await createInvoice({
+      companyId: req.params.companyId,
+      ...req.body,
+      createdBy: req.user!.id,
+    });
+    res.status(201).json({
+      data: invoice,
+      meta: {
+        operation: {
+          operation: 'create',
+          entityType: 'invoice',
+          entityId: invoice.id,
+          status: 'success',
+          message: `Invoice ${invoice.invoiceNumber} created`,
+          suggestedActions: ['post', 'edit', 'attach-document'],
         },
-      } as ApiResponse);
-    } catch (err) {
-      handleGLError(err, res);
-    }
-  },
-);
+      },
+    } as ApiResponse);
+  } catch (err) {
+    handleGLError(err, res);
+  }
+});
 
-router.get("/companies/:companyId/invoices/:invoiceId", async (req, res) => {
+router.get('/companies/:companyId/invoices/:invoiceId', async (req, res) => {
   const invoice = await getInvoice(req.params.companyId, req.params.invoiceId);
   if (!invoice) {
-    res
-      .status(404)
-      .json({ error: { code: "NOT_FOUND", message: "Invoice not found" } });
+    res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Invoice not found' } });
     return;
   }
   res.json({ data: invoice } as ApiResponse);
 });
 
-router.post(
-  "/companies/:companyId/invoices/:invoiceId/post",
-  async (req, res) => {
-    try {
-      const invoice = await postInvoice(
-        req.params.companyId,
-        req.params.invoiceId,
-        req.user!.id,
-      );
-      res.json({ data: invoice } as ApiResponse);
-    } catch (err) {
-      handleGLError(err, res);
-    }
-  },
-);
+router.post('/companies/:companyId/invoices/:invoiceId/post', async (req, res) => {
+  try {
+    const invoice = await postInvoice(req.params.companyId, req.params.invoiceId, req.user!.id);
+    res.json({ data: invoice } as ApiResponse);
+  } catch (err) {
+    handleGLError(err, res);
+  }
+});
 
-router.post(
-  "/companies/:companyId/invoices/:invoiceId/cancel",
-  async (req, res) => {
-    try {
-      const invoice = await cancelInvoice(
-        req.params.companyId,
-        req.params.invoiceId,
-        req.body.reason || "Cancelled by user",
-        req.user!.id,
-      );
-      res.json({ data: invoice } as ApiResponse);
-    } catch (err) {
-      handleGLError(err, res);
-    }
-  },
-);
+router.post('/companies/:companyId/invoices/:invoiceId/cancel', async (req, res) => {
+  try {
+    const invoice = await cancelInvoice(
+      req.params.companyId,
+      req.params.invoiceId,
+      req.body.reason || 'Cancelled by user',
+      req.user!.id,
+    );
+    res.json({ data: invoice } as ApiResponse);
+  } catch (err) {
+    handleGLError(err, res);
+  }
+});
 
-router.get(
-  "/companies/:companyId/invoices/:invoiceId/postings",
-  async (req, res) => {
-    try {
-      const postings = await getInvoicePostings(
-        req.params.companyId,
-        req.params.invoiceId,
-      );
-      res.json({ data: postings } as ApiResponse);
-    } catch (err) {
-      {
-        const e = safeError(err, "QUERY_FAILED");
-        res.status(e.status).json(e.body);
-      }
+router.get('/companies/:companyId/invoices/:invoiceId/postings', async (req, res) => {
+  try {
+    const postings = await getInvoicePostings(req.params.companyId, req.params.invoiceId);
+    res.json({ data: postings } as ApiResponse);
+  } catch (err) {
+    {
+      const e = safeError(err, 'QUERY_FAILED');
+      res.status(e.status).json(e.body);
     }
-  },
-);
+  }
+});
 
 // ─── Finance: Payments ──────────────────────────────────────
 
-router.post(
-  "/companies/:companyId/payments",
-  validate(CreatePaymentSchema),
-  async (req, res) => {
-    try {
-      const payment = await createAndPostPayment({
-        companyId: req.params.companyId,
-        ...req.body,
-        createdBy: req.user!.id,
-      });
-      res.status(201).json({
-        data: payment,
-        meta: {
-          operation: {
-            operation: "create",
-            entityType: "payment",
-            entityId: payment.id,
-            status: "success",
-            message: `Payment ${payment.paymentNumber} recorded`,
-            relatedEntities: (req.body.invoiceAllocations || []).map(
-              (a: any) => ({ type: "invoice", id: a.invoiceId }),
-            ),
-            suggestedActions: ["view-journal-entry", "reconcile-bank"],
-          },
-        },
-      } as ApiResponse);
-    } catch (err) {
-      handleGLError(err, res);
-    }
-  },
-);
-
-router.get("/companies/:companyId/payments", async (req, res) => {
+router.post('/companies/:companyId/payments', validate(CreatePaymentSchema), async (req, res) => {
   try {
-    const type = req.query.type as "incoming" | "outgoing" | undefined;
+    const payment = await createAndPostPayment({
+      companyId: req.params.companyId,
+      ...req.body,
+      createdBy: req.user!.id,
+    });
+    res.status(201).json({
+      data: payment,
+      meta: {
+        operation: {
+          operation: 'create',
+          entityType: 'payment',
+          entityId: payment.id,
+          status: 'success',
+          message: `Payment ${payment.paymentNumber} recorded`,
+          relatedEntities: (req.body.invoiceAllocations || []).map((a: any) => ({
+            type: 'invoice',
+            id: a.invoiceId,
+          })),
+          suggestedActions: ['view-journal-entry', 'reconcile-bank'],
+        },
+      },
+    } as ApiResponse);
+  } catch (err) {
+    handleGLError(err, res);
+  }
+});
+
+router.get('/companies/:companyId/payments', async (req, res) => {
+  try {
+    const type = req.query.type as 'incoming' | 'outgoing' | undefined;
     const payments = await listPayments(req.params.companyId, type);
     res.json({ data: payments } as ApiResponse);
   } catch (err) {
     {
-      const e = safeError(err, "QUERY_FAILED");
+      const e = safeError(err, 'QUERY_FAILED');
       res.status(e.status).json(e.body);
     }
   }
@@ -1453,146 +1355,126 @@ router.get("/companies/:companyId/payments", async (req, res) => {
 
 // ─── Contacts (CRUD) ────────────────────────────────────────
 
-router.get("/companies/:companyId/contacts/find", async (req, res) => {
+router.get('/companies/:companyId/contacts/find', async (req, res) => {
   try {
-    const name = (req.query.name as string) || "";
+    const name = (req.query.name as string) || '';
     const regNumber = req.query.registrationNumber as string | undefined;
     if (!name && !regNumber) {
       res.json({ data: null } as ApiResponse);
       return;
     }
-    const contact = await findContactByName(
-      req.params.companyId,
-      name,
-      regNumber,
-    );
+    const contact = await findContactByName(req.params.companyId, name, regNumber);
     res.json({ data: contact } as ApiResponse);
   } catch (err) {
     {
-      const e = safeError(err, "QUERY_FAILED");
+      const e = safeError(err, 'QUERY_FAILED');
       res.status(e.status).json(e.body);
     }
   }
 });
 
-router.post(
-  "/companies/:companyId/contacts",
-  validate(CreateContactSchema),
-  async (req, res) => {
-    try {
-      const contact = await createContact({
-        companyId: req.params.companyId,
-        ...req.body,
-        createdBy: req.user!.id,
-      });
-      res.status(201).json({ data: contact } as ApiResponse);
-    } catch (err) {
-      {
-        const e = safeError(err, "CREATE_FAILED");
-        res.status(e.status).json(e.body);
-      }
+router.post('/companies/:companyId/contacts', validate(CreateContactSchema), async (req, res) => {
+  try {
+    const contact = await createContact({
+      companyId: req.params.companyId,
+      ...req.body,
+      createdBy: req.user!.id,
+    });
+    res.status(201).json({ data: contact } as ApiResponse);
+  } catch (err) {
+    {
+      const e = safeError(err, 'CREATE_FAILED');
+      res.status(e.status).json(e.body);
     }
-  },
-);
+  }
+});
 
-router.get("/companies/:companyId/contacts/:contactId", async (req, res) => {
+router.get('/companies/:companyId/contacts/:contactId', async (req, res) => {
   const contact = await getContact(req.params.companyId, req.params.contactId);
   if (!contact) {
-    res
-      .status(404)
-      .json({ error: { code: "NOT_FOUND", message: "Contact not found" } });
+    res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Contact not found' } });
     return;
   }
   res.json({ data: contact } as ApiResponse);
 });
 
-router.get(
-  "/companies/:companyId/contacts/:contactId/transactions",
-  async (req, res) => {
-    try {
-      const cid = req.params.companyId;
-      const contactId = req.params.contactId;
+router.get('/companies/:companyId/contacts/:contactId/transactions', async (req, res) => {
+  try {
+    const cid = req.params.companyId;
+    const contactId = req.params.contactId;
 
-      // Get invoices for this contact
-      const { resources: invoices } = await containers
-        .documents()
-        .items.query({
-          query:
-            "SELECT * FROM c WHERE c.companyId = @cid AND c.contactId = @contactId AND (c.docType = 'invoice' OR IS_DEFINED(c.invoiceNumber)) ORDER BY c.date DESC",
-          parameters: [
-            { name: "@cid", value: cid },
-            { name: "@contactId", value: contactId },
-          ],
-        })
-        .fetchAll();
+    // Get invoices for this contact
+    const { resources: invoices } = await containers
+      .documents()
+      .items.query({
+        query:
+          "SELECT * FROM c WHERE c.companyId = @cid AND c.contactId = @contactId AND (c.docType = 'invoice' OR IS_DEFINED(c.invoiceNumber)) ORDER BY c.date DESC",
+        parameters: [
+          { name: '@cid', value: cid },
+          { name: '@contactId', value: contactId },
+        ],
+      })
+      .fetchAll();
 
-      // Get payments for this contact
-      const { resources: payments } = await containers
-        .documents()
-        .items.query({
-          query:
-            "SELECT * FROM c WHERE c.companyId = @cid AND c.contactId = @contactId AND (c.docType = 'payment' OR IS_DEFINED(c.bankAccountIban)) ORDER BY c.date DESC",
-          parameters: [
-            { name: "@cid", value: cid },
-            { name: "@contactId", value: contactId },
-          ],
-        })
-        .fetchAll();
+    // Get payments for this contact
+    const { resources: payments } = await containers
+      .documents()
+      .items.query({
+        query:
+          "SELECT * FROM c WHERE c.companyId = @cid AND c.contactId = @contactId AND (c.docType = 'payment' OR IS_DEFINED(c.bankAccountIban)) ORDER BY c.date DESC",
+        parameters: [
+          { name: '@cid', value: cid },
+          { name: '@contactId', value: contactId },
+        ],
+      })
+      .fetchAll();
 
-      // Calculate totals
-      const totalInvoiced = invoices
-        .filter((i: any) => i.status !== "cancelled")
-        .reduce((s: number, i: any) => s + (i.total || 0), 0);
-      const totalPaid = payments.reduce(
-        (s: number, p: any) => s + (p.amount || 0),
-        0,
-      );
-      const balance = Math.round((totalInvoiced - totalPaid) * 100) / 100;
+    // Calculate totals
+    const totalInvoiced = invoices
+      .filter((i: any) => i.status !== 'cancelled')
+      .reduce((s: number, i: any) => s + (i.total || 0), 0);
+    const totalPaid = payments.reduce((s: number, p: any) => s + (p.amount || 0), 0);
+    const balance = Math.round((totalInvoiced - totalPaid) * 100) / 100;
 
-      res.json({
-        data: { invoices, payments, totalInvoiced, totalPaid, balance },
-      } as ApiResponse);
-    } catch (err) {
-      {
-        const e = safeError(err, "QUERY_FAILED");
-        res.status(e.status).json(e.body);
-      }
+    res.json({
+      data: { invoices, payments, totalInvoiced, totalPaid, balance },
+    } as ApiResponse);
+  } catch (err) {
+    {
+      const e = safeError(err, 'QUERY_FAILED');
+      res.status(e.status).json(e.body);
     }
-  },
-);
+  }
+});
 
 // ─── Inventory ──────────────────────────────────────────────
 
-router.post(
-  "/companies/:companyId/items",
-  validate(CreateItemSchema),
-  async (req, res) => {
-    try {
-      const item = await createItem({
-        companyId: req.params.companyId,
-        ...req.body,
-        createdBy: req.user!.id,
-      });
-      res.status(201).json({ data: item } as ApiResponse);
-    } catch (err) {
-      {
-        const e = safeError(err, "CREATE_FAILED");
-        res.status(e.status).json(e.body);
-      }
+router.post('/companies/:companyId/items', validate(CreateItemSchema), async (req, res) => {
+  try {
+    const item = await createItem({
+      companyId: req.params.companyId,
+      ...req.body,
+      createdBy: req.user!.id,
+    });
+    res.status(201).json({ data: item } as ApiResponse);
+  } catch (err) {
+    {
+      const e = safeError(err, 'CREATE_FAILED');
+      res.status(e.status).json(e.body);
     }
-  },
-);
+  }
+});
 
 // ─── Contact Merge & Register ───────────────────────────────
 
-router.post("/companies/:companyId/contacts/merge", async (req, res) => {
+router.post('/companies/:companyId/contacts/merge', async (req, res) => {
   try {
     const { sourceContactId, targetContactId } = req.body;
     if (!sourceContactId || !targetContactId) {
       res.status(400).json({
         error: {
-          code: "VAL-001",
-          message: "sourceContactId and targetContactId are required",
+          code: 'VAL-001',
+          message: 'sourceContactId and targetContactId are required',
         },
       });
       return;
@@ -1606,167 +1488,144 @@ router.post("/companies/:companyId/contacts/merge", async (req, res) => {
     res.json({ data: result } as ApiResponse);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    res.status(400).json({ error: { code: "BIZ-001", message } });
+    res.status(400).json({ error: { code: 'BIZ-001', message } });
   }
 });
 
-router.get("/companies/:companyId/contacts/duplicates", async (req, res) => {
+router.get('/companies/:companyId/contacts/duplicates', async (req, res) => {
   try {
     const groups = await findDuplicateContacts(req.params.companyId);
     res.json({ data: groups } as ApiResponse);
   } catch (err) {
     {
-      const e = safeError(err, "QUERY_FAILED");
+      const e = safeError(err, 'QUERY_FAILED');
       res.status(e.status).json(e.body);
     }
   }
 });
 
-router.get(
-  "/companies/:companyId/contacts/:contactId/check-register",
-  async (req, res) => {
-    try {
-      const result = await checkContactRegister(
-        req.params.companyId,
-        req.params.contactId,
-      );
-      res.json({ data: result } as ApiResponse);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      res.status(400).json({ error: { code: "BIZ-001", message } });
-    }
-  },
-);
+router.get('/companies/:companyId/contacts/:contactId/check-register', async (req, res) => {
+  try {
+    const result = await checkContactRegister(req.params.companyId, req.params.contactId);
+    res.json({ data: result } as ApiResponse);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    res.status(400).json({ error: { code: 'BIZ-001', message } });
+  }
+});
 
-router.post(
-  "/companies/:companyId/contacts/:contactId/apply-register",
-  async (req, res) => {
-    try {
-      const updated = await applyRegisterData(
-        req.params.companyId,
-        req.params.contactId,
-        req.body,
-        req.user!.id,
-      );
-      if (!updated) {
-        res
-          .status(404)
-          .json({ error: { code: "NOT_FOUND", message: "Contact not found" } });
-        return;
-      }
-      res.json({ data: updated } as ApiResponse);
-    } catch (err) {
-      {
-        const e = safeError(err, "SYS-001");
-        res.status(e.status).json(e.body);
-      }
+router.post('/companies/:companyId/contacts/:contactId/apply-register', async (req, res) => {
+  try {
+    const updated = await applyRegisterData(
+      req.params.companyId,
+      req.params.contactId,
+      req.body,
+      req.user!.id,
+    );
+    if (!updated) {
+      res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Contact not found' } });
+      return;
     }
-  },
-);
+    res.json({ data: updated } as ApiResponse);
+  } catch (err) {
+    {
+      const e = safeError(err, 'SYS-001');
+      res.status(e.status).json(e.body);
+    }
+  }
+});
 
-router.post(
-  "/companies/:companyId/contacts/parse-description",
-  async (req, res) => {
-    try {
-      const description = req.body.description as string;
-      if (!description?.trim()) {
-        res.status(400).json({
-          error: { code: "VAL-001", message: "Description is required" },
-        });
-        return;
-      }
-      const fields = await parseContactDescription(description.trim());
-      res.json({ data: fields } as ApiResponse);
-    } catch (err) {
-      {
-        const e = safeError(err, "PARSE_FAILED");
-        res.status(e.status).json(e.body);
-      }
+router.post('/companies/:companyId/contacts/parse-description', async (req, res) => {
+  try {
+    const description = req.body.description as string;
+    if (!description?.trim()) {
+      res.status(400).json({
+        error: { code: 'VAL-001', message: 'Description is required' },
+      });
+      return;
     }
-  },
-);
+    const fields = await parseContactDescription(description.trim());
+    res.json({ data: fields } as ApiResponse);
+  } catch (err) {
+    {
+      const e = safeError(err, 'PARSE_FAILED');
+      res.status(e.status).json(e.body);
+    }
+  }
+});
 
-router.post(
-  "/companies/:companyId/items/parse-description",
-  async (req, res) => {
-    try {
-      const description = req.body.description as string;
-      if (!description?.trim()) {
-        res.status(400).json({
-          error: { code: "VAL-001", message: "Description is required" },
-        });
-        return;
-      }
-      const fields = await parseItemDescription(description.trim());
-      res.json({ data: fields } as ApiResponse);
-    } catch (err) {
-      {
-        const e = safeError(err, "PARSE_FAILED");
-        res.status(e.status).json(e.body);
-      }
+router.post('/companies/:companyId/items/parse-description', async (req, res) => {
+  try {
+    const description = req.body.description as string;
+    if (!description?.trim()) {
+      res.status(400).json({
+        error: { code: 'VAL-001', message: 'Description is required' },
+      });
+      return;
     }
-  },
-);
+    const fields = await parseItemDescription(description.trim());
+    res.json({ data: fields } as ApiResponse);
+  } catch (err) {
+    {
+      const e = safeError(err, 'PARSE_FAILED');
+      res.status(e.status).json(e.body);
+    }
+  }
+});
 
-router.post(
-  "/companies/:companyId/invoices/parse-description",
-  async (req, res) => {
-    try {
-      const description = req.body.description as string;
-      if (!description?.trim()) {
-        res.status(400).json({
-          error: { code: "VAL-001", message: "Description is required" },
-        });
-        return;
-      }
-      const fields = await parseInvoiceDescription(description.trim());
-      res.json({ data: fields } as ApiResponse);
-    } catch (err) {
-      {
-        const e = safeError(err, "PARSE_FAILED");
-        res.status(e.status).json(e.body);
-      }
+router.post('/companies/:companyId/invoices/parse-description', async (req, res) => {
+  try {
+    const description = req.body.description as string;
+    if (!description?.trim()) {
+      res.status(400).json({
+        error: { code: 'VAL-001', message: 'Description is required' },
+      });
+      return;
     }
-  },
-);
+    const fields = await parseInvoiceDescription(description.trim());
+    res.json({ data: fields } as ApiResponse);
+  } catch (err) {
+    {
+      const e = safeError(err, 'PARSE_FAILED');
+      res.status(e.status).json(e.body);
+    }
+  }
+});
 
-router.post(
-  "/companies/:companyId/fixed-assets/parse-description",
-  async (req, res) => {
-    try {
-      const description = req.body.description as string;
-      if (!description?.trim()) {
-        res.status(400).json({
-          error: { code: "VAL-001", message: "Description is required" },
-        });
-        return;
-      }
-      const fields = await parseAssetDescription(description.trim());
-      res.json({ data: fields } as ApiResponse);
-    } catch (err) {
-      {
-        const e = safeError(err, "PARSE_FAILED");
-        res.status(e.status).json(e.body);
-      }
+router.post('/companies/:companyId/fixed-assets/parse-description', async (req, res) => {
+  try {
+    const description = req.body.description as string;
+    if (!description?.trim()) {
+      res.status(400).json({
+        error: { code: 'VAL-001', message: 'Description is required' },
+      });
+      return;
     }
-  },
-);
+    const fields = await parseAssetDescription(description.trim());
+    res.json({ data: fields } as ApiResponse);
+  } catch (err) {
+    {
+      const e = safeError(err, 'PARSE_FAILED');
+      res.status(e.status).json(e.body);
+    }
+  }
+});
 
 // ─── Reporting ──────────────────────────────────────────────
 
-router.get("/companies/:companyId/reports/balance-sheet", async (req, res) => {
+router.get('/companies/:companyId/reports/balance-sheet', async (req, res) => {
   try {
     const report = await getBalanceSheet(req.params.companyId);
     res.json({ data: report } as ApiResponse);
   } catch (err) {
     {
-      const e = safeError(err, "REPORT_FAILED");
+      const e = safeError(err, 'REPORT_FAILED');
       res.status(e.status).json(e.body);
     }
   }
 });
 
-router.get("/companies/:companyId/reports/profit-loss", async (req, res) => {
+router.get('/companies/:companyId/reports/profit-loss', async (req, res) => {
   try {
     const from = req.query.from as string | undefined;
     const to = req.query.to as string | undefined;
@@ -1774,25 +1633,20 @@ router.get("/companies/:companyId/reports/profit-loss", async (req, res) => {
     res.json({ data: report } as ApiResponse);
   } catch (err) {
     {
-      const e = safeError(err, "REPORT_FAILED");
+      const e = safeError(err, 'REPORT_FAILED');
       res.status(e.status).json(e.body);
     }
   }
 });
 
-router.post("/companies/:companyId/vat-returns", async (req, res) => {
+router.post('/companies/:companyId/vat-returns', async (req, res) => {
   try {
     const { year, month } = req.body;
-    const vatReturn = await generateVatReturn(
-      req.params.companyId,
-      year,
-      month,
-      req.user!.id,
-    );
+    const vatReturn = await generateVatReturn(req.params.companyId, year, month, req.user!.id);
     res.status(201).json({ data: vatReturn } as ApiResponse);
   } catch (err) {
     {
-      const e = safeError(err, "VAT_FAILED");
+      const e = safeError(err, 'VAT_FAILED');
       res.status(e.status).json(e.body);
     }
   }
@@ -1800,39 +1654,38 @@ router.post("/companies/:companyId/vat-returns", async (req, res) => {
 
 // ─── Dashboard Summary ──────────────────────────────────────
 
-router.get("/companies/:companyId/dashboard", async (req, res) => {
+router.get('/companies/:companyId/dashboard', async (req, res) => {
   try {
     const cid = req.params.companyId;
 
     // Get key account balances in parallel
-    const [cashResult, arResult, apResult, vatOutResult, vatInResult] =
-      await Promise.all([
-        containers
-          .ledger()
-          .item(`${cid}-acct-2420`, cid)
-          .read<Account>()
-          .catch(() => ({ resource: null })),
-        containers
-          .ledger()
-          .item(`${cid}-acct-2210`, cid)
-          .read<Account>()
-          .catch(() => ({ resource: null })),
-        containers
-          .ledger()
-          .item(`${cid}-acct-4220`, cid)
-          .read<Account>()
-          .catch(() => ({ resource: null })),
-        containers
-          .ledger()
-          .item(`${cid}-acct-4230`, cid)
-          .read<Account>()
-          .catch(() => ({ resource: null })),
-        containers
-          .ledger()
-          .item(`${cid}-acct-2310`, cid)
-          .read<Account>()
-          .catch(() => ({ resource: null })),
-      ]);
+    const [cashResult, arResult, apResult, vatOutResult, vatInResult] = await Promise.all([
+      containers
+        .ledger()
+        .item(`${cid}-acct-2420`, cid)
+        .read<Account>()
+        .catch(() => ({ resource: null })),
+      containers
+        .ledger()
+        .item(`${cid}-acct-2210`, cid)
+        .read<Account>()
+        .catch(() => ({ resource: null })),
+      containers
+        .ledger()
+        .item(`${cid}-acct-4220`, cid)
+        .read<Account>()
+        .catch(() => ({ resource: null })),
+      containers
+        .ledger()
+        .item(`${cid}-acct-4230`, cid)
+        .read<Account>()
+        .catch(() => ({ resource: null })),
+      containers
+        .ledger()
+        .item(`${cid}-acct-2310`, cid)
+        .read<Account>()
+        .catch(() => ({ resource: null })),
+    ]);
 
     const cash = cashResult.resource?.balance ?? 0;
     const receivables = arResult.resource?.balance ?? 0;
@@ -1847,7 +1700,7 @@ router.get("/companies/:companyId/dashboard", async (req, res) => {
       .items.query({
         query:
           "SELECT TOP 5 c.id, c.invoiceNumber, c.type, c.contactName, c.total, c.status, c.date FROM c WHERE c.companyId = @cid AND (c.docType = 'invoice' OR IS_DEFINED(c.invoiceNumber)) ORDER BY c.date DESC",
-        parameters: [{ name: "@cid", value: cid }],
+        parameters: [{ name: '@cid', value: cid }],
       })
       .fetchAll();
 
@@ -1862,7 +1715,7 @@ router.get("/companies/:companyId/dashboard", async (req, res) => {
     } as ApiResponse);
   } catch (err) {
     {
-      const e = safeError(err, "DASHBOARD_FAILED");
+      const e = safeError(err, 'DASHBOARD_FAILED');
       res.status(e.status).json(e.body);
     }
   }
@@ -1870,7 +1723,7 @@ router.get("/companies/:companyId/dashboard", async (req, res) => {
 
 // ─── Migration: Generate short names ────────────────────────
 
-router.post("/migrate/short-names", async (req, res) => {
+router.post('/migrate/short-names', async (req, res) => {
   try {
     let updated = 0;
 
@@ -1878,7 +1731,7 @@ router.post("/migrate/short-names", async (req, res) => {
     const { resources: companies } = await containers
       .companies()
       .items.query<Company>({
-        query: "SELECT * FROM c", // eslint-disable-line era/no-cross-partition-query
+        query: 'SELECT * FROM c', // eslint-disable-line era/no-cross-partition-query
         parameters: [],
       })
       .fetchAll();
@@ -1889,7 +1742,7 @@ router.post("/migrate/short-names", async (req, res) => {
         await containers
           .companies()
           .item(company.id, company.id)
-          .patch([{ op: "add", path: "/shortName", value: shortName }]);
+          .patch([{ op: 'add', path: '/shortName', value: shortName }]);
         updated++;
       }
     }
@@ -1899,8 +1752,8 @@ router.post("/migrate/short-names", async (req, res) => {
       const { resources: contacts } = await containers
         .contacts()
         .items.query({
-          query: "SELECT * FROM c WHERE c.companyId = @cid",
-          parameters: [{ name: "@cid", value: company.id }],
+          query: 'SELECT * FROM c WHERE c.companyId = @cid',
+          parameters: [{ name: '@cid', value: company.id }],
         })
         .fetchAll();
 
@@ -1910,7 +1763,7 @@ router.post("/migrate/short-names", async (req, res) => {
           await containers
             .contacts()
             .item(contact.id, contact.companyId)
-            .patch([{ op: "add", path: "/shortName", value: shortName }]);
+            .patch([{ op: 'add', path: '/shortName', value: shortName }]);
           updated++;
         }
       }
@@ -1919,7 +1772,7 @@ router.post("/migrate/short-names", async (req, res) => {
     res.json({ data: { updated } } as ApiResponse);
   } catch (err) {
     {
-      const e = safeError(err, "MIGRATION_FAILED");
+      const e = safeError(err, 'MIGRATION_FAILED');
       res.status(e.status).json(e.body);
     }
   }
@@ -1927,7 +1780,7 @@ router.post("/migrate/short-names", async (req, res) => {
 
 // ─── Agent Chat ─────────────────────────────────────────────
 
-router.post("/chat", async (req, res) => {
+router.post('/chat', async (req, res) => {
   try {
     const { companyId, message, history } = req.body;
     const userId = req.user!.id;
@@ -1938,7 +1791,7 @@ router.post("/chat", async (req, res) => {
       await containers.chat().items.create({
         id: `chat-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         companyId,
-        role: "user" as const,
+        role: 'user' as const,
         content: message,
         timestamp: now,
       });
@@ -1956,7 +1809,7 @@ router.post("/chat", async (req, res) => {
       await containers.chat().items.create({
         id: `chat-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         companyId,
-        role: "assistant" as const,
+        role: 'assistant' as const,
         content: response,
         timestamp: new Date().toISOString(),
       });
@@ -1965,7 +1818,7 @@ router.post("/chat", async (req, res) => {
     res.json({ data: { response } } as ApiResponse);
   } catch (err) {
     {
-      const e = safeError(err, "AGENT_ERROR");
+      const e = safeError(err, 'AGENT_ERROR');
       res.status(e.status).json(e.body);
     }
   }
@@ -1973,25 +1826,21 @@ router.post("/chat", async (req, res) => {
 
 // ─── Feedback / Dev Tasks ───────────────────────────────────
 
-router.post("/feedback", validate(SubmitFeedbackSchema), async (req, res) => {
+router.post('/feedback', validate(SubmitFeedbackSchema), async (req, res) => {
   try {
     const { page, message, companyId } = req.body;
-    if (
-      !message ||
-      typeof message !== "string" ||
-      message.trim().length === 0
-    ) {
+    if (!message || typeof message !== 'string' || message.trim().length === 0) {
       res.status(400).json({
-        error: { code: "INVALID_INPUT", message: "Message is required" },
+        error: { code: 'INVALID_INPUT', message: 'Message is required' },
       });
       return;
     }
     const now = new Date().toISOString();
     const item: Feedback = {
       id: `fb-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      page: String(page || "unknown"),
+      page: String(page || 'unknown'),
       message: message.trim().slice(0, 2000),
-      status: "open",
+      status: 'open',
       submittedBy: req.user!.id,
       submittedAt: now,
       companyId: companyId || undefined,
@@ -2000,19 +1849,17 @@ router.post("/feedback", validate(SubmitFeedbackSchema), async (req, res) => {
     res.status(201).json({ data: item } as ApiResponse);
   } catch (err) {
     {
-      const e = safeError(err, "CREATE_FAILED");
+      const e = safeError(err, 'CREATE_FAILED');
       res.status(e.status).json(e.body);
     }
   }
 });
 
-router.get("/feedback", async (req, res) => {
+router.get('/feedback', async (req, res) => {
   try {
     const pg = parsePagination(req);
-    const statusFilter = req.query.status ? " WHERE c.status = @status" : "";
-    const params = req.query.status
-      ? [{ name: "@status", value: req.query.status as string }]
-      : [];
+    const statusFilter = req.query.status ? ' WHERE c.status = @status' : '';
+    const params = req.query.status ? [{ name: '@status', value: req.query.status as string }] : [];
     const { resources } = await containers
       .feedback()
       .items.query<Feedback>({
@@ -2023,20 +1870,18 @@ router.get("/feedback", async (req, res) => {
     res.json(paginatedResponse(resources, pg));
   } catch (err) {
     {
-      const e = safeError(err, "QUERY_FAILED");
+      const e = safeError(err, 'QUERY_FAILED');
       res.status(e.status).json(e.body);
     }
   }
 });
 
-router.patch("/feedback/:id", async (req, res) => {
+router.patch('/feedback/:id', async (req, res) => {
   try {
     const { status } = req.body;
-    const validStatuses = ["open", "in-progress", "done", "dismissed"];
+    const validStatuses = ['open', 'in-progress', 'done', 'dismissed'];
     if (!status || !validStatuses.includes(status)) {
-      res
-        .status(400)
-        .json({ error: { code: "INVALID_INPUT", message: "Invalid status" } });
+      res.status(400).json({ error: { code: 'INVALID_INPUT', message: 'Invalid status' } });
       return;
     }
     const { resource } = await containers
@@ -2044,27 +1889,22 @@ router.patch("/feedback/:id", async (req, res) => {
       .item(req.params.id, req.params.id)
       .read<Feedback>();
     if (!resource) {
-      res
-        .status(404)
-        .json({ error: { code: "NOT_FOUND", message: "Feedback not found" } });
+      res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Feedback not found' } });
       return;
     }
     const updated = {
       ...resource,
       status,
       resolvedAt:
-        status === "done" || status === "dismissed"
+        status === 'done' || status === 'dismissed'
           ? new Date().toISOString()
           : resource.resolvedAt,
     };
-    await containers
-      .feedback()
-      .item(req.params.id, req.params.id)
-      .replace(updated);
+    await containers.feedback().item(req.params.id, req.params.id).replace(updated);
     res.json({ data: updated } as ApiResponse);
   } catch (err) {
     {
-      const e = safeError(err, "UPDATE_FAILED");
+      const e = safeError(err, 'UPDATE_FAILED');
       res.status(e.status).json(e.body);
     }
   }
@@ -2072,37 +1912,36 @@ router.patch("/feedback/:id", async (req, res) => {
 
 // ─── Posting Rules ──────────────────────────────────────────
 
-router.get("/rules", async (req, res) => {
+router.get('/rules', async (req, res) => {
   try {
-    const country = (req.query.country as string) || "LV";
+    const country = (req.query.country as string) || 'LV';
     const { resources } = await containers
       .rules()
       .items.query<PostingRule>({
-        query:
-          "SELECT * FROM c WHERE c.country = @country ORDER BY c.documentType, c.version DESC",
-        parameters: [{ name: "@country", value: country }],
+        query: 'SELECT * FROM c WHERE c.country = @country ORDER BY c.documentType, c.version DESC',
+        parameters: [{ name: '@country', value: country }],
       })
       .fetchAll();
     res.json({ data: resources } as ApiResponse);
   } catch (err) {
     {
-      const e = safeError(err, "QUERY_FAILED");
+      const e = safeError(err, 'QUERY_FAILED');
       res.status(e.status).json(e.body);
     }
   }
 });
 
-router.post("/rules/seed", async (req, res) => {
+router.post('/rules/seed', async (req, res) => {
   try {
     // Dynamic import to allow seeding from country files
-    const { LV_POSTING_RULES } = await import("../../shared/rules/lv.js");
+    const { LV_POSTING_RULES } = await import('../../shared/rules/lv.js');
     const count = await seedRules(LV_POSTING_RULES);
     res.json({
       data: { seeded: count, total: LV_POSTING_RULES.length },
     } as ApiResponse);
   } catch (err) {
     {
-      const e = safeError(err, "SEED_FAILED");
+      const e = safeError(err, 'SEED_FAILED');
       res.status(e.status).json(e.body);
     }
   }
@@ -2110,15 +1949,14 @@ router.post("/rules/seed", async (req, res) => {
 
 // ─── Events (read-only audit log) ───────────────────────────
 
-router.get("/companies/:companyId/events", async (req, res) => {
+router.get('/companies/:companyId/events', async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
-    const typeFilter = req.query.type ? " AND c.type = @type" : "";
+    const typeFilter = req.query.type ? ' AND c.type = @type' : '';
     const params: { name: string; value: string | number }[] = [
-      { name: "@cid", value: req.params.companyId },
+      { name: '@cid', value: req.params.companyId },
     ];
-    if (req.query.type)
-      params.push({ name: "@type", value: req.query.type as string });
+    if (req.query.type) params.push({ name: '@type', value: req.query.type as string });
 
     const { resources } = await containers
       .events()
@@ -2130,7 +1968,7 @@ router.get("/companies/:companyId/events", async (req, res) => {
     res.json({ data: resources } as ApiResponse);
   } catch (err) {
     {
-      const e = safeError(err, "QUERY_FAILED");
+      const e = safeError(err, 'QUERY_FAILED');
       res.status(e.status).json(e.body);
     }
   }
@@ -2138,17 +1976,50 @@ router.get("/companies/:companyId/events", async (req, res) => {
 
 // ─── Exchange Rates & Currency Revaluation ──────────────────
 
-router.get("/exchange-rates/list", async (req, res) => {
+router.get('/exchange-rates/list', async (req, res) => {
   try {
-    const { source, rateType, fromDate, toDate, baseCurrency, limit } =
-      req.query;
+    const { source, rateType, fromDate, toDate, baseCurrency, limit, companyId } = req.query;
+    const parsedRateType = parseOptionalExchangeRateType(rateType);
+    if (parsedRateType === null) {
+      res.status(400).json({
+        error: {
+          code: 'VAL-001',
+          message: 'rateType must be one of: daily, budget',
+        },
+      });
+      return;
+    }
+    const parsedLimit = parseOptionalExchangeRateListLimit(limit);
+    if (parsedLimit === null) {
+      res.status(400).json({
+        error: {
+          code: 'VAL-001',
+          message: 'limit must be an integer between 1 and 500',
+        },
+      });
+      return;
+    }
+
+    const normalizedBaseCurrency =
+      baseCurrency === undefined ? undefined : normalizeCurrencyCode(baseCurrency as string);
+    if (baseCurrency !== undefined && normalizedBaseCurrency === null) {
+      res.status(400).json({
+        error: {
+          code: 'VAL-001',
+          message: 'baseCurrency must be a 3-letter ISO code',
+        },
+      });
+      return;
+    }
+
     const rates = await listExchangeRates({
       source: source as string | undefined,
-      rateType: rateType as "daily" | "budget" | undefined,
+      rateType: parsedRateType,
       fromDate: fromDate as string | undefined,
       toDate: toDate as string | undefined,
-      baseCurrency: baseCurrency as string | undefined,
-      limit: limit ? Number(limit) : undefined,
+      baseCurrency: normalizedBaseCurrency ?? undefined,
+      limit: parsedLimit,
+      companyId: companyId as string | undefined,
     });
     res.json({ data: rates } as ApiResponse);
   } catch (err) {
@@ -2156,80 +2027,141 @@ router.get("/exchange-rates/list", async (req, res) => {
   }
 });
 
-router.get("/exchange-rates", async (req, res) => {
+router.get('/exchange-rates', async (req, res) => {
   try {
-    const { from, to, rateType, date } = req.query;
+    const { from, to, rateType, date, companyId } = req.query;
     if (!from || !to) {
       res.status(400).json({
         error: {
-          code: "VAL-001",
-          message: "from and to currency codes are required",
+          code: 'VAL-001',
+          message: 'from and to currency codes are required',
         },
       });
       return;
     }
+
+    const normalizedFrom = normalizeCurrencyCode(from as string);
+    const normalizedTo = normalizeCurrencyCode(to as string);
+    if (!normalizedFrom || !normalizedTo) {
+      res.status(400).json({
+        error: {
+          code: 'VAL-001',
+          message: 'from and to must be 3-letter ISO currency codes',
+        },
+      });
+      return;
+    }
+    const parsedRateType = parseOptionalExchangeRateType(rateType);
+    if (parsedRateType === null) {
+      res.status(400).json({
+        error: {
+          code: 'VAL-001',
+          message: 'rateType must be one of: daily, budget',
+        },
+      });
+      return;
+    }
+
     const rate = await getExchangeRate(
-      from as string,
-      to as string,
-      (rateType as any) || "daily",
+      normalizedFrom,
+      normalizedTo,
+      parsedRateType || 'daily',
       (date as string) || new Date().toISOString().slice(0, 10),
+      companyId as string | undefined,
     );
     res.json({
-      data: { from, to, rateType: rateType || "daily", rate },
+      data: {
+        from: normalizedFrom,
+        to: normalizedTo,
+        rateType: parsedRateType || 'daily',
+        rate,
+      },
     } as ApiResponse);
   } catch (err) {
     handleGLError(err, res);
   }
 });
 
-router.post("/exchange-rates", async (req, res) => {
+router.post('/exchange-rates', async (req, res) => {
   try {
-    const { fromCurrency, toCurrency, rateType, rate, effectiveDate, source } =
-      req.body;
+    const { fromCurrency, toCurrency, rateType, rate, effectiveDate, source, companyId } = req.body;
     if (!fromCurrency || !toCurrency || !rate || !effectiveDate) {
       res.status(400).json({
         error: {
-          code: "VAL-001",
-          message:
-            "fromCurrency, toCurrency, rate, and effectiveDate are required",
+          code: 'VAL-001',
+          message: 'fromCurrency, toCurrency, rate, and effectiveDate are required',
         },
       });
       return;
     }
+
+    const normalizedFrom = normalizeCurrencyCode(fromCurrency);
+    const normalizedTo = normalizeCurrencyCode(toCurrency);
+    if (!normalizedFrom || !normalizedTo) {
+      res.status(400).json({
+        error: {
+          code: 'VAL-001',
+          message: 'fromCurrency and toCurrency must be 3-letter ISO codes',
+        },
+      });
+      return;
+    }
+    const parsedRateType = parseOptionalExchangeRateType(rateType);
+    if (parsedRateType === null) {
+      res.status(400).json({
+        error: {
+          code: 'VAL-001',
+          message: 'rateType must be one of: daily, budget',
+        },
+      });
+      return;
+    }
+    const parsedRate = Number(rate);
+    if (!Number.isFinite(parsedRate) || parsedRate <= 0) {
+      res.status(400).json({
+        error: {
+          code: 'VAL-001',
+          message: 'rate must be a positive number',
+        },
+      });
+      return;
+    }
+
     const saved = await saveExchangeRate({
-      fromCurrency,
-      toCurrency,
-      rateType: rateType || "daily",
-      rate,
+      fromCurrency: normalizedFrom,
+      toCurrency: normalizedTo,
+      rateType: parsedRateType || 'daily',
+      rate: parsedRate,
       effectiveDate,
-      source: source || "manual",
+      source: source || 'manual',
+      companyId,
     });
     res.status(201).json({ data: saved } as ApiResponse);
   } catch (err) {
     {
-      const e = safeError(err, "SYS-001");
+      const e = safeError(err, 'SYS-001');
       res.status(e.status).json(e.body);
     }
   }
 });
 
-router.post("/exchange-rates/import-ecb", async (req, res) => {
+router.post('/exchange-rates/import-ecb', async (req, res) => {
   try {
     const date = req.body.date || new Date().toISOString().slice(0, 10);
-    const result = await importSystemRates("ecb", date);
+    const result = await importSystemRates('ecb', date);
     res.json({ data: result } as ApiResponse);
   } catch (err) {
     handleGLError(err, res);
   }
 });
 
-router.post("/exchange-rates/import-system", async (req, res) => {
+router.post('/exchange-rates/import-system', async (req, res) => {
   try {
     const { source, date } = req.body;
-    if (!source || source !== "ecb") {
+    if (!source || source !== 'ecb') {
       res.status(400).json({
         error: {
-          code: "VAL-001",
+          code: 'VAL-001',
           message: "source must be 'ecb'",
         },
       });
@@ -2243,20 +2175,16 @@ router.post("/exchange-rates/import-system", async (req, res) => {
   }
 });
 
-router.post("/companies/:companyId/currency-revaluation", async (req, res) => {
+router.post('/companies/:companyId/currency-revaluation', async (req, res) => {
   try {
     const { period } = req.body;
     if (!period) {
       res.status(400).json({
-        error: { code: "VAL-001", message: "period is required (YYYY-MM)" },
+        error: { code: 'VAL-001', message: 'period is required (YYYY-MM)' },
       });
       return;
     }
-    const result = await runForeignCurrencyRevaluation(
-      req.params.companyId,
-      period,
-      req.user!.id,
-    );
+    const result = await runForeignCurrencyRevaluation(req.params.companyId, period, req.user!.id);
     res.json({ data: result } as ApiResponse);
   } catch (err) {
     handleGLError(err, res);
@@ -2265,56 +2193,41 @@ router.post("/companies/:companyId/currency-revaluation", async (req, res) => {
 
 // ─── Period Close & Year-End ────────────────────────────────
 
-router.post("/companies/:companyId/periods/:period/close", async (req, res) => {
+router.post('/companies/:companyId/periods/:period/close', async (req, res) => {
   try {
-    const result = await closePeriod(
-      req.params.companyId,
-      req.params.period,
-      req.user!.id,
-    );
+    const result = await closePeriod(req.params.companyId, req.params.period, req.user!.id);
     res.json({ data: result } as ApiResponse);
   } catch (err) {
     handleGLError(err, res);
   }
 });
 
-router.post(
-  "/companies/:companyId/periods/:period/reopen",
-  async (req, res) => {
-    try {
-      const result = await reopenPeriod(
-        req.params.companyId,
-        req.params.period,
-        req.user!.id,
-      );
-      res.json({ data: result } as ApiResponse);
-    } catch (err) {
-      handleGLError(err, res);
-    }
-  },
-);
+router.post('/companies/:companyId/periods/:period/reopen', async (req, res) => {
+  try {
+    const result = await reopenPeriod(req.params.companyId, req.params.period, req.user!.id);
+    res.json({ data: result } as ApiResponse);
+  } catch (err) {
+    handleGLError(err, res);
+  }
+});
 
-router.get("/companies/:companyId/periods/:period", async (req, res) => {
+router.get('/companies/:companyId/periods/:period', async (req, res) => {
   const result = await getPeriodStatus(req.params.companyId, req.params.period);
   res.json({
-    data: result || { period: req.params.period, status: "open" },
+    data: result || { period: req.params.period, status: 'open' },
   } as ApiResponse);
 });
 
-router.post("/companies/:companyId/year-end-close", async (req, res) => {
+router.post('/companies/:companyId/year-end-close', async (req, res) => {
   try {
     const { fiscalYear } = req.body;
     if (!fiscalYear) {
       res.status(400).json({
-        error: { code: "MISSING_YEAR", message: "fiscalYear is required" },
+        error: { code: 'MISSING_YEAR', message: 'fiscalYear is required' },
       });
       return;
     }
-    const result = await yearEndClose(
-      req.params.companyId,
-      fiscalYear,
-      req.user!.id,
-    );
+    const result = await yearEndClose(req.params.companyId, fiscalYear, req.user!.id);
     res.json({ data: result } as ApiResponse);
   } catch (err) {
     handleGLError(err, res);
@@ -2323,85 +2236,63 @@ router.post("/companies/:companyId/year-end-close", async (req, res) => {
 
 // ─── Credit Notes ───────────────────────────────────────────
 
-router.post(
-  "/companies/:companyId/invoices/:invoiceId/credit-note",
-  async (req, res) => {
-    try {
-      const creditNote = await createCreditNote({
-        companyId: req.params.companyId,
-        originalInvoiceId: req.params.invoiceId,
-        reason: req.body.reason || "Credit note",
-        lines: req.body.lines,
-        createdBy: req.user!.id,
-      });
-      res.status(201).json({ data: creditNote } as ApiResponse);
-    } catch (err) {
-      handleGLError(err, res);
-    }
-  },
-);
+router.post('/companies/:companyId/invoices/:invoiceId/credit-note', async (req, res) => {
+  try {
+    const creditNote = await createCreditNote({
+      companyId: req.params.companyId,
+      originalInvoiceId: req.params.invoiceId,
+      reason: req.body.reason || 'Credit note',
+      lines: req.body.lines,
+      createdBy: req.user!.id,
+    });
+    res.status(201).json({ data: creditNote } as ApiResponse);
+  } catch (err) {
+    handleGLError(err, res);
+  }
+});
 
 // ─── Invoice PDF ────────────────────────────────────────────
 
-router.get(
-  "/companies/:companyId/invoices/:invoiceId/pdf",
-  async (req, res) => {
-    try {
-      const pdf = await generateInvoicePdf(
-        req.params.companyId,
-        req.params.invoiceId,
-      );
-      res.setHeader("Content-Type", "application/pdf");
-      res.setHeader(
-        "Content-Disposition",
-        `inline; filename="invoice-${req.params.invoiceId}.pdf"`,
-      );
-      res.send(pdf);
-    } catch (err) {
-      {
-        const e = safeError(err, "PDF_FAILED");
-        res.status(e.status).json(e.body);
-      }
+router.get('/companies/:companyId/invoices/:invoiceId/pdf', async (req, res) => {
+  try {
+    const pdf = await generateInvoicePdf(req.params.companyId, req.params.invoiceId);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="invoice-${req.params.invoiceId}.pdf"`);
+    res.send(pdf);
+  } catch (err) {
+    {
+      const e = safeError(err, 'PDF_FAILED');
+      res.status(e.status).json(e.body);
     }
-  },
-);
+  }
+});
 
 // ─── VAT Declaration Export ─────────────────────────────────
 
-router.get(
-  "/companies/:companyId/reports/vat-declaration",
-  async (req, res) => {
-    try {
-      const year =
-        parseInt(req.query.year as string) || new Date().getFullYear();
-      const month =
-        parseInt(req.query.month as string) || new Date().getMonth() + 1;
-      const declaration = await generateVatDeclaration(
-        req.params.companyId,
-        year,
-        month,
-      );
-      res.json({ data: declaration } as ApiResponse);
-    } catch (err) {
-      {
-        const e = safeError(err, "VAT_FAILED");
-        res.status(e.status).json(e.body);
-      }
+router.get('/companies/:companyId/reports/vat-declaration', async (req, res) => {
+  try {
+    const year = parseInt(req.query.year as string) || new Date().getFullYear();
+    const month = parseInt(req.query.month as string) || new Date().getMonth() + 1;
+    const declaration = await generateVatDeclaration(req.params.companyId, year, month);
+    res.json({ data: declaration } as ApiResponse);
+  } catch (err) {
+    {
+      const e = safeError(err, 'VAT_FAILED');
+      res.status(e.status).json(e.body);
     }
-  },
-);
+  }
+});
 
 // ─── Annual Financial Statements ────────────────────────────
 
-router.get("/companies/:companyId/reports/annual", async (req, res) => {
+router.get('/companies/:companyId/reports/annual', async (req, res) => {
   try {
-    const year =
-      parseInt(req.query.year as string) || new Date().getFullYear() - 1;
+    const year = parseInt(req.query.year as string) || new Date().getFullYear() - 1;
     const report = await generateAnnualReport(req.params.companyId, year);
     res.json({ data: report } as ApiResponse);
   } catch (err) {
     {
-      const e = safeError(err, "REPORT_FAILED");
+      const e = safeError(err, 'REPORT_FAILED');
       res.status(e.status).json(e.body);
     }
   }
@@ -2409,25 +2300,25 @@ router.get("/companies/:companyId/reports/annual", async (req, res) => {
 
 // ─── AR/AP Aging ────────────────────────────────────────────
 
-router.get("/companies/:companyId/reports/ar-aging", async (req, res) => {
+router.get('/companies/:companyId/reports/ar-aging', async (req, res) => {
   try {
-    const report = await getAgingReport(req.params.companyId, "ar");
+    const report = await getAgingReport(req.params.companyId, 'ar');
     res.json({ data: report } as ApiResponse);
   } catch (err) {
     {
-      const e = safeError(err, "REPORT_FAILED");
+      const e = safeError(err, 'REPORT_FAILED');
       res.status(e.status).json(e.body);
     }
   }
 });
 
-router.get("/companies/:companyId/reports/ap-aging", async (req, res) => {
+router.get('/companies/:companyId/reports/ap-aging', async (req, res) => {
   try {
-    const report = await getAgingReport(req.params.companyId, "ap");
+    const report = await getAgingReport(req.params.companyId, 'ap');
     res.json({ data: report } as ApiResponse);
   } catch (err) {
     {
-      const e = safeError(err, "REPORT_FAILED");
+      const e = safeError(err, 'REPORT_FAILED');
       res.status(e.status).json(e.body);
     }
   }
@@ -2435,13 +2326,13 @@ router.get("/companies/:companyId/reports/ap-aging", async (req, res) => {
 
 // ─── Mark Overdue Invoices ──────────────────────────────────
 
-router.post("/companies/:companyId/invoices/mark-overdue", async (req, res) => {
+router.post('/companies/:companyId/invoices/mark-overdue', async (req, res) => {
   try {
     const count = await markOverdueInvoices(req.params.companyId);
     res.json({ data: { updated: count } } as ApiResponse);
   } catch (err) {
     {
-      const e = safeError(err, "UPDATE_FAILED");
+      const e = safeError(err, 'UPDATE_FAILED');
       res.status(e.status).json(e.body);
     }
   }
@@ -2449,7 +2340,7 @@ router.post("/companies/:companyId/invoices/mark-overdue", async (req, res) => {
 
 // ─── Bank Reconciliation ────────────────────────────────────
 
-router.post("/companies/:companyId/bank-reconciliations", async (req, res) => {
+router.post('/companies/:companyId/bank-reconciliations', async (req, res) => {
   try {
     const result = await importBankStatement({
       ...req.body,
@@ -2462,69 +2353,57 @@ router.post("/companies/:companyId/bank-reconciliations", async (req, res) => {
   }
 });
 
-router.get("/companies/:companyId/bank-reconciliations", async (req, res) => {
+router.get('/companies/:companyId/bank-reconciliations', async (req, res) => {
   try {
     const list = await listReconciliations(req.params.companyId);
     res.json({ data: list } as ApiResponse);
   } catch (err) {
     {
-      const e = safeError(err, "QUERY_FAILED");
+      const e = safeError(err, 'QUERY_FAILED');
       res.status(e.status).json(e.body);
     }
   }
 });
 
-router.get(
-  "/companies/:companyId/bank-reconciliations/open-invoices",
-  async (req, res) => {
-    try {
-      const invoices = await getOpenInvoices(req.params.companyId);
-      res.json({ data: invoices } as ApiResponse);
-    } catch (err) {
-      {
-        const e = safeError(err, "QUERY_FAILED");
-        res.status(e.status).json(e.body);
-      }
+router.get('/companies/:companyId/bank-reconciliations/open-invoices', async (req, res) => {
+  try {
+    const invoices = await getOpenInvoices(req.params.companyId);
+    res.json({ data: invoices } as ApiResponse);
+  } catch (err) {
+    {
+      const e = safeError(err, 'QUERY_FAILED');
+      res.status(e.status).json(e.body);
     }
-  },
-);
+  }
+});
 
-router.get(
-  "/companies/:companyId/bank-reconciliations/:reconId",
-  async (req, res) => {
-    try {
-      const recon = await getReconciliation(
-        req.params.companyId,
-        req.params.reconId,
-      );
-      res.json({ data: recon } as ApiResponse);
-    } catch (err) {
-      handleGLError(err, res);
-    }
-  },
-);
+router.get('/companies/:companyId/bank-reconciliations/:reconId', async (req, res) => {
+  try {
+    const recon = await getReconciliation(req.params.companyId, req.params.reconId);
+    res.json({ data: recon } as ApiResponse);
+  } catch (err) {
+    handleGLError(err, res);
+  }
+});
 
-router.post(
-  "/companies/:companyId/bank-reconciliations/:reconId/post-line",
-  async (req, res) => {
-    try {
-      await postUnmatchedLine(
-        req.params.companyId,
-        req.params.reconId,
-        req.body.lineId,
-        req.body.accountCode,
-        req.body.accountName,
-        req.user!.id,
-      );
-      res.json({ data: { success: true } } as ApiResponse);
-    } catch (err) {
-      handleGLError(err, res);
-    }
-  },
-);
+router.post('/companies/:companyId/bank-reconciliations/:reconId/post-line', async (req, res) => {
+  try {
+    await postUnmatchedLine(
+      req.params.companyId,
+      req.params.reconId,
+      req.body.lineId,
+      req.body.accountCode,
+      req.body.accountName,
+      req.user!.id,
+    );
+    res.json({ data: { success: true } } as ApiResponse);
+  } catch (err) {
+    handleGLError(err, res);
+  }
+});
 
 router.post(
-  "/companies/:companyId/bank-reconciliations/:reconId/match-invoice",
+  '/companies/:companyId/bank-reconciliations/:reconId/match-invoice',
   async (req, res) => {
     try {
       const result = await matchLineToInvoice({
@@ -2546,7 +2425,7 @@ router.post(
 );
 
 router.post(
-  "/companies/:companyId/bank-reconciliations/:reconId/manual-transaction",
+  '/companies/:companyId/bank-reconciliations/:reconId/manual-transaction',
   async (req, res) => {
     try {
       const result = await addManualTransaction({
@@ -2567,51 +2446,48 @@ router.post(
 );
 
 router.post(
-  "/companies/:companyId/bank-reconciliations/:reconId/suggest-account",
+  '/companies/:companyId/bank-reconciliations/:reconId/suggest-account',
   async (req, res) => {
     try {
-      const suggestion = suggestLedgerAccount(req.body.description || "");
+      const suggestion = suggestLedgerAccount(req.body.description || '');
       res.json({ data: suggestion } as ApiResponse);
     } catch (err) {
       {
-        const e = safeError(err, "SUGGEST_FAILED");
+        const e = safeError(err, 'SUGGEST_FAILED');
         res.status(e.status).json(e.body);
       }
     }
   },
 );
 
-router.post(
-  "/companies/:companyId/bank-reconciliations/:reconId/complete",
-  async (req, res) => {
-    try {
-      const result = await completeReconciliation(
-        req.params.companyId,
-        req.params.reconId,
-        req.user!.id,
-      );
-      res.json({ data: result } as ApiResponse);
-    } catch (err) {
-      handleGLError(err, res);
-    }
-  },
-);
+router.post('/companies/:companyId/bank-reconciliations/:reconId/complete', async (req, res) => {
+  try {
+    const result = await completeReconciliation(
+      req.params.companyId,
+      req.params.reconId,
+      req.user!.id,
+    );
+    res.json({ data: result } as ApiResponse);
+  } catch (err) {
+    handleGLError(err, res);
+  }
+});
 
 // ─── Recurring Entries ──────────────────────────────────────
 
-router.get("/companies/:companyId/recurring-templates", async (req, res) => {
+router.get('/companies/:companyId/recurring-templates', async (req, res) => {
   try {
     const list = await listRecurringTemplates(req.params.companyId);
     res.json({ data: list } as ApiResponse);
   } catch (err) {
     {
-      const e = safeError(err, "QUERY_FAILED");
+      const e = safeError(err, 'QUERY_FAILED');
       res.status(e.status).json(e.body);
     }
   }
 });
 
-router.post("/companies/:companyId/recurring-templates", async (req, res) => {
+router.post('/companies/:companyId/recurring-templates', async (req, res) => {
   try {
     const template = await createRecurringTemplate({
       ...req.body,
@@ -2621,45 +2497,42 @@ router.post("/companies/:companyId/recurring-templates", async (req, res) => {
     res.status(201).json({ data: template } as ApiResponse);
   } catch (err) {
     {
-      const e = safeError(err, "CREATE_FAILED");
+      const e = safeError(err, 'CREATE_FAILED');
       res.status(e.status).json(e.body);
     }
   }
 });
 
-router.post(
-  "/companies/:companyId/recurring-templates/:templateId/execute",
-  async (req, res) => {
-    try {
-      const date = req.body.date || new Date().toISOString().slice(0, 10);
-      const entry = await executeRecurringTemplate(
-        req.params.companyId,
-        req.params.templateId,
-        date,
-        req.user!.id,
-      );
-      res.json({ data: entry } as ApiResponse);
-    } catch (err) {
-      handleGLError(err, res);
-    }
-  },
-);
+router.post('/companies/:companyId/recurring-templates/:templateId/execute', async (req, res) => {
+  try {
+    const date = req.body.date || new Date().toISOString().slice(0, 10);
+    const entry = await executeRecurringTemplate(
+      req.params.companyId,
+      req.params.templateId,
+      date,
+      req.user!.id,
+    );
+    res.json({ data: entry } as ApiResponse);
+  } catch (err) {
+    handleGLError(err, res);
+  }
+});
 
 // ─── Fixed Assets ───────────────────────────────────────────
 
-router.get("/companies/:companyId/fixed-assets", async (req, res) => {
+router.get('/companies/:companyId/fixed-assets', async (req, res) => {
   try {
     const assets = await listFixedAssets(req.params.companyId);
     res.json({ data: assets } as ApiResponse);
   } catch (err) {
     {
-      const e = safeError(err, "QUERY_FAILED");
+      const e = safeError(err, 'QUERY_FAILED');
       res.status(e.status).json(e.body);
     }
   }
 });
 
-router.post("/companies/:companyId/fixed-assets", async (req, res) => {
+router.post('/companies/:companyId/fixed-assets', async (req, res) => {
   try {
     const asset = await acquireAsset({
       ...req.body,
@@ -2672,97 +2545,78 @@ router.post("/companies/:companyId/fixed-assets", async (req, res) => {
   }
 });
 
-router.post(
-  "/companies/:companyId/fixed-assets/depreciate",
-  async (req, res) => {
-    try {
-      const period = req.body.period || new Date().toISOString().slice(0, 7);
-      const result = await runDepreciation(
-        req.params.companyId,
-        period,
-        req.user!.id,
+router.post('/companies/:companyId/fixed-assets/depreciate', async (req, res) => {
+  try {
+    const period = req.body.period || new Date().toISOString().slice(0, 7);
+    const result = await runDepreciation(req.params.companyId, period, req.user!.id);
+    res.json({ data: result } as ApiResponse);
+  } catch (err) {
+    handleGLError(err, res);
+  }
+});
+
+router.post('/companies/:companyId/fixed-assets/:assetId/dispose', async (req, res) => {
+  try {
+    const asset = await disposeAsset(
+      req.params.companyId,
+      req.params.assetId,
+      req.body.disposalDate || new Date().toISOString().slice(0, 10),
+      req.body.disposalAmount || 0,
+      req.user!.id,
+    );
+    res.json({ data: asset } as ApiResponse);
+  } catch (err) {
+    handleGLError(err, res);
+  }
+});
+
+router.get('/companies/:companyId/fixed-assets/:assetId/transactions', async (req, res) => {
+  try {
+    const { companyId, assetId } = req.params;
+    // First get the asset to know its account codes
+    const { resource: asset } = await containers.inventory().item(assetId, companyId).read<any>();
+    const accountCodes = asset
+      ? [asset.assetAccountCode, asset.depreciationAccountCode, asset.expenseAccountCode].filter(
+          Boolean,
+        )
+      : [];
+
+    // Find entries linked by sourceId OR containing lines with this asset's account codes
+    const { resources: entries } = await containers
+      .ledger()
+      .items.query<any>({
+        query: `SELECT * FROM c WHERE c.companyId = @cid AND (c.docType = 'journal-entry' OR IS_DEFINED(c.entryNumber)) AND (c.sourceId = @sid OR ARRAY_CONTAINS(@codes, c.lines[0].accountCode) OR ARRAY_CONTAINS(@codes, c.lines[1].accountCode)) ORDER BY c.date DESC`,
+        parameters: [
+          { name: '@cid', value: companyId },
+          { name: '@sid', value: assetId },
+          { name: '@codes', value: accountCodes },
+        ],
+      })
+      .fetchAll();
+
+    // Filter to only entries that actually reference this asset's accounts in their lines
+    const filtered = entries.filter((e: any) => {
+      if (e.sourceId === assetId) return true;
+      if (!e.lines) return false;
+      return e.lines.some(
+        (l: any) =>
+          accountCodes.includes(l.accountCode) &&
+          (l.accountName?.includes(asset?.name) || l.description?.includes(asset?.name)),
       );
-      res.json({ data: result } as ApiResponse);
-    } catch (err) {
-      handleGLError(err, res);
+    });
+
+    res.json({ data: filtered } as ApiResponse);
+  } catch (err) {
+    {
+      const e = safeError(err, 'QUERY_FAILED');
+      res.status(e.status).json(e.body);
     }
-  },
-);
-
-router.post(
-  "/companies/:companyId/fixed-assets/:assetId/dispose",
-  async (req, res) => {
-    try {
-      const asset = await disposeAsset(
-        req.params.companyId,
-        req.params.assetId,
-        req.body.disposalDate || new Date().toISOString().slice(0, 10),
-        req.body.disposalAmount || 0,
-        req.user!.id,
-      );
-      res.json({ data: asset } as ApiResponse);
-    } catch (err) {
-      handleGLError(err, res);
-    }
-  },
-);
-
-router.get(
-  "/companies/:companyId/fixed-assets/:assetId/transactions",
-  async (req, res) => {
-    try {
-      const { companyId, assetId } = req.params;
-      // First get the asset to know its account codes
-      const { resource: asset } = await containers
-        .inventory()
-        .item(assetId, companyId)
-        .read<any>();
-      const accountCodes = asset
-        ? [
-            asset.assetAccountCode,
-            asset.depreciationAccountCode,
-            asset.expenseAccountCode,
-          ].filter(Boolean)
-        : [];
-
-      // Find entries linked by sourceId OR containing lines with this asset's account codes
-      const { resources: entries } = await containers
-        .ledger()
-        .items.query<any>({
-          query: `SELECT * FROM c WHERE c.companyId = @cid AND (c.docType = 'journal-entry' OR IS_DEFINED(c.entryNumber)) AND (c.sourceId = @sid OR ARRAY_CONTAINS(@codes, c.lines[0].accountCode) OR ARRAY_CONTAINS(@codes, c.lines[1].accountCode)) ORDER BY c.date DESC`,
-          parameters: [
-            { name: "@cid", value: companyId },
-            { name: "@sid", value: assetId },
-            { name: "@codes", value: accountCodes },
-          ],
-        })
-        .fetchAll();
-
-      // Filter to only entries that actually reference this asset's accounts in their lines
-      const filtered = entries.filter((e: any) => {
-        if (e.sourceId === assetId) return true;
-        if (!e.lines) return false;
-        return e.lines.some(
-          (l: any) =>
-            accountCodes.includes(l.accountCode) &&
-            (l.accountName?.includes(asset?.name) ||
-              l.description?.includes(asset?.name)),
-        );
-      });
-
-      res.json({ data: filtered } as ApiResponse);
-    } catch (err) {
-      {
-        const e = safeError(err, "QUERY_FAILED");
-        res.status(e.status).json(e.body);
-      }
-    }
-  },
-);
+  }
+});
 
 // ─── Budgets ────────────────────────────────────────────────
 
-router.post("/companies/:companyId/budgets", async (req, res) => {
+router.post('/companies/:companyId/budgets', async (req, res) => {
   try {
     const { year, entries: rawEntries } = req.body;
     const companyId = req.params.companyId;
@@ -2774,7 +2628,7 @@ router.post("/companies/:companyId/budgets", async (req, res) => {
       .items.query<Account>({
         query:
           "SELECT c.code, c.name FROM c WHERE c.companyId = @cid AND c.docType = 'account' AND c.isPostable = true",
-        parameters: [{ name: "@cid", value: companyId }],
+        parameters: [{ name: '@cid', value: companyId }],
       })
       .fetchAll();
     const acctMap = new Map(accounts.map((a) => [a.code, a.name]));
@@ -2793,7 +2647,7 @@ router.post("/companies/:companyId/budgets", async (req, res) => {
         expandedEntries.push({
           accountCode,
           accountName,
-          period: `${fiscalYear}-${String(m).padStart(2, "0")}`,
+          period: `${fiscalYear}-${String(m).padStart(2, '0')}`,
           amount: monthlyAmount,
         });
       }
@@ -2808,32 +2662,28 @@ router.post("/companies/:companyId/budgets", async (req, res) => {
     res.json({ data: { entriesCreated: count } } as ApiResponse);
   } catch (err) {
     {
-      const e = safeError(err, "CREATE_FAILED");
+      const e = safeError(err, 'CREATE_FAILED');
       res.status(e.status).json(e.body);
     }
   }
 });
 
-router.get(
-  "/companies/:companyId/reports/budget-vs-actual",
-  async (req, res) => {
-    try {
-      const year =
-        parseInt(req.query.year as string) || new Date().getFullYear();
-      const report = await getBudgetVsActual(req.params.companyId, year);
-      res.json({ data: report } as ApiResponse);
-    } catch (err) {
-      {
-        const e = safeError(err, "REPORT_FAILED");
-        res.status(e.status).json(e.body);
-      }
+router.get('/companies/:companyId/reports/budget-vs-actual', async (req, res) => {
+  try {
+    const year = parseInt(req.query.year as string) || new Date().getFullYear();
+    const report = await getBudgetVsActual(req.params.companyId, year);
+    res.json({ data: report } as ApiResponse);
+  } catch (err) {
+    {
+      const e = safeError(err, 'REPORT_FAILED');
+      res.status(e.status).json(e.body);
     }
-  },
-);
+  }
+});
 
 // ─── Autonomous Task Endpoints ──────────────────────────────
 
-router.post("/companies/:companyId/run-month-end", async (req, res) => {
+router.post('/companies/:companyId/run-month-end', async (req, res) => {
   try {
     const period =
       req.body.period ||
@@ -2842,71 +2692,61 @@ router.post("/companies/:companyId/run-month-end", async (req, res) => {
         d.setMonth(d.getMonth() - 1);
         return d.toISOString().slice(0, 7);
       })();
-    const result = await runMonthEnd(
-      req.params.companyId,
-      period,
-      req.user!.id,
-    );
+    const result = await runMonthEnd(req.params.companyId, period, req.user!.id);
     res.json({ data: result } as ApiResponse);
   } catch (err) {
     {
-      const e = safeError(err, "MONTH_END_FAILED");
+      const e = safeError(err, 'MONTH_END_FAILED');
       res.status(e.status).json(e.body);
     }
   }
 });
 
-router.post("/companies/:companyId/run-year-end", async (req, res) => {
+router.post('/companies/:companyId/run-year-end', async (req, res) => {
   try {
     const fiscalYear = req.body.fiscalYear || new Date().getFullYear() - 1;
-    const result = await runYearEnd(
-      req.params.companyId,
-      fiscalYear,
-      req.user!.id,
-    );
+    const result = await runYearEnd(req.params.companyId, fiscalYear, req.user!.id);
     res.json({ data: result } as ApiResponse);
   } catch (err) {
     {
-      const e = safeError(err, "YEAR_END_FAILED");
+      const e = safeError(err, 'YEAR_END_FAILED');
       res.status(e.status).json(e.body);
     }
   }
 });
 
-router.get("/companies/:companyId/health", async (req, res) => {
+router.get('/companies/:companyId/health', async (req, res) => {
   try {
     const health = await checkCompanyHealth(req.params.companyId);
     res.json({ data: health } as ApiResponse);
   } catch {
     res.status(500).json({
-      error: { code: "HEALTH_CHECK_FAILED", message: "Health check failed" },
+      error: { code: 'HEALTH_CHECK_FAILED', message: 'Health check failed' },
     });
   }
 });
 
-router.get("/companies/:companyId/close-runs", async (req, res) => {
+router.get('/companies/:companyId/close-runs', async (req, res) => {
   try {
     const runs = await listCloseRuns(req.params.companyId);
     res.json({ data: runs } as ApiResponse);
   } catch (err) {
     {
-      const e = safeError(err, "SYS-001");
+      const e = safeError(err, 'SYS-001');
       res.status(e.status).json(e.body);
     }
   }
 });
 
-router.get("/companies/:companyId/close-runs/:runId", async (req, res) => {
+router.get('/companies/:companyId/close-runs/:runId', async (req, res) => {
   try {
     const run = await getCloseRun(req.params.companyId, req.params.runId);
     if (!run)
-      return res
-        .status(404)
-        .json({ error: { code: "SYS-002", message: "Close run not found" } });
+      return res.status(404).json({ error: { code: 'SYS-002', message: 'Close run not found' } });
     res.json({ data: run } as ApiResponse);
   } catch (err) {
     {
-      const e = safeError(err, "SYS-001");
+      const e = safeError(err, 'SYS-001');
       res.status(e.status).json(e.body);
     }
   }
