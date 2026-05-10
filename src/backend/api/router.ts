@@ -67,7 +67,7 @@ import {
   checkViesVat,
   checkVidStatus,
 } from '../services/company-lookup.js';
-import { recognizeInvoice } from '../services/invoice-recognition.js';
+import { recognizeInvoice, recognizeInvoiceMultiPage } from '../services/invoice-recognition.js';
 import {
   handleChat,
   parseItemDescription,
@@ -1143,19 +1143,29 @@ router.get('/companies/:companyId/trial-balance', async (req, res) => {
 
 router.post('/companies/:companyId/invoices/upload', async (req, res) => {
   try {
-    const { image, mimeType } = req.body; // base64 image, mime type
-    if (!image || !mimeType) {
+    const { image, mimeType, pages } = req.body as {
+      image?: string;
+      mimeType?: string;
+      pages?: Array<{ image: string; mimeType: string }>;
+    };
+    // Multi-page mode if `pages` is provided; otherwise single-image legacy.
+    const hasPages = Array.isArray(pages) && pages.length > 0;
+    if (!hasPages && (!image || !mimeType)) {
       res.status(400).json({
         error: {
           code: 'MISSING_DATA',
-          message: 'image and mimeType required',
+          message: 'image+mimeType (single page) or pages[] (multi-page) required',
         },
       });
       return;
     }
 
-    // Step 1: Recognize invoice with GPT-4o vision
-    const recognized = await recognizeInvoice(image, mimeType);
+    // Step 1: Recognize invoice with GPT-4o vision (multi-page if provided).
+    const recognized = hasPages
+      ? await recognizeInvoiceMultiPage(
+          pages!.map((p) => ({ imageBase64: p.image, mimeType: p.mimeType })),
+        )
+      : await recognizeInvoice(image!, mimeType!);
 
     // Step 2: Find or create vendor contact
     let contactId = '';
