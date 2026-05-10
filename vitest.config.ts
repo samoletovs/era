@@ -6,6 +6,7 @@ export default defineConfig({
     globals: true,
     environment: "node",
     include: ["tests/**/*.test.ts"],
+    exclude: ["tests/integration/**", "node_modules/**", "dist/**"],
     coverage: {
       reporter: ["text", "lcov"],
       include: ["src/backend/services/**"],

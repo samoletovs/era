@@ -1,5 +1,51 @@
 const API = '/api';
 
+import {
+  type ApiErrorBody,
+  formatApiErrorEnvelope,
+  lookupErrorMessage,
+  type Locale,
+} from '../../shared/errors/catalog';
+
+/**
+ * Structured API error preserved end-to-end. Carries the server-issued
+ * `code` and `details` so UI surfaces can render a clean bilingual message
+ * via `formatApiError` / `err.format(locale)` instead of dumping the raw
+ * `Validation failed` envelope.
+ */
+export class ApiError extends Error {
+  readonly code: string;
+  readonly details?: Array<{ field?: string; code?: string; message?: string }>;
+  readonly status: number;
+
+  constructor(body: ApiErrorBody, status: number) {
+    super(body.error.message || 'An error occurred');
+    this.name = 'ApiError';
+    this.code = body.error.code;
+    this.details = body.error.details;
+    this.status = status;
+  }
+
+  /** Human-friendly message in the requested locale ("lv" default). */
+  format(locale: Locale = 'lv'): string {
+    return formatApiErrorEnvelope(
+      { error: { code: this.code, message: this.message, details: this.details } },
+      locale,
+    );
+  }
+}
+
+/**
+ * Convert any caught value into a clean user-facing string. ApiError → routed
+ * through the bilingual catalog; plain Error → its message; everything else →
+ * generic "Something went wrong".
+ */
+export function formatApiError(err: unknown, locale: Locale = 'lv'): string {
+  if (err instanceof ApiError) return err.format(locale);
+  if (err instanceof Error) return err.message;
+  return lookupErrorMessage(undefined, locale);
+}
+
 // ─── API Response Types ─────────────────────────────────────
 // Typed interfaces for API responses — improves type safety across all pages
 
@@ -53,11 +99,22 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   if (res.status === 401) {
     clearAuthToken();
     // Don't redirect — let context handle re-auth
-    throw new Error('Session expired. Please sign in again.');
+    throw new ApiError(
+      { error: { code: 'AUTH-001', message: 'Session expired. Please sign in again.' } },
+      401,
+    );
   }
 
   if (res.status === 429) {
-    throw new Error('Too many requests. Please wait a moment and try again.');
+    throw new ApiError(
+      {
+        error: {
+          code: 'RATE_LIMITED',
+          message: 'Too many requests. Please wait a moment and try again.',
+        },
+      },
+      429,
+    );
   }
 
   // Parse response body
@@ -65,10 +122,19 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   try {
     json = await res.json();
   } catch {
-    throw new Error(res.ok ? 'Unexpected response format' : `Server error (${res.status})`);
+    if (res.ok) {
+      throw new ApiError(
+        { error: { code: 'SYS-001', message: 'Unexpected response format' } },
+        res.status,
+      );
+    }
+    throw new ApiError(
+      { error: { code: 'SYS-001', message: `Server error (${res.status})` } },
+      res.status,
+    );
   }
 
-  if (json.error) throw new Error(json.error.message || 'An error occurred');
+  if (json.error) throw new ApiError(json as ApiErrorBody, res.status);
   return json.data !== undefined ? json.data : json;
 }
 
@@ -117,6 +183,12 @@ export const api = {
     apiFetch(`/companies/${companyId}/journal-entries/${entryId}/reverse`, {
       method: 'POST',
     }),
+
+  // Audit trail (Phase 2 explainability)
+  auditByEvent: (companyId: string, eventId: string) =>
+    apiFetch(`/companies/${companyId}/audit/event/${eventId}`),
+  auditByEntry: (companyId: string, entryId: string) =>
+    apiFetch(`/companies/${companyId}/audit/journal-entry/${entryId}`),
 
   // Invoices
   invoices: (companyId: string, type?: string) =>

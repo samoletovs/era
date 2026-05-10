@@ -1,6 +1,6 @@
-import { CosmosClient, Database, Container } from "@azure/cosmos";
-import { DefaultAzureCredential } from "@azure/identity";
-import { CONTAINERS } from "@shared/constants";
+import { CosmosClient, Database, Container } from '@azure/cosmos';
+import { DefaultAzureCredential } from '@azure/identity';
+import { CONTAINERS } from '@shared/constants';
 
 let client: CosmosClient;
 let database: Database;
@@ -8,7 +8,7 @@ let database: Database;
 export function getCosmosClient(): CosmosClient {
   if (!client) {
     const endpoint = process.env.COSMOS_ENDPOINT;
-    if (!endpoint) throw new Error("COSMOS_ENDPOINT not set");
+    if (!endpoint) throw new Error('COSMOS_ENDPOINT not set');
 
     // Use managed identity in Azure, connection string locally
     if (process.env.COSMOS_KEY) {
@@ -23,7 +23,7 @@ export function getCosmosClient(): CosmosClient {
 
 export function getDatabase(): Database {
   if (!database) {
-    const dbName = process.env.COSMOS_DATABASE || "era-db";
+    const dbName = process.env.COSMOS_DATABASE || 'era-db';
     database = getCosmosClient().database(dbName);
   }
   return database;
@@ -46,4 +46,5 @@ export const containers = {
   feedback: () => getContainer(CONTAINERS.FEEDBACK),
   events: () => getContainer(CONTAINERS.EVENTS),
   rules: () => getContainer(CONTAINERS.RULES),
+  idempotency: () => getContainer(CONTAINERS.IDEMPOTENCY),
 };

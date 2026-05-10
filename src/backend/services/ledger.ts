@@ -1,7 +1,8 @@
-import { v4 as uuidv4 } from "uuid";
-import { containers } from "./cosmos.js";
-import { emitEvent } from "./events.js";
-import type { JournalEntry, JournalLine, Account } from "@shared/types";
+import { v4 as uuidv4 } from 'uuid';
+import { containers } from './cosmos.js';
+import { emitEvent } from './events.js';
+import { currentTraceId } from '../observability.js';
+import type { JournalEntry, JournalLine, Account } from '@shared/types';
 
 // ─── Validation ─────────────────────────────────────────────
 
@@ -11,66 +12,43 @@ export class GLError extends Error {
     message: string,
   ) {
     super(message);
-    this.name = "GLError";
+    this.name = 'GLError';
   }
 }
 
-function validateEntry(entry: {
-  lines: JournalLine[];
-  date: string;
-  description: string;
-}) {
+function validateEntry(entry: { lines: JournalLine[]; date: string; description: string }) {
   if (!entry.lines || entry.lines.length < 2) {
-    throw new GLError("MIN_LINES", "Journal entry must have at least 2 lines");
+    throw new GLError('MIN_LINES', 'Journal entry must have at least 2 lines');
   }
   if (!entry.date) {
-    throw new GLError("MISSING_DATE", "Journal entry must have a date");
+    throw new GLError('MISSING_DATE', 'Journal entry must have a date');
   }
   if (!entry.description?.trim()) {
-    throw new GLError("MISSING_DESC", "Journal entry must have a description");
+    throw new GLError('MISSING_DESC', 'Journal entry must have a description');
   }
 
-  const totalDebit = roundCurrency(
-    entry.lines.reduce((sum, l) => sum + l.debit, 0),
-  );
-  const totalCredit = roundCurrency(
-    entry.lines.reduce((sum, l) => sum + l.credit, 0),
-  );
+  const totalDebit = roundCurrency(entry.lines.reduce((sum, l) => sum + l.debit, 0));
+  const totalCredit = roundCurrency(entry.lines.reduce((sum, l) => sum + l.credit, 0));
 
   if (totalDebit !== totalCredit) {
-    throw new GLError(
-      "UNBALANCED",
-      `Debits (${totalDebit}) must equal credits (${totalCredit})`,
-    );
+    throw new GLError('UNBALANCED', `Debits (${totalDebit}) must equal credits (${totalCredit})`);
   }
   if (totalDebit === 0) {
-    throw new GLError(
-      "ZERO_ENTRY",
-      "Journal entry total must be greater than zero",
-    );
+    throw new GLError('ZERO_ENTRY', 'Journal entry total must be greater than zero');
   }
 
   for (const line of entry.lines) {
     if (line.debit < 0 || line.credit < 0) {
-      throw new GLError("NEGATIVE_AMOUNT", "Amounts must be non-negative");
+      throw new GLError('NEGATIVE_AMOUNT', 'Amounts must be non-negative');
     }
     if (line.debit > 0 && line.credit > 0) {
-      throw new GLError(
-        "BOTH_SIDES",
-        "A line cannot have both debit and credit",
-      );
+      throw new GLError('BOTH_SIDES', 'A line cannot have both debit and credit');
     }
     if (line.debit === 0 && line.credit === 0) {
-      throw new GLError(
-        "ZERO_LINE",
-        "A line must have either a debit or credit amount",
-      );
+      throw new GLError('ZERO_LINE', 'A line must have either a debit or credit amount');
     }
     if (!line.accountCode) {
-      throw new GLError(
-        "MISSING_ACCOUNT",
-        "Each line must reference an account code",
-      );
+      throw new GLError('MISSING_ACCOUNT', 'Each line must reference an account code');
     }
   }
 }
@@ -81,18 +59,15 @@ function roundCurrency(n: number): number {
 
 // ─── Generate entry number ──────────────────────────────────
 
-async function nextEntryNumber(
-  companyId: string,
-  period: string,
-): Promise<string> {
+async function nextEntryNumber(companyId: string, period: string): Promise<string> {
   const { resources } = await containers
     .ledger()
     .items.query<{ entryNumber: string }>({
       query:
         "SELECT c.entryNumber FROM c WHERE c.companyId = @cid AND c.period = @period AND (c.docType = 'journal-entry' OR IS_DEFINED(c.entryNumber)) ORDER BY c.entryNumber DESC OFFSET 0 LIMIT 1",
       parameters: [
-        { name: "@cid", value: companyId },
-        { name: "@period", value: period },
+        { name: '@cid', value: companyId },
+        { name: '@period', value: period },
       ],
     })
     .fetchAll();
@@ -100,7 +75,7 @@ async function nextEntryNumber(
   if (resources.length === 0) {
     return `${period}-1`;
   }
-  const lastNum = parseInt(resources[0].entryNumber.split("-").pop()!, 10);
+  const lastNum = parseInt(resources[0].entryNumber.split('-').pop()!, 10);
   return `${period}-${lastNum + 1}`;
 }
 
@@ -111,38 +86,32 @@ interface PostEntryInput {
   date: string;
   description: string;
   lines: JournalLine[];
-  sourceType?: JournalEntry["sourceType"];
+  sourceType?: JournalEntry['sourceType'];
   sourceId?: string;
   createdBy: string;
 }
 
-export async function postJournalEntry(
-  input: PostEntryInput,
-): Promise<JournalEntry> {
+export async function postJournalEntry(input: PostEntryInput): Promise<JournalEntry> {
   validateEntry(input);
 
   const period = input.date.slice(0, 7); // "2026-03"
   const entryNumber = await nextEntryNumber(input.companyId, period);
   const now = new Date().toISOString();
 
-  const totalDebit = roundCurrency(
-    input.lines.reduce((sum, l) => sum + l.debit, 0),
-  );
-  const totalCredit = roundCurrency(
-    input.lines.reduce((sum, l) => sum + l.credit, 0),
-  );
+  const totalDebit = roundCurrency(input.lines.reduce((sum, l) => sum + l.debit, 0));
+  const totalCredit = roundCurrency(input.lines.reduce((sum, l) => sum + l.credit, 0));
 
   const entry: JournalEntry = {
     id: uuidv4(),
-    docType: "journal-entry" as const,
+    docType: 'journal-entry' as const,
     companyId: input.companyId,
     entryNumber,
     date: input.date,
     description: input.description,
     lines: input.lines,
-    status: "posted",
+    status: 'posted',
     period,
-    sourceType: input.sourceType || "manual",
+    sourceType: input.sourceType || 'manual',
     sourceId: input.sourceId,
     totalDebit,
     totalCredit,
@@ -150,6 +119,7 @@ export async function postJournalEntry(
     createdAt: now,
     updatedAt: now,
     createdBy: input.createdBy,
+    ...(currentTraceId() ? { traceId: currentTraceId() } : {}),
   };
 
   // Save journal entry
@@ -161,9 +131,9 @@ export async function postJournalEntry(
   // Emit event
   await emitEvent({
     companyId: input.companyId,
-    type: "entry.posted",
+    type: 'entry.posted',
     actor: input.createdBy,
-    documentType: "journal-entry",
+    documentType: 'journal-entry',
     documentId: entry.id,
     journalEntryId: entry.id,
     data: {
@@ -201,14 +171,14 @@ async function updateAccountBalances(companyId: string, lines: JournalLine[]) {
         }
 
         // For accounts with credit normal side, flip the sign.
-        const signedDelta = account.normalSide === "credit" ? -delta : delta;
+        const signedDelta = account.normalSide === 'credit' ? -delta : delta;
         account.balance = roundCurrency(account.balance + signedDelta);
         account.updatedAt = new Date().toISOString();
         await containers
           .ledger()
           .item(accountId, companyId)
           .replace(account, {
-            accessCondition: { type: "IfMatch", condition: etag! },
+            accessCondition: { type: 'IfMatch', condition: etag! },
           });
         break;
       } catch (err) {
@@ -238,42 +208,66 @@ export async function reverseJournalEntry(
     .item(entryId, companyId)
     .read<JournalEntry>();
 
-  if (!original) throw new GLError("NOT_FOUND", "Journal entry not found");
-  if (original.status === "reversed")
-    throw new GLError("ALREADY_REVERSED", "Entry already reversed");
+  if (!original) throw new GLError('NOT_FOUND', 'Journal entry not found');
+  if (original.status === 'reversed')
+    throw new GLError('ALREADY_REVERSED', 'Entry already reversed');
 
   // Mark original as reversed
-  original.status = "reversed";
+  original.status = 'reversed';
   original.updatedAt = new Date().toISOString();
   await containers.ledger().item(entryId, companyId).replace(original);
 
-  // Emit reversal event
-  await emitEvent({
-    companyId,
-    type: "entry.reversed",
-    actor: createdBy,
-    documentType: "journal-entry",
-    documentId: entryId,
-    journalEntryId: entryId,
-    data: { entryNumber: original.entryNumber },
+  // Create reversing entry with flipped debits/credits.
+  // Strip rule-provenance fields — the reversal is itself a manual/system
+  // counter-action, not a rule-driven posting.
+  const reversedLines: JournalLine[] = original.lines.map((l) => {
+    const {
+      postingRuleId: _r,
+      postingRuleVersion: _v,
+      postingRuleCountry: _c,
+      postingRuleDocumentType: _t,
+      agentReasoningExcerpt: _e,
+      ...rest
+    } = l;
+    void _r;
+    void _v;
+    void _c;
+    void _t;
+    void _e;
+    return {
+      ...rest,
+      debit: l.credit,
+      credit: l.debit,
+    };
   });
 
-  // Create reversing entry with flipped debits/credits
-  const reversedLines: JournalLine[] = original.lines.map((l) => ({
-    ...l,
-    debit: l.credit,
-    credit: l.debit,
-  }));
-
-  return postJournalEntry({
+  const counter = await postJournalEntry({
     companyId,
     date: new Date().toISOString().slice(0, 10),
     description: `Reversal of ${original.entryNumber}: ${original.description}`,
     lines: reversedLines,
-    sourceType: "adjustment",
+    sourceType: 'adjustment',
     sourceId: entryId,
     createdBy,
   });
+
+  // Emit reversal event AFTER posting so the event can carry the counter
+  // entry id — the audit chain uses this to render the partner entry.
+  await emitEvent({
+    companyId,
+    type: 'entry.reversed',
+    actor: createdBy,
+    documentType: 'journal-entry',
+    documentId: entryId,
+    journalEntryId: entryId,
+    data: {
+      entryNumber: original.entryNumber,
+      reversalEntryId: counter.id,
+      reversalEntryNumber: counter.entryNumber,
+    },
+  });
+
+  return counter;
 }
 
 // ─── Trial Balance ──────────────────────────────────────────
@@ -310,7 +304,7 @@ export async function getTrialBalance(
     .items.query<Account>({
       query:
         "SELECT * FROM c WHERE c.companyId = @cid AND (c.docType = 'account' OR (IS_DEFINED(c.code) AND IS_DEFINED(c.normalSide))) AND (c.isPostable = true OR c.isPostable = false) ORDER BY c.code",
-      parameters: [{ name: "@cid", value: companyId }],
+      parameters: [{ name: '@cid', value: companyId }],
     })
     .fetchAll();
 
@@ -321,8 +315,8 @@ export async function getTrialBalance(
       query:
         "SELECT * FROM c WHERE c.companyId = @cid AND (c.docType = 'journal-entry' OR IS_DEFINED(c.entryNumber)) AND c.status = 'posted' AND c.date <= @periodEnd",
       parameters: [
-        { name: "@cid", value: companyId },
-        { name: "@periodEnd", value: periodEnd },
+        { name: '@cid', value: companyId },
+        { name: '@periodEnd', value: periodEnd },
       ],
     })
     .fetchAll();
@@ -342,23 +336,11 @@ export async function getTrialBalance(
       if (!code) continue;
 
       if (isBefore) {
-        openingDebits.set(
-          code,
-          (openingDebits.get(code) || 0) + (line.debit || 0),
-        );
-        openingCredits.set(
-          code,
-          (openingCredits.get(code) || 0) + (line.credit || 0),
-        );
+        openingDebits.set(code, (openingDebits.get(code) || 0) + (line.debit || 0));
+        openingCredits.set(code, (openingCredits.get(code) || 0) + (line.credit || 0));
       } else if (isInPeriod) {
-        periodDebits.set(
-          code,
-          (periodDebits.get(code) || 0) + (line.debit || 0),
-        );
-        periodCredits.set(
-          code,
-          (periodCredits.get(code) || 0) + (line.credit || 0),
-        );
+        periodDebits.set(code, (periodDebits.get(code) || 0) + (line.debit || 0));
+        periodCredits.set(code, (periodCredits.get(code) || 0) + (line.credit || 0));
       }
     }
   }
@@ -376,8 +358,8 @@ export async function getTrialBalance(
     const pc = roundCurrency(periodCredits.get(account.code) || 0);
 
     // Opening balance: net of all entries before period
-    const openingNet = account.normalSide === "credit" ? oc - od : od - oc;
-    const periodNet = account.normalSide === "credit" ? pc - pd : pd - pc;
+    const openingNet = account.normalSide === 'credit' ? oc - od : od - oc;
+    const periodNet = account.normalSide === 'credit' ? pc - pd : pd - pc;
     const closingBalance = roundCurrency(openingNet + periodNet);
 
     // Skip accounts with no activity and no balance
@@ -412,16 +394,10 @@ export async function getTrialBalance(
 
 // ─── Account balance query ──────────────────────────────────
 
-export async function getAccountBalance(
-  companyId: string,
-  accountCode: string,
-): Promise<number> {
+export async function getAccountBalance(companyId: string, accountCode: string): Promise<number> {
   const accountId = `${companyId}-acct-${accountCode}`;
   try {
-    const { resource } = await containers
-      .ledger()
-      .item(accountId, companyId)
-      .read<Account>();
+    const { resource } = await containers.ledger().item(accountId, companyId).read<Account>();
     return resource?.balance ?? 0;
   } catch {
     return 0;

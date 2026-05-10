@@ -13,6 +13,9 @@ import {
   CreateContactSchema,
   CreateItemSchema,
   SubmitFeedbackSchema,
+  DispatchPeppolSchema,
+  LockAnnualReportSchema,
+  SubmitVidSchema,
 } from './schemas.js';
 import {
   createCompany,
@@ -81,6 +84,34 @@ import {
 } from '../services/period-close.js';
 import { generateInvoicePdf } from '../services/invoice-pdf.js';
 import {
+  formatAnnualReport,
+  lockAnnualReport,
+  LockError,
+  renderAnnualReportPdf,
+  unlockAnnualReport,
+} from '../services/annual-report-pdf.js';
+import { buildPeppolInvoiceXml, PeppolBuildError } from '../services/peppol/ubl-builder.js';
+import {
+  AccessPointError,
+  MockAccessPoint,
+  NoOpAccessPoint,
+  type PeppolAccessPoint,
+} from '../services/peppol/access-point.js';
+import {
+  companyToPeppolParty,
+  contactToPeppolParty,
+  dispatchInvoice,
+} from '../services/peppol/dispatcher.js';
+import {
+  MockVidClient,
+  NoOpVidClient,
+  retrySubmission,
+  submitVidDeclaration,
+  vatDeclarationToVidXml,
+  type VidClient,
+} from '../services/vid/submit.js';
+import { assembleAuditChain, AuditChainError } from '../services/audit-trail.js';
+import {
   importBankStatement,
   postUnmatchedLine,
   completeReconciliation,
@@ -134,6 +165,9 @@ import type {
   BusinessEvent,
   UserProfile,
   CompanySharingEntry,
+  AnnualReportApproval,
+  PeppolOutboxEntry,
+  VidSubmission,
 } from '@shared/types';
 
 export const router = Router();
@@ -2749,5 +2783,451 @@ router.get('/companies/:companyId/close-runs/:runId', async (req, res) => {
       const e = safeError(err, 'SYS-001');
       res.status(e.status).json(e.body);
     }
+  }
+});
+
+// ─── PEPPOL outbox ──────────────────────────────────────────
+//
+// Phase 1 Compliance: autonomous slice — UBL builder + Access Point
+// abstraction (NoOp / Mock) + outbox state machine. Vendor wiring
+// (Storecove, Tickstar, etc.) is plug-replaceable via the
+// PeppolAccessPoint interface.
+//
+// Provider selection is driven by `process.env.PEPPOL_PROVIDER`:
+//   • unset  → NoOpAccessPoint (every send returns NOT_CONFIGURED)
+//   • "mock" → MockAccessPoint (in-memory; for local dev / tests)
+//   • other  → not yet implemented; falls through to NoOp
+
+function selectPeppolAccessPoint(): PeppolAccessPoint {
+  const provider = (process.env.PEPPOL_PROVIDER ?? '').toLowerCase();
+  if (provider === 'mock') return new MockAccessPoint();
+  return new NoOpAccessPoint();
+}
+
+router.post(
+  '/companies/:companyId/invoices/:invoiceId/peppol',
+  validate(DispatchPeppolSchema.partial()),
+  async (req, res) => {
+    try {
+      const { companyId, invoiceId } = req.params as { companyId: string; invoiceId: string };
+      const invoice = await getInvoice(companyId, invoiceId);
+      if (!invoice) {
+        res
+          .status(404)
+          .json({ error: { code: 'PEPPOL_INVOICE_NOT_FOUND', message: 'Invoice not found' } });
+        return;
+      }
+      if (invoice.type !== 'sales') {
+        res.status(400).json({
+          error: {
+            code: 'PEPPOL_NOT_SALES',
+            message: 'Only sales invoices can be dispatched via PEPPOL',
+          },
+        });
+        return;
+      }
+      const { resource: company } = await containers
+        .companies()
+        .item(companyId, companyId)
+        .read<Company>();
+      if (!company) {
+        res
+          .status(404)
+          .json({ error: { code: 'PEPPOL_COMPANY_NOT_FOUND', message: 'Company not found' } });
+        return;
+      }
+      if (!invoice.contactId) {
+        res
+          .status(400)
+          .json({ error: { code: 'PEPPOL_NO_CONTACT', message: 'Invoice has no contact' } });
+        return;
+      }
+      const customer = await getContact(companyId, invoice.contactId);
+      if (!customer) {
+        res
+          .status(404)
+          .json({ error: { code: 'PEPPOL_CONTACT_NOT_FOUND', message: 'Contact not found' } });
+        return;
+      }
+
+      const accessPoint = selectPeppolAccessPoint();
+      const result = await dispatchInvoice(
+        { invoice, company, customer },
+        {
+          accessPoint,
+          persistOutbox: async (entry) => {
+            await containers.documents().items.upsert(entry);
+          },
+        },
+      );
+      res.status(201).json({ data: result.outbox } as ApiResponse);
+    } catch (err) {
+      if (err instanceof PeppolBuildError) {
+        res.status(400).json({ error: { code: `PEPPOL_BUILD_${err.code}`, message: err.message } });
+        return;
+      }
+      if (err instanceof AccessPointError) {
+        res.status(502).json({ error: { code: `PEPPOL_AP_${err.code}`, message: err.message } });
+        return;
+      }
+      const e = safeError(err, 'PEPPOL_DISPATCH_FAILED');
+      res.status(e.status).json(e.body);
+    }
+  },
+);
+
+router.get('/companies/:companyId/peppol/outbox', async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    const status = (req.query.status as string) || undefined;
+    const params: { name: string; value: string }[] = [{ name: '@cid', value: companyId }];
+    let query = "SELECT * FROM c WHERE c.companyId = @cid AND c.docType = 'peppol-outbox'";
+    if (status) {
+      query += ' AND c.status = @status';
+      params.push({ name: '@status', value: status });
+    }
+    query += ' ORDER BY c.createdAt DESC OFFSET 0 LIMIT 100';
+    const { resources } = await containers
+      .documents()
+      .items.query<PeppolOutboxEntry>({ query, parameters: params })
+      .fetchAll();
+    res.json({ data: resources } as ApiResponse);
+  } catch (err) {
+    const e = safeError(err, 'PEPPOL_LIST_FAILED');
+    res.status(e.status).json(e.body);
+  }
+});
+
+// Preview-only — generates UBL without persisting anything. Useful for
+// agents / UI to inspect the document before pressing Send.
+router.get('/companies/:companyId/invoices/:invoiceId/peppol/preview', async (req, res) => {
+  try {
+    const { companyId, invoiceId } = req.params;
+    const invoice = await getInvoice(companyId, invoiceId);
+    if (!invoice) {
+      res
+        .status(404)
+        .json({ error: { code: 'PEPPOL_INVOICE_NOT_FOUND', message: 'Invoice not found' } });
+      return;
+    }
+    const { resource: company } = await containers
+      .companies()
+      .item(companyId, companyId)
+      .read<Company>();
+    if (!company) {
+      res
+        .status(404)
+        .json({ error: { code: 'PEPPOL_COMPANY_NOT_FOUND', message: 'Company not found' } });
+      return;
+    }
+    const customer = invoice.contactId ? await getContact(companyId, invoice.contactId) : null;
+    if (!customer) {
+      res
+        .status(404)
+        .json({ error: { code: 'PEPPOL_CONTACT_NOT_FOUND', message: 'Contact not found' } });
+      return;
+    }
+    const ubl = buildPeppolInvoiceXml({
+      invoice,
+      supplier: companyToPeppolParty(company),
+      customer: contactToPeppolParty(customer),
+    });
+    res.setHeader('Content-Type', 'application/xml');
+    res.send(ubl);
+  } catch (err) {
+    if (err instanceof PeppolBuildError) {
+      res.status(400).json({ error: { code: `PEPPOL_BUILD_${err.code}`, message: err.message } });
+      return;
+    }
+    const e = safeError(err, 'PEPPOL_PREVIEW_FAILED');
+    res.status(e.status).json(e.body);
+  }
+});
+
+// ─── Annual report sign-off ─────────────────────────────────
+
+async function loadAnnualReportApproval(
+  companyId: string,
+  fiscalYear: number,
+): Promise<AnnualReportApproval | null> {
+  const { resources } = await containers
+    .documents()
+    .items.query<AnnualReportApproval>({
+      query:
+        "SELECT * FROM c WHERE c.companyId = @cid AND c.docType = 'annual-report-approval' AND c.fiscalYear = @fy",
+      parameters: [
+        { name: '@cid', value: companyId },
+        { name: '@fy', value: fiscalYear },
+      ],
+    })
+    .fetchAll();
+  return resources[0] ?? null;
+}
+
+router.get('/companies/:companyId/reports/annual/:year/pdf', async (req, res) => {
+  try {
+    const { companyId, year } = req.params as { companyId: string; year: string };
+    const fiscalYear = parseInt(year, 10);
+    if (!Number.isFinite(fiscalYear)) {
+      res.status(400).json({ error: { code: 'ANNUAL_BAD_YEAR', message: 'Invalid fiscal year' } });
+      return;
+    }
+    const report = await generateAnnualReport(companyId, fiscalYear);
+    const approval = await loadAnnualReportApproval(companyId, fiscalYear);
+    const formatted = formatAnnualReport(report, { locale: 'lv', approval });
+    const pdf = await renderAnnualReportPdf(formatted);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="annual-report-${fiscalYear}.pdf"`);
+    res.send(pdf);
+  } catch (err) {
+    const e = safeError(err, 'ANNUAL_PDF_FAILED');
+    res.status(e.status).json(e.body);
+  }
+});
+
+router.get('/companies/:companyId/reports/annual/:year/approval', async (req, res) => {
+  try {
+    const { companyId, year } = req.params as { companyId: string; year: string };
+    const fiscalYear = parseInt(year, 10);
+    const approval = await loadAnnualReportApproval(companyId, fiscalYear);
+    res.json({ data: approval } as ApiResponse);
+  } catch (err) {
+    const e = safeError(err, 'ANNUAL_APPROVAL_LOAD_FAILED');
+    res.status(e.status).json(e.body);
+  }
+});
+
+router.post(
+  '/companies/:companyId/reports/annual/:year/lock',
+  validate(LockAnnualReportSchema),
+  async (req, res) => {
+    try {
+      const { companyId, year } = req.params as { companyId: string; year: string };
+      const fiscalYear = parseInt(year, 10);
+      if (!Number.isFinite(fiscalYear)) {
+        res
+          .status(400)
+          .json({ error: { code: 'ANNUAL_BAD_YEAR', message: 'Invalid fiscal year' } });
+        return;
+      }
+      const report = await generateAnnualReport(companyId, fiscalYear);
+      const existing = await loadAnnualReportApproval(companyId, fiscalYear);
+      const now = new Date().toISOString();
+      const seed: AnnualReportApproval = existing ?? {
+        id: `ar-${companyId}-${fiscalYear}`,
+        companyId,
+        docType: 'annual-report-approval',
+        fiscalYear,
+        status: 'unlocked',
+        isActive: true,
+        createdAt: now,
+        updatedAt: now,
+        createdBy: req.user!.id,
+      };
+      const locked = lockAnnualReport({
+        approval: seed,
+        report,
+        signatoryName: req.body.signatoryName,
+        signatoryRole: req.body.signatoryRole,
+        signatoryRegistrationNumber: req.body.signatoryRegistrationNumber,
+        signedAt: now,
+      });
+      await containers.documents().items.upsert(locked);
+      res.status(201).json({ data: locked } as ApiResponse);
+    } catch (err) {
+      if (err instanceof LockError) {
+        res.status(409).json({ error: { code: `ANNUAL_${err.code}`, message: err.message } });
+        return;
+      }
+      const e = safeError(err, 'ANNUAL_LOCK_FAILED');
+      res.status(e.status).json(e.body);
+    }
+  },
+);
+
+router.post('/companies/:companyId/reports/annual/:year/unlock', async (req, res) => {
+  try {
+    const { companyId, year } = req.params as { companyId: string; year: string };
+    const fiscalYear = parseInt(year, 10);
+    const existing = await loadAnnualReportApproval(companyId, fiscalYear);
+    if (!existing) {
+      res.status(404).json({ error: { code: 'ANNUAL_NOT_FOUND', message: 'Approval not found' } });
+      return;
+    }
+    const now = new Date().toISOString();
+    const unlocked = unlockAnnualReport(existing, now);
+    await containers.documents().items.upsert(unlocked);
+    res.json({ data: unlocked } as ApiResponse);
+  } catch (err) {
+    if (err instanceof LockError) {
+      res.status(409).json({ error: { code: `ANNUAL_${err.code}`, message: err.message } });
+      return;
+    }
+    const e = safeError(err, 'ANNUAL_UNLOCK_FAILED');
+    res.status(e.status).json(e.body);
+  }
+});
+
+// ─── VID submissions ────────────────────────────────────────
+//
+// Provider selection via `process.env.VID_PROVIDER`:
+//   • unset  → NoOpVidClient (NOT_CONFIGURED on every call)
+//   • "mock" → MockVidClient (always accepts)
+//   • other  → falls through to NoOp until live EDS client lands
+
+function selectVidClient(): VidClient {
+  const provider = (process.env.VID_PROVIDER ?? '').toLowerCase();
+  if (provider === 'mock') return new MockVidClient();
+  return new NoOpVidClient();
+}
+
+router.post(
+  '/companies/:companyId/vid/submissions',
+  validate(SubmitVidSchema),
+  async (req, res) => {
+    try {
+      const { companyId } = req.params as { companyId: string };
+      const { kind, year, month } = req.body as {
+        kind: 'pvn-declaration' | 'annual-report';
+        year: number;
+        month?: number;
+      };
+      let payload: string;
+      let period: string;
+      if (kind === 'pvn-declaration') {
+        if (!month) {
+          res.status(400).json({
+            error: { code: 'VID_MONTH_REQUIRED', message: 'month is required for pvn-declaration' },
+          });
+          return;
+        }
+        const declaration = await generateVatDeclaration(companyId, year, month);
+        payload = vatDeclarationToVidXml(declaration);
+        period = declaration.period;
+      } else {
+        // annual-report path defers to a future formatter; for now we
+        // ship the JSON serialisation of the AnnualReport as a
+        // placeholder payload — keeps the orchestration testable.
+        const report = await generateAnnualReport(companyId, year);
+        payload = JSON.stringify(report, null, 2);
+        period = `${year}`;
+      }
+      const client = selectVidClient();
+      const submission = await submitVidDeclaration(
+        {
+          companyId,
+          kind,
+          period,
+          sourcePeriod: { year, month },
+          payload,
+          contentType: kind === 'pvn-declaration' ? 'application/xml' : 'application/json',
+          createdBy: req.user!.id,
+        },
+        {
+          client,
+          persistSubmission: async (s) => {
+            await containers.documents().items.upsert(s);
+          },
+        },
+      );
+      res.status(201).json({ data: submission } as ApiResponse);
+    } catch (err) {
+      const e = safeError(err, 'VID_SUBMIT_FAILED');
+      res.status(e.status).json(e.body);
+    }
+  },
+);
+
+router.post('/companies/:companyId/vid/submissions/:id/retry', async (req, res) => {
+  try {
+    const { companyId, id } = req.params;
+    const { resource: existing } = await containers
+      .documents()
+      .item(id, companyId)
+      .read<VidSubmission>();
+    if (!existing) {
+      res.status(404).json({ error: { code: 'VID_NOT_FOUND', message: 'Submission not found' } });
+      return;
+    }
+    const client = selectVidClient();
+    const retried = await retrySubmission(existing, {
+      client,
+      persistSubmission: async (s) => {
+        await containers.documents().items.upsert(s);
+      },
+    });
+    res.json({ data: retried } as ApiResponse);
+  } catch (err) {
+    const e = safeError(err, 'VID_RETRY_FAILED');
+    res.status(e.status).json(e.body);
+  }
+});
+
+router.get('/companies/:companyId/vid/submissions', async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    const status = (req.query.status as string) || undefined;
+    const period = (req.query.period as string) || undefined;
+    const params: { name: string; value: string }[] = [{ name: '@cid', value: companyId }];
+    let query = "SELECT * FROM c WHERE c.companyId = @cid AND c.docType = 'vid-submission'";
+    if (status) {
+      query += ' AND c.status = @status';
+      params.push({ name: '@status', value: status });
+    }
+    if (period) {
+      query += ' AND c.period = @period';
+      params.push({ name: '@period', value: period });
+    }
+    query += ' ORDER BY c.createdAt DESC OFFSET 0 LIMIT 100';
+    const { resources } = await containers
+      .documents()
+      .items.query<VidSubmission>({ query, parameters: params })
+      .fetchAll();
+    res.json({ data: resources } as ApiResponse);
+  } catch (err) {
+    const e = safeError(err, 'VID_LIST_FAILED');
+    res.status(e.status).json(e.body);
+  }
+});
+
+// ─── Audit trail ────────────────────────────────────────────
+//
+// Phase 2 explainability — given an event id or a journal-entry id,
+// return the full provenance chain. Powers the `/audit/:id` page and
+// the "🤖 Agent · LV-rules-v1.2" badge tooltip.
+
+router.get('/companies/:companyId/audit/event/:eventId', async (req, res) => {
+  try {
+    const chain = await assembleAuditChain({
+      companyId: req.params.companyId,
+      eventId: req.params.eventId,
+    });
+    res.json({ data: chain } as ApiResponse);
+  } catch (err) {
+    if (err instanceof AuditChainError) {
+      const status = err.code === 'EVENT_NOT_FOUND' ? 404 : 400;
+      res.status(status).json({ error: { code: `AUDIT_${err.code}`, message: err.message } });
+      return;
+    }
+    const e = safeError(err, 'AUDIT_FAILED');
+    res.status(e.status).json(e.body);
+  }
+});
+
+router.get('/companies/:companyId/audit/journal-entry/:entryId', async (req, res) => {
+  try {
+    const chain = await assembleAuditChain({
+      companyId: req.params.companyId,
+      journalEntryId: req.params.entryId,
+    });
+    res.json({ data: chain } as ApiResponse);
+  } catch (err) {
+    if (err instanceof AuditChainError) {
+      const status = err.code === 'ENTRY_NOT_FOUND' ? 404 : 400;
+      res.status(status).json({ error: { code: `AUDIT_${err.code}`, message: err.message } });
+      return;
+    }
+    const e = safeError(err, 'AUDIT_FAILED');
+    res.status(e.status).json(e.body);
   }
 });

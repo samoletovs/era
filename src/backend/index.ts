@@ -1,5 +1,13 @@
-import { config } from 'dotenv';
-config(); // Load .env file
+// Load .env file as a side effect of import — must run BEFORE observability.ts
+// is evaluated so APPLICATIONINSIGHTS_CONNECTION_STRING is populated.
+import 'dotenv/config';
+
+// Bootstrap OpenTelemetry / Azure Monitor BEFORE any other imports that touch
+// HTTP, Cosmos, or OpenAI — auto-instrumentation works only on libraries
+// loaded after `useAzureMonitor()` runs. The module uses top-level await so
+// the rest of this file's imports won't begin evaluating until the tracer
+// provider is registered. Silent no-op in dev and tests (no connection string).
+import './observability.js';
 
 // Fail fast on missing required configuration
 const REQUIRED_ENV = ['COSMOS_ENDPOINT'];
@@ -17,8 +25,9 @@ import rateLimit from 'express-rate-limit';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { router } from './api/router.js';
-import { getCosmosClient } from './services/cosmos.js';
+import { getHealthReport } from './services/health.js';
 import { idempotency } from './middleware/idempotency.js';
+import { errorHandlerMiddleware } from './middleware/error-handler.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -135,21 +144,8 @@ app.use((req, _res, next) => {
 
 // Health check (no auth) — includes dependency checks
 app.get('/health', async (_req, res) => {
-  const checks: Record<string, string> = { api: 'healthy' };
-  try {
-    const client = getCosmosClient();
-    await client.getDatabaseAccount();
-    checks.database = 'healthy';
-  } catch {
-    checks.database = 'unhealthy';
-  }
-  const overall = Object.values(checks).every((s) => s === 'healthy') ? 'healthy' : 'degraded';
-  res.status(overall === 'healthy' ? 200 : 503).json({
-    status: overall,
-    version: '0.1.0',
-    timestamp: new Date().toISOString(),
-    checks,
-  });
+  const report = await getHealthReport();
+  res.status(report.status === 'healthy' ? 200 : 503).json(report);
 });
 
 // API routes
@@ -166,25 +162,35 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
-const server = app.listen(port, (error?: Error) => {
-  if (error) {
-    console.error(`Failed to start server: ${error.message}`);
-    process.exit(1);
-  }
-  console.warn(`ERA API running on port ${port}`);
-});
+// Top-level error handler — backstop for anything that escapes per-route
+// try/catch. Without it Express's default handler renders an HTML stack
+// trace, which contradicts the "no naked stack traces in UI" guarantee.
+// Must come AFTER routes / static / SPA catch-all so it only fires on errors.
+app.use(errorHandlerMiddleware);
 
-// Graceful shutdown
-function shutdown(signal: string) {
-  console.warn(`Received ${signal}, shutting down gracefully...`);
-  server.close(() => {
-    console.warn('HTTP server closed');
-    process.exit(0);
+// Skip listen + signal handlers under tests so Vitest can import the app
+// without starting an HTTP server or registering global signal handlers.
+if (process.env.NODE_ENV !== 'test') {
+  const server = app.listen(port, (error?: Error) => {
+    if (error) {
+      console.error(`Failed to start server: ${error.message}`);
+      process.exit(1);
+    }
+    console.warn(`ERA API running on port ${port}`);
   });
-  // Force exit after 10s if connections don't close
-  setTimeout(() => process.exit(1), 10_000);
+
+  // Graceful shutdown
+  const shutdown = (signal: string) => {
+    console.warn(`Received ${signal}, shutting down gracefully...`);
+    server.close(() => {
+      console.warn('HTTP server closed');
+      process.exit(0);
+    });
+    // Force exit after 10s if connections don't close
+    setTimeout(() => process.exit(1), 10_000);
+  };
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
 }
-process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT', () => shutdown('SIGINT'));
 
 export default app;

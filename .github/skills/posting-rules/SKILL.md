@@ -38,7 +38,8 @@ interface PostingRule {
   effectiveFrom: string;         // ISO date — when rule takes effect
   effectiveTo?: string;          // null = still current
   isActive: boolean;
-  source?: string;               // Legal reference
+  source?: string;               // Legal reference, e.g. "LV-Cabinet-Regulation-775-2015"
+  legalBasis?: string[];         // Paragraph-level citations, e.g. ["Reg 775 §50", "Reg 775 §156"]
 }
 ```
 

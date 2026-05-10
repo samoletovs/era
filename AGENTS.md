@@ -79,3 +79,27 @@ tests/
 3. Make minimal, focused changes — don't refactor unrelated code
 4. Run `npm run build && npm test && npm run lint` before committing
 5. Create a PR targeting `master` with a clear description of what changed
+
+## Off-path deviations
+
+ERA deliberately leaves the [NauroLabs golden path](../.github/PLATFORM.md) on a few axes. This section is the canonical record so future agents don't try to "normalize" era back onto the path without understanding the trade-offs.
+
+| # | Decision area | Golden path default | ERA's choice | Why |
+|---|---------------|---------------------|--------------|-----|
+| 1 | Hosting | Azure Static Web App (Free) + SWA-managed Functions | **Azure Container Apps + Express server** | Long-lived ERP backend with custom middleware (auth, idempotency, App Insights direct SDK, Cosmos transactional batches, request-id propagation). The Functions cold-start tax and per-execution billing model are wrong for an interactive ERP. |
+| 2 | Auth | SWA built-in Microsoft Entra ID | **Custom Google Identity Services popup** | Need fine-grained Google scopes (Drive read for receipts, Calendar read for due-date sync), client-side ID-token control, and origin allowlist outside SWA. Follows the [google-oauth skill](../.github/skills/google-oauth/SKILL.md); origins synced via `.github/scripts/google-oauth-sync.ps1`. |
+| 3 | Secrets | SWA App Settings | **Container Apps secrets + Managed Identity to Cosmos and OpenAI** | Same default for Container Apps per [PLATFORM.md §3](../.github/PLATFORM.md#3-secrets). |
+| 4 | CI/CD | `workflow-templates/swa-deploy.yml` | **Bespoke `.github/workflows/deploy.yml`** (Docker build → ACR push → Container App update) | Required by the Container Apps stack; quality gate (`build && test && lint`) still applied. |
+| 5 | Default branch | `main` | **`master`** (legacy) | Predates the lab-wide `main` convention. Migration is destructive (force-push, PR retargeting, branch-protection rules, Container App webhook URL); to be done explicitly when no in-flight PRs are open. |
+
+For background on the off-path policy, see [PLATFORM.md "Off-the-path projects"](../.github/PLATFORM.md#off-the-path-projects-today). When you find this list out of date — fix it in the same PR as the change.
+
+## Country-specific accounting
+
+Latvia (LV) posting rules in [`src/shared/rules/lv.ts`](src/shared/rules/lv.ts) are based on:
+
+- **Annual Reports and Consolidated Annual Reports Law** — Gada pārskatu likums.
+- **Cabinet Regulation No. 775 (2015)** — application rules for the Annual Reports Law (NOT a chart of accounts; account codes are commercial convention).
+- **VAT Law** — Pievienotās vērtības nodokļa likums.
+
+Each `PostingRule` carries a `legalBasis: string[]` field with paragraph-level citations for auditability. See [`docs/lv-posting-rules-audit-2026.md`](docs/lv-posting-rules-audit-2026.md) for the audit findings and per-rule mapping. When adding rules for new countries, follow the [posting-rules skill](.github/skills/posting-rules/SKILL.md) and cite specific paragraphs in `legalBasis`, not just the regulation name in `source`.

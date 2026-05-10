@@ -5,6 +5,10 @@ import { ZodType, ZodError } from 'zod';
  * Express middleware that validates req.body against a Zod schema.
  * On success, replaces req.body with the parsed (typed) result.
  * On failure, returns 400 with structured validation errors.
+ *
+ * Each detail carries the Zod issue `code` so the frontend's bilingual
+ * translator can render a clean message even when the raw Zod text is too
+ * technical for end users (e.g. "Expected string, received undefined").
  */
 export function validate(schema: ZodType) {
   return (req: Request, res: Response, next: NextFunction) => {
@@ -12,6 +16,7 @@ export function validate(schema: ZodType) {
     if (!result.success) {
       const issues = (result.error as ZodError).issues.map((i) => ({
         field: i.path.join('.'),
+        code: i.code,
         message: i.message,
       }));
       res.status(400).json({

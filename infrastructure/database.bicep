@@ -62,6 +62,7 @@ var containers = [
   { name: 'feedback', partitionKey: '/id' }
   { name: 'events', partitionKey: '/companyId' }
   { name: 'rules', partitionKey: '/country' }
+  { name: 'idempotency', partitionKey: '/companyId' }
 ]
 
 resource cosmosContainers 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-05-15' = [

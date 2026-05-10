@@ -154,3 +154,25 @@ export const AcquireAssetSchema = z.object({
   residualValue: MoneyAmount.optional(),
   depreciationMethod: z.enum(['straight-line']).optional(),
 });
+
+// ─── PEPPOL ─────────────────────────────────────────────────
+
+export const DispatchPeppolSchema = z.object({
+  invoiceId: z.string().min(1),
+});
+
+// ─── Annual report sign-off ─────────────────────────────────
+
+export const LockAnnualReportSchema = z.object({
+  signatoryName: z.string().min(1).max(200),
+  signatoryRole: z.string().min(1).max(200),
+  signatoryRegistrationNumber: z.string().max(50).optional(),
+});
+
+// ─── VID submission ─────────────────────────────────────────
+
+export const SubmitVidSchema = z.object({
+  kind: z.enum(['pvn-declaration', 'annual-report']),
+  year: z.number().int().min(2000).max(2100),
+  month: z.number().int().min(1).max(12).optional(),
+});

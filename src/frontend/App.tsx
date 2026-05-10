@@ -41,6 +41,7 @@ const EventLog = React.lazy(() =>
 const Accounting = React.lazy(() =>
   import('./pages/Accounting').then((m) => ({ default: m.Accounting })),
 );
+const Audit = React.lazy(() => import('./pages/Audit').then((m) => ({ default: m.Audit })));
 
 function PageLoader() {
   return <div style={{ padding: 40, textAlign: 'center', color: '#A0A0A0' }}>Loading...</div>;
@@ -412,6 +413,22 @@ function AppShell() {
                 element={
                   <ErrorBoundary>
                     <Settings />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/audit/event/:id"
+                element={
+                  <ErrorBoundary>
+                    <Audit />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/audit/entry/:id"
+                element={
+                  <ErrorBoundary>
+                    <Audit />
                   </ErrorBoundary>
                 }
               />

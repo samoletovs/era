@@ -55,6 +55,7 @@ export const CONTAINERS = {
   FEEDBACK: 'feedback',
   EVENTS: 'events',
   RULES: 'rules',
+  IDEMPOTENCY: 'idempotency',
 } as const;
 
 // ─── Default GL Account Codes (Latvian chart of accounts) ─────

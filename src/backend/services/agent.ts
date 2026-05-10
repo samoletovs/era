@@ -21,6 +21,15 @@ import { runMonthEnd, runYearEnd, checkCompanyHealth } from './autonomous-tasks.
 import { acquireAsset } from './fixed-assets.js';
 import { createRecurringTemplate } from './recurring-entries.js';
 import { getBudgetVsActual } from './budget.js';
+import {
+  MUTATION_TOOLS,
+  hashArgs,
+  lookupIdempotency,
+  saveIdempotency,
+  IdempotencyConflictError,
+} from './idempotency.js';
+import { getTracer } from '../observability.js';
+import { SpanStatusCode } from '@opentelemetry/api';
 
 // ─── OpenAI Client ──────────────────────────────────────────
 
@@ -90,7 +99,79 @@ Be concise, action-oriented, and proactive. You ARE the accountant — own the b
 
 // ─── Tool Executor ──────────────────────────────────────────
 
+/**
+ * Public dispatcher used by the chat loop. Adds optional idempotency on top of
+ * the raw tool switch (`runTool`):
+ *
+ *   - reads + non-mutating tools always run normally
+ *   - mutations with no `clientToken` run normally (current behavior)
+ *   - mutations with `clientToken`:
+ *       cache hit + same args  → return cached result, skip re-run
+ *       cache hit + diff args  → throw IdempotencyConflictError (409)
+ *       cache miss             → run, then cache the successful result
+ *
+ * The companyId for the idempotency partition key comes from `args.companyId`.
+ * Tools without a `companyId` (only `lookup_company` today) are read-only and
+ * therefore not in MUTATION_TOOLS — they bypass the cache.
+ */
 async function executeTool(
+  name: string,
+  args: Record<string, unknown>,
+  userId: string,
+): Promise<unknown> {
+  const clientToken = typeof args.clientToken === 'string' ? args.clientToken : undefined;
+  const companyId = typeof args.companyId === 'string' ? args.companyId : undefined;
+  const isMutation = MUTATION_TOOLS.has(name);
+
+  // Strip clientToken before passing args to the underlying tool — tool
+  // implementations don't (and shouldn't) know about it.
+  const toolArgs: Record<string, unknown> = clientToken !== undefined ? { ...args } : args;
+  if (clientToken !== undefined) delete toolArgs.clientToken;
+
+  return getTracer().startActiveSpan(`agent.tool.${name}`, async (span) => {
+    span.setAttribute('era.tool.name', name);
+    span.setAttribute('era.tool.is_mutation', isMutation);
+    if (companyId) span.setAttribute('era.company_id', companyId);
+    if (userId) span.setAttribute('era.user_id', userId);
+    if (clientToken) span.setAttribute('era.idempotency.client_token', clientToken);
+
+    try {
+      if (!isMutation || !clientToken || !companyId) {
+        const result = await runTool(name, toolArgs, userId);
+        span.setStatus({ code: SpanStatusCode.OK });
+        return result;
+      }
+
+      const argsHash = hashArgs(toolArgs);
+      const cached = await lookupIdempotency(clientToken, companyId);
+      if (cached) {
+        if (cached.argsHash !== argsHash) {
+          throw new IdempotencyConflictError(name, clientToken);
+        }
+        span.setAttribute('era.idempotency.cache_hit', true);
+        span.setStatus({ code: SpanStatusCode.OK });
+        return JSON.parse(cached.resultJson);
+      }
+
+      span.setAttribute('era.idempotency.cache_hit', false);
+      const result = await runTool(name, toolArgs, userId);
+      await saveIdempotency({ clientToken, companyId, toolName: name, argsHash, result });
+      span.setStatus({ code: SpanStatusCode.OK });
+      return result;
+    } catch (err) {
+      span.recordException(err as Error);
+      span.setStatus({
+        code: SpanStatusCode.ERROR,
+        message: err instanceof Error ? err.message : String(err),
+      });
+      throw err;
+    } finally {
+      span.end();
+    }
+  });
+}
+
+async function runTool(
   name: string,
   args: Record<string, unknown>,
   userId: string,
@@ -332,6 +413,30 @@ export interface ChatInput {
 }
 
 export async function handleChat(input: ChatInput): Promise<string> {
+  return getTracer().startActiveSpan('agent.chat', async (span) => {
+    span.setAttribute('era.user_id', input.userId);
+    if (input.companyId) span.setAttribute('era.company_id', input.companyId);
+    span.setAttribute('era.chat.message_length', input.message.length);
+    span.setAttribute('era.chat.history_length', input.history.length);
+
+    try {
+      const result = await runChat(input);
+      span.setStatus({ code: SpanStatusCode.OK });
+      return result;
+    } catch (err) {
+      span.recordException(err as Error);
+      span.setStatus({
+        code: SpanStatusCode.ERROR,
+        message: err instanceof Error ? err.message : String(err),
+      });
+      throw err;
+    } finally {
+      span.end();
+    }
+  });
+}
+
+async function runChat(input: ChatInput): Promise<string> {
   const messages: ChatCompletionMessageParam[] = [{ role: 'system', content: SYSTEM_PROMPT }];
 
   // Add context about current company if available

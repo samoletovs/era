@@ -100,6 +100,7 @@ var containerDefs = [
     [{ path: '/timestamp', order: 'descending' }]
   ] }
   { name: 'rules', partitionKey: '/country', compositeIndexes: [] }
+  { name: 'idempotency', partitionKey: '/companyId', compositeIndexes: [] }
 ]
 
 resource cosmosContainers 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-05-15' = [
@@ -180,7 +181,11 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       scale: {
-        minReplicas: 0
+        // minReplicas: 1 keeps one instance always warm — eliminates cold-start
+        // latency for /health and chat traffic. Costs ~€15/mo extra at the
+        // current 0.25vCPU/0.5GiB sizing, well within the lab's monthly budget
+        // and required for Phase 1 reliability targets (cold start < 2s).
+        minReplicas: 1
         maxReplicas: 3
         rules: [
           {

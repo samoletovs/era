@@ -1,4 +1,5 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef } from 'react';
+import { formatApiError } from '../utils/api';
 
 interface AiInputProps {
   /** Placeholder text for the input field */
@@ -18,12 +19,12 @@ interface AiInputProps {
 }
 
 const labelStyle: React.CSSProperties = {
-  display: "block",
+  display: 'block',
   fontSize: 11,
   fontWeight: 500,
-  color: "var(--text-tertiary)",
-  textTransform: "uppercase",
-  letterSpacing: "0.02em",
+  color: 'var(--text-tertiary)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.02em',
   marginBottom: 4,
 };
 
@@ -40,7 +41,7 @@ export function AiInput({
   disabled,
   clearOnSubmit = true,
 }: AiInputProps) {
-  const [prompt, setPrompt] = useState("");
+  const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [listening, setListening] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,9 +55,9 @@ export function AiInput({
     setError(null);
     try {
       await onSubmit(desc.trim());
-      if (clearOnSubmit) setPrompt("");
-    } catch (err: any) {
-      setError(err.message || "Failed to parse description");
+      if (clearOnSubmit) setPrompt('');
+    } catch (err: unknown) {
+      setError(formatApiError(err));
     } finally {
       setLoading(false);
       inputRef.current?.focus();
@@ -65,8 +66,7 @@ export function AiInput({
 
   function toggleVoice() {
     const SpeechRecognition =
-      (window as any).SpeechRecognition ||
-      (window as any).webkitSpeechRecognition;
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) return;
     if (listening && recognitionRef.current) {
       recognitionRef.current.stop();
@@ -74,7 +74,7 @@ export function AiInput({
       return;
     }
     const recognition = new SpeechRecognition();
-    recognition.lang = "en-US";
+    recognition.lang = 'en-US';
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
     recognition.onresult = (event: any) => {
@@ -91,7 +91,7 @@ export function AiInput({
   }
 
   const speechSupported =
-    typeof window !== "undefined" &&
+    typeof window !== 'undefined' &&
     (Boolean((window as any).SpeechRecognition) ||
       Boolean((window as any).webkitSpeechRecognition));
 
@@ -107,24 +107,24 @@ export function AiInput({
             if (error) setError(null);
           }}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey && !loading && !disabled) {
+            if (e.key === 'Enter' && !e.shiftKey && !loading && !disabled) {
               e.preventDefault();
               handleSubmit();
             }
           }}
-          placeholder={placeholder || "Describe what you need..."}
+          placeholder={placeholder || 'Describe what you need...'}
           className="ai-input-textarea"
           rows={1}
           disabled={disabled || loading}
-          aria-label={label || "AI description input"}
+          aria-label={label || 'AI description input'}
         />
         <div className="ai-input-actions">
           {speechSupported && (
             <button
-              className={`ai-input-mic${listening ? " listening" : ""}`}
+              className={`ai-input-mic${listening ? ' listening' : ''}`}
               onClick={toggleVoice}
-              title={listening ? "Stop listening" : "Voice input"}
-              aria-label={listening ? "Stop voice input" : "Start voice input"}
+              title={listening ? 'Stop listening' : 'Voice input'}
+              aria-label={listening ? 'Stop voice input' : 'Start voice input'}
               type="button"
             >
               <svg
@@ -150,26 +150,23 @@ export function AiInput({
             disabled={disabled || loading || !prompt.trim()}
             type="button"
           >
-            {loading
-              ? loadingLabel || "Filling..."
-              : buttonLabel || "Fill fields"}
+            {loading ? loadingLabel || 'Filling...' : buttonLabel || 'Fill fields'}
           </button>
         </div>
       </div>
       {listening && (
-        <p className="ai-input-hint" style={{ color: "var(--accent)" }}>
+        <p className="ai-input-hint" style={{ color: 'var(--accent)' }}>
           Listening... speak now
         </p>
       )}
       {error && (
-        <p className="ai-input-hint" style={{ color: "var(--error, #FF3B30)" }}>
+        <p className="ai-input-hint" style={{ color: 'var(--error, #FF3B30)' }}>
           {error}
         </p>
       )}
       {!listening && !error && (
         <p className="ai-input-hint">
-          Describe what you need — type or use voice. Fields will be filled
-          automatically.
+          Describe what you need — type or use voice. Fields will be filled automatically.
         </p>
       )}
     </div>
