@@ -90,7 +90,7 @@ ERA deliberately leaves the [NauroLabs golden path](../.github/PLATFORM.md) on a
 | 2 | Auth | SWA built-in Microsoft Entra ID | **Custom Google Identity Services popup** | Need fine-grained Google scopes (Drive read for receipts, Calendar read for due-date sync), client-side ID-token control, and origin allowlist outside SWA. Follows the [google-oauth skill](../.github/skills/google-oauth/SKILL.md); origins synced via `.github/scripts/google-oauth-sync.ps1`. |
 | 3 | Secrets | SWA App Settings | **Container Apps secrets + Managed Identity to Cosmos and OpenAI** | Same default for Container Apps per [PLATFORM.md §3](../.github/PLATFORM.md#3-secrets). |
 | 4 | CI/CD | `workflow-templates/swa-deploy.yml` | **Bespoke `.github/workflows/deploy.yml`** (Docker build → ACR push → Container App update) | Required by the Container Apps stack; quality gate (`build && test && lint`) still applied. |
-| 5 | ~~Default branch~~ | `main` | `main` (migrated 2026) | Migrated from `master` to align with the lab-wide convention. The legacy `master` ref is retained transitionally on the remote as a fallback while CI/CD and external tooling catch up; the branch is no longer the default and is not deployed from. |
+| 5 | ~~Default branch~~ | `main` | `main` (migrated 2026-05) | Migrated from `master` to align with the lab-wide convention. The legacy `master` ref has been deleted from the remote. |
 
 For background on the off-path policy, see [PLATFORM.md "Off-the-path projects"](../.github/PLATFORM.md#off-the-path-projects-today). When you find this list out of date — fix it in the same PR as the change.
 
