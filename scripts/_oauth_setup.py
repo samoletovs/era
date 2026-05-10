@@ -1,4 +1,5 @@
 import json, urllib.request, urllib.error, sys
+import os
 
 token = sys.argv[1]
 proj_num = sys.argv[2]
@@ -30,7 +31,7 @@ if status == 200 and data.get("brands"):
 else:
     brand_data = {
         "applicationTitle": "ERA ERP",
-        "supportEmail": "d.146099412+samoletovs@users.noreply.github.comgmail.com",
+        "supportEmail": os.environ.get("OAUTH_SUPPORT_EMAIL", ""),
     }
     brand, status = api_call("POST", url, brand_data)
     print(f"Create brand: {status}")

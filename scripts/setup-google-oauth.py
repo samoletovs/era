@@ -4,6 +4,7 @@ Creates OAuth consent screen (brand) and web client ID.
 Uses the gcloud access token for authentication.
 """
 import json
+import os
 import subprocess
 import sys
 import urllib.request
@@ -54,7 +55,7 @@ def create_oauth_brand(token, project_number):
     # Create brand — external type so any Google account can login
     brand_data = {
         "applicationTitle": "ERA ERP",
-        "supportEmail": "d.146099412+samoletovs@users.noreply.github.comgmail.com",
+        "supportEmail": os.environ.get("OAUTH_SUPPORT_EMAIL", ""),
     }
     data, status = api_call("POST", url, token, brand_data)
     if status in (200, 201):

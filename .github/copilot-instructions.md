@@ -44,7 +44,6 @@ ERA is a future ERP run by AI agents. Users provide facts, the system decides ho
 ## Git
 
 - GitHub account: `samoletovs`
-- Azure account: `146099412+samoletovs@users.noreply.github.com`
 - Descriptive commit messages
 - Push to `origin/master`
 
