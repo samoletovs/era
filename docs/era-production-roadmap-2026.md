@@ -52,7 +52,7 @@ Make era *safe* to put real Latvian SIA data into.
 
 ### Off-path cleanup
 
-- [ ] `master` → `main` migration.
+- [x] `master` → `main` migration (2026 — see [`AGENTS.md` deviation #5](../AGENTS.md#off-path-deviations); `master` retained transitionally as a fallback ref).
 - [x] Document Container Apps + custom Google GIS deviations in `.github/PLATFORM.md` "Off-the-path projects" table with linked ADRs. The table row for era was expanded from one terse line to the full deviation list with a back-link to a new "Off-path deviations" section in [`era/AGENTS.md`](../AGENTS.md#off-path-deviations) that enumerates every axis era leaves the golden path on (hosting on Container Apps for cold-start and middleware reasons; auth via custom Google Identity Services for fine-grained scopes; secrets via Container Apps + Managed Identity per [PLATFORM.md §3](../../.github/PLATFORM.md#3-secrets); CI/CD via a bespoke Docker → ACR → Container App update workflow; and the legacy `master` branch with explicit explanation of why migration is destructive enough to defer). The PLATFORM.md row also moved the `master`/`main` line out of the era-specific row into a generic "[other]" placeholder so future projects don't read era's branch deviation as a lab-wide pattern. era's AGENTS.md additionally gained a "Country-specific accounting" pointer to the Reg 775 audit doc and the `legalBasis` convention so a future agent picking up an LV rules issue lands on the right context immediately.
 
 **Phase 1 done when:** all 7 e2e paths green in CI; one full restore drill executed; VID submission round-trips; PEPPOL invoice sent to a test recipient; cold start < 2s.
@@ -124,7 +124,7 @@ Only after Latvia is solid. Reuses every pattern from Phase 1–3.
 - `era/docs/development-standards.md` — entity naming, field naming, data types, IDs, status lifecycles, API design, events/audit, multi-country, frontend, testing, code organization, security, docs, Cosmos DB, automated enforcement.
 - `era/docs/architecture-transactions.md` — unified-GL ADR; explicitly references SAP ACDOCA and D365 EDT as inspirations.
 - `era/AGENTS.md` — coding agent instructions. Build: `npm install && npm run build && npm test && npm run lint`.
-- `.github/PLATFORM.md` — golden path. era is currently off-path on hosting (Container Apps), auth (custom Google GIS), branch (`master`).
+- `.github/PLATFORM.md` — golden path. era is currently off-path on hosting (Container Apps) and auth (custom Google GIS); the branch deviation (`master` → `main`) was resolved in 2026.
 - `.github/wiki/entities/projects/era.md` — current verdict (⚠️ Mixed — external thesis validated, internal not).
 - `.github/wiki/insights/encoded-rules-beat-llm-per-call.md` — the moat hypothesis.
 - `.github/wiki/trends/death-of-buttons-2026.md` — agent-as-UI thesis.

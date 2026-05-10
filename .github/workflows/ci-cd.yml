@@ -2,9 +2,11 @@ name: ERA CI/CD
 
 on:
   push:
-    branches: [master]
+    # `master` retained transitionally; remove once all branches and external
+    # tooling have caught up to the rename.
+    branches: [main, master]
   pull_request:
-    branches: [master]
+    branches: [main, master]
 
 permissions:
   contents: read
@@ -36,7 +38,9 @@ jobs:
 
   deploy:
     needs: build-and-test
-    if: github.ref == 'refs/heads/master' && vars.DEPLOY_ENABLED == 'true'
+    # Only deploy from `main` after the rename. Pushes to legacy `master`
+    # still run CI (above) but never reach production.
+    if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
     environment: production
     env:

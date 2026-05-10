@@ -47,7 +47,7 @@ az deployment group create \
 
 ### 3. Deploy application
 
-Push to master triggers CI/CD automatically. For manual deployment:
+Push to main triggers CI/CD automatically. For manual deployment:
 
 ```bash
 # Build and push container image to ACR
