@@ -138,6 +138,53 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<Invoice>
   return invoice;
 }
 
+// ─── Pick posting-rule documentType from invoice + vatTreatment ─────
+
+type InvoiceRuleType =
+  | 'sales-invoice'
+  | 'sales-invoice-intra-eu'
+  | 'sales-invoice-export-non-eu'
+  | 'sales-invoice-oss'
+  | 'purchase-invoice'
+  | 'purchase-invoice-reverse-charge-eu'
+  | 'purchase-invoice-reverse-charge-domestic';
+
+export function pickRuleType(invoice: Pick<Invoice, 'type' | 'vatTreatment'>): InvoiceRuleType {
+  const treatment = invoice.vatTreatment ?? 'standard';
+  if (invoice.type === 'sales') {
+    switch (treatment) {
+      case 'intra-eu-supply':
+        return 'sales-invoice-intra-eu';
+      case 'export-non-eu':
+        return 'sales-invoice-export-non-eu';
+      case 'oss':
+        return 'sales-invoice-oss';
+      // 'reverse-charge-domestic' on a sales invoice = supplier issues
+      // invoice with no VAT; falls back to standard rule (the invoice
+      // simply has all lines at 0% VAT, so the standard rule produces
+      // the correct entries — no separate VAT line).
+      case 'reverse-charge-domestic':
+      case 'reverse-charge-eu': // not applicable to sales; ignore
+      case 'standard':
+      default:
+        return 'sales-invoice';
+    }
+  }
+  // purchase invoice
+  switch (treatment) {
+    case 'reverse-charge-eu':
+      return 'purchase-invoice-reverse-charge-eu';
+    case 'reverse-charge-domestic':
+      return 'purchase-invoice-reverse-charge-domestic';
+    case 'intra-eu-supply': // not applicable to purchases; ignore
+    case 'export-non-eu': // not applicable to purchases; ignore
+    case 'oss': // not applicable to purchases; ignore
+    case 'standard':
+    default:
+      return 'purchase-invoice';
+  }
+}
+
 // ─── Post Invoice (draft → posted, creates GL entries) ──────
 
 export async function postInvoice(
@@ -154,9 +201,11 @@ export async function postInvoice(
   if (invoice.status !== 'draft')
     throw new GLError('NOT_DRAFT', 'Only draft invoices can be posted');
 
-  // Build GL journal lines — try rule engine first, fall back to hardcoded
-  const ruleType =
-    invoice.type === 'sales' ? ('sales-invoice' as const) : ('purchase-invoice' as const);
+  // Build GL journal lines — try rule engine first, fall back to hardcoded.
+  // Pick rule type from `vatTreatment` (default 'standard'). Each treatment
+  // maps to a distinct PostingRule documentType so the rule lookup is a
+  // simple country+documentType key — no condition evaluation required.
+  const ruleType = pickRuleType(invoice);
   const rule = await getActiveRule('LV', ruleType);
   let journalLines: JournalLine[];
   if (rule) {

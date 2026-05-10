@@ -352,7 +352,36 @@ export interface Invoice extends BaseEntity {
   // Recognition metadata
   recognitionConfidence?: 'high' | 'medium' | 'low';
   sourceFile?: string; // original filename
+  // VAT treatment — discriminator that selects the posting rule. Omit
+  // (or 'standard') for normal LV VAT. See lv-vat-edge-cases-2026.md.
+  vatTreatment?: VatTreatment;
 }
+
+/**
+ * Discriminator for VAT-edge-case posting. Each value selects a distinct
+ * posting rule:
+ *   • standard                       — normal LV VAT (default)
+ *   • reverse-charge-domestic        — LV construction services etc.
+ *                                      (VAT Law Article 142). Customer
+ *                                      self-assesses; supplier issues
+ *                                      invoice with no VAT.
+ *   • reverse-charge-eu              — purchase from EU vendor; buyer
+ *                                      self-assesses output AND input VAT
+ *                                      (VAT Law Article 84).
+ *   • intra-eu-supply                — sale to EU VAT-registered customer;
+ *                                      zero-rated supply (VAT Law Art 43).
+ *   • oss                            — One-Stop Shop B2C distance sale.
+ *                                      Buyer-country VAT collected; goes
+ *                                      to a separate liability account.
+ *   • export-non-eu                  — export to outside the EU; zero-rated.
+ */
+export type VatTreatment =
+  | 'standard'
+  | 'reverse-charge-domestic'
+  | 'reverse-charge-eu'
+  | 'intra-eu-supply'
+  | 'oss'
+  | 'export-non-eu';
 
 export interface InvoiceLine {
   description: string;
@@ -507,7 +536,12 @@ export interface PostingRule {
   country: string; // ISO 3166-1 alpha-2
   documentType:
     | 'sales-invoice'
+    | 'sales-invoice-intra-eu'
+    | 'sales-invoice-export-non-eu'
+    | 'sales-invoice-oss'
     | 'purchase-invoice'
+    | 'purchase-invoice-reverse-charge-eu'
+    | 'purchase-invoice-reverse-charge-domestic'
     | 'incoming-payment'
     | 'outgoing-payment'
     | 'manual-entry'

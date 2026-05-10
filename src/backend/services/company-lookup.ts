@@ -202,6 +202,36 @@ export interface ViesResult {
   source: string;
 }
 
+/**
+ * Structured VIES validation outcome — distinguishes "definitely valid",
+ * "definitely invalid", and "we do not know" so callers can apply the
+ * correct VAT treatment. Use {@link viesValidationStatus} to extract this
+ * from a {@link ViesResult}.
+ *
+ * Why this matters: the zero-rate intra-EU supply (VAT Law §43) is only
+ * available when the buyer's VAT number is *valid in VIES*. If the VIES
+ * service is temporarily down, treating the buyer as invalid would
+ * incorrectly charge LV VAT; treating them as valid would expose the
+ * supplier to a back-VAT assessment if the number turns out to be wrong.
+ * The "service-unavailable" status flags the ambiguity to the user.
+ */
+export type ViesValidationStatus =
+  | 'valid' // VAT number is registered in VIES
+  | 'invalid' // VAT number is not registered (definitive answer)
+  | 'format-invalid' // input did not parse as an EU VAT number
+  | 'unsupported-country' // country code not in EU VAT system
+  | 'service-unavailable'; // VIES or member state down — try again
+
+export function viesValidationStatus(r: ViesResult): ViesValidationStatus {
+  if (r.valid) return 'valid';
+  // Parse heuristics from the source string the API surface returns.
+  if (/Invalid EU VAT number format/i.test(r.source)) return 'format-invalid';
+  if (/temporarily unavailable|service unavailable|HTTP 5\d\d/i.test(r.source))
+    return 'service-unavailable';
+  if (!r.countryCode) return 'format-invalid';
+  return 'invalid';
+}
+
 const EU_COUNTRY_CODES = new Set([
   'AT',
   'BE',
