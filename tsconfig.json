@@ -15,11 +15,10 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "baseUrl": ".",
     "paths": {
-      "@shared/*": ["src/shared/*"],
-      "@frontend/*": ["src/frontend/*"],
-      "@backend/*": ["src/backend/*"]
+      "@shared/*": ["./src/shared/*"],
+      "@frontend/*": ["./src/frontend/*"],
+      "@backend/*": ["./src/backend/*"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],

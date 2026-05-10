@@ -2,11 +2,9 @@ name: ERA CI/CD
 
 on:
   push:
-    # `master` retained transitionally; remove once all branches and external
-    # tooling have caught up to the rename.
-    branches: [main, master]
+    branches: [main]
   pull_request:
-    branches: [main, master]
+    branches: [main]
 
 permissions:
   contents: read
@@ -38,13 +36,9 @@ jobs:
 
   deploy:
     needs: build-and-test
-    # Only deploy from `main` after the rename. Pushes to legacy `master`
-    # still run CI (above) but never reach production.
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
     environment: production
-    env:
-      TELEGRAM_NOTIFY_URL: ${{ secrets.TELEGRAM_NOTIFY_URL }}
     steps:
       - uses: actions/checkout@v4
 
@@ -70,6 +64,8 @@ jobs:
 
       - name: Notify Telegram (success)
         if: success()
+        env:
+          TELEGRAM_NOTIFY_URL: ${{ secrets.TELEGRAM_NOTIFY_URL }}
         run: |
           COMMIT_MSG=$(echo "${{ github.event.head_commit.message }}" | head -1)
           curl -sf -X POST "$TELEGRAM_NOTIFY_URL" \
@@ -79,6 +75,8 @@ jobs:
 
       - name: Notify Telegram (failure)
         if: failure()
+        env:
+          TELEGRAM_NOTIFY_URL: ${{ secrets.TELEGRAM_NOTIFY_URL }}
         run: |
           COMMIT_MSG=$(echo "${{ github.event.head_commit.message }}" | head -1)
           curl -sf -X POST "$TELEGRAM_NOTIFY_URL" \
