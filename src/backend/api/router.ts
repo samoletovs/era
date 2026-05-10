@@ -132,7 +132,12 @@ import {
   runDepreciation,
   disposeAsset,
   listFixedAssets,
+  getDepreciationSchedule,
 } from '../services/fixed-assets.js';
+import {
+  formatAssetRegister,
+  renderAssetRegisterPdf,
+} from '../services/fixed-asset-register-pdf.js';
 import { setBudget, getBudgetVsActual } from '../services/budget.js';
 import {
   runMonthEnd,
@@ -2597,10 +2602,57 @@ router.post('/companies/:companyId/fixed-assets/:assetId/dispose', async (req, r
       req.body.disposalDate || new Date().toISOString().slice(0, 10),
       req.body.disposalAmount || 0,
       req.user!.id,
+      {
+        proceedsAccountCode: req.body.proceedsAccountCode,
+        proceedsAccountName: req.body.proceedsAccountName,
+        gainAccountCode: req.body.gainAccountCode,
+        lossAccountCode: req.body.lossAccountCode,
+      },
     );
     res.json({ data: asset } as ApiResponse);
   } catch (err) {
     handleGLError(err, res);
+  }
+});
+
+router.get('/companies/:companyId/fixed-assets/:assetId/schedule', async (req, res) => {
+  try {
+    const { companyId, assetId } = req.params;
+    const { resource: asset } = await containers.inventory().item(assetId, companyId).read<any>();
+    if (!asset) {
+      res.status(404).json({ error: 'Asset not found' });
+      return;
+    }
+    const schedule = getDepreciationSchedule(asset);
+    res.json({ data: { asset, schedule } } as ApiResponse);
+  } catch (err) {
+    const e = safeError(err, 'QUERY_FAILED');
+    res.status(e.status).json(e.body);
+  }
+});
+
+router.get('/companies/:companyId/fixed-assets/register/pdf', async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    const asOf = (req.query.asOf as string) || new Date().toISOString().slice(0, 10);
+    const locale = req.query.locale === 'lv' ? 'lv' : 'en';
+    const assets = await listFixedAssets(companyId);
+    const { resource: company } = await containers
+      .companies()
+      .item(companyId, companyId)
+      .read<any>();
+    const formatted = formatAssetRegister(assets, {
+      companyName: company?.name ?? companyId,
+      asOfDate: asOf,
+      locale,
+    });
+    const pdf = await renderAssetRegisterPdf(formatted);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="asset-register-${asOf}.pdf"`);
+    res.send(pdf);
+  } catch (err) {
+    const e = safeError(err, 'QUERY_FAILED');
+    res.status(e.status).json(e.body);
   }
 });
 
