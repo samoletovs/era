@@ -48,3 +48,6 @@ test-screenshots/
 
 # Old skills location (moved to .github/skills/)
 .skills/
+
+# Local-only personal-info pattern overrides
+scripts/.leak-patterns.local.txt
