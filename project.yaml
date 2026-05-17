@@ -1,0 +1,20 @@
+name: era
+purpose: "Cloud ERP with agent-driven architecture — users provide facts, system applies accounting rules"
+users: "Accountants, finance teams, enterprises needing cloud ERP"
+stage: active
+goals:
+  - "Zero-config ERP (agent derives settings from posting rules)"
+  - "Multi-country support with country-specific posting rules"
+  - "Minimal UI — agents operate end-to-end via API"
+  - "Dashboard, reporting, invoice recognition"
+similar:
+  - "SAP"
+  - "Xero"
+  - "Odoo"
+  - "Wave"
+quality:
+  - tests
+  - ci-cd
+  - responsive
+  - api
+  - auth
