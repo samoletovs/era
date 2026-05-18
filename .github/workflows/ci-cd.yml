@@ -74,9 +74,9 @@ jobs:
             --data-urlencode "chat_id=${NAURO_CHAT_ID}" \
             --data-urlencode "parse_mode=HTML" \
             --data-urlencode "text=✅ <b>era</b> deployed
-Branch: ${{ github.ref_name }}
-Commit: ${COMMIT_MSG}
-SHA: ${{ github.sha }}" \
+          Branch: ${{ github.ref_name }}
+          Commit: ${COMMIT_MSG}
+          SHA: ${{ github.sha }}" \
             || echo "::warning::Telegram notification failed"
 
       - name: Notify Telegram (failure)
@@ -91,9 +91,9 @@ SHA: ${{ github.sha }}" \
             --data-urlencode "chat_id=${NAURO_CHAT_ID}" \
             --data-urlencode "parse_mode=HTML" \
             --data-urlencode "text=❌ <b>era</b> deploy FAILED
-Branch: ${{ github.ref_name }}
-Commit: ${COMMIT_MSG}
-Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+          Branch: ${{ github.ref_name }}
+          Commit: ${COMMIT_MSG}
+          Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
             || echo "::warning::Telegram notification failed"
 
       - name: Sync landing page order
