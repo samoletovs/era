@@ -13,8 +13,9 @@ permissions:
 jobs:
   auto-merge:
     # Only auto-merge PRs created by Copilot
+    # The Copilot coding agent login is 'Copilot' (app slug, not 'copilot[bot]')
     if: >-
-      github.event.pull_request.user.login == 'copilot[bot]' ||
+      github.event.pull_request.user.login == 'Copilot' ||
       (github.event_name == 'check_suite' && github.event.check_suite.conclusion == 'success')
     runs-on: ubuntu-latest
     steps:
@@ -27,7 +28,7 @@ jobs:
 
             if (context.eventName === 'pull_request') {
               const pr = context.payload.pull_request;
-              if (pr.user.login !== 'copilot[bot]') {
+              if (pr.user.login !== 'Copilot') {
                 console.log('Not a Copilot PR — skipping');
                 return;
               }
@@ -41,7 +42,7 @@ jobs:
                 state: 'open',
                 head: `${context.repo.owner}:${context.payload.check_suite.head_branch}`
               });
-              const copilotPr = prs.find(p => p.user.login === 'copilot[bot]');
+              const copilotPr = prs.find(p => p.user.login === 'Copilot');
               if (!copilotPr) {
                 console.log('No Copilot PR found for this check suite');
                 return;

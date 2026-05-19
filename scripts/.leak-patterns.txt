@@ -1,0 +1,15 @@
+# NauroLabs personal-info leak audit — patterns for era
+# Auto-synced from samoletovs/nauroLabs-github by install-leak-audit.ps1
+# Lines starting with # are comments. Blank lines are ignored.
+# Each pattern is a regex matched case-insensitively against file contents.
+
+# ── Developer personal emails (not work identities) ──
+# Add personal (non-work) email addresses here so they never land in source.
+# Example: john\.doe@gmail\.com
+
+# ── Phone numbers ──
+# Generic E.164 / national format
+\+?\d{1,3}[-.\s]?\(?\d{1,4}\)?[-.\s]?\d{3,4}[-.\s]?\d{4}
+
+# ── Passport / national ID patterns ──
+# passport\s*(?:no|number|#)[:\s]*[A-Z0-9]{6,12}

@@ -58,6 +58,24 @@ function loadPdfJs(): Promise<any> {
   return pdfJsPromise;
 }
 
+// ─── Exchange rate helpers ───────────────────────────────────
+
+/** Returns the exchange rate to send to the API, or undefined when no override is needed. */
+function toApiExchangeRate(value: string): number | undefined {
+  const rate = parseFloat(value);
+  return !isNaN(rate) && rate > 0 && rate !== 1 ? rate : undefined;
+}
+
+const exchangeRateBadgeStyle: React.CSSProperties = {
+  marginLeft: 6,
+  fontSize: 10,
+  fontWeight: 600,
+  color: 'var(--warning)',
+  background: 'var(--warning-bg)',
+  borderRadius: 4,
+  padding: '1px 5px',
+};
+
 // ─── Label style ────────────────────────────────────────────
 
 const labelStyle: React.CSSProperties = {
@@ -87,6 +105,7 @@ export function Invoices() {
   const [aiLoading, setAiLoading] = useState(false);
   const [parsedInvoice, setParsedInvoice] = useState<any>(null);
   const [creating, setCreating] = useState(false);
+  const [invoiceExchangeRate, setInvoiceExchangeRate] = useState('1');
 
   // Upload invoice state
   const [dragging, setDragging] = useState(false);
@@ -102,6 +121,7 @@ export function Invoices() {
   const [payAmount, setPayAmount] = useState('');
   const [payDate, setPayDate] = useState(new Date().toISOString().slice(0, 10));
   const [payReference, setPayReference] = useState('');
+  const [payExchangeRate, setPayExchangeRate] = useState('1');
   const [paying, setPaying] = useState(false);
   const [cancelConfirm, setCancelConfirm] = useState<CancelConfirm>(null);
 
@@ -237,6 +257,7 @@ export function Invoices() {
     // Reset states when closing
     if (activePanel === panel) return;
     setParsedInvoice(null);
+    setInvoiceExchangeRate('1');
     setUploadStatus('idle');
     setUploadResult(null);
     setUploadError('');
@@ -287,6 +308,9 @@ export function Invoices() {
         date: parsedInvoice.date,
         dueDate: parsedInvoice.dueDate,
         lines: parsedInvoice.lines,
+        ...(toApiExchangeRate(invoiceExchangeRate) !== undefined
+          ? { exchangeRate: toApiExchangeRate(invoiceExchangeRate) }
+          : {}),
       })) as any;
       // Auto-post
       try {
@@ -375,6 +399,7 @@ export function Invoices() {
     setPayAmount(String(Math.round(((inv.total || 0) - (inv.amountPaid || 0)) * 100) / 100));
     setPayDate(new Date().toISOString().slice(0, 10));
     setPayReference('');
+    setPayExchangeRate('1');
     setActivePanel('pay');
   }
 
@@ -399,6 +424,9 @@ export function Invoices() {
             amount,
           },
         ],
+        ...(toApiExchangeRate(payExchangeRate) !== undefined
+          ? { exchangeRate: toApiExchangeRate(payExchangeRate) }
+          : {}),
       });
       setActivePanel('');
       setPayInvoice(null);
@@ -744,6 +772,24 @@ export function Invoices() {
                       aria-label="Payment reference"
                     />
                   </div>
+                  <div>
+                    <label style={labelStyle}>
+                      Exchange rate
+                      {parseFloat(payExchangeRate) > 0 && parseFloat(payExchangeRate) !== 1 && (
+                        <span style={exchangeRateBadgeStyle}>✎ overridden</span>
+                      )}
+                    </label>
+                    <input
+                      type="number"
+                      step="0.0001"
+                      min="0"
+                      value={payExchangeRate}
+                      onChange={(e) => setPayExchangeRate(e.target.value)}
+                      className="form-input"
+                      style={{ width: '100%' }}
+                      aria-label="Payment exchange rate override"
+                    />
+                  </div>
                 </div>
                 <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
                   <button
@@ -943,6 +989,25 @@ export function Invoices() {
                     className="form-input"
                     style={{ width: '100%' }}
                     aria-label="Due date"
+                  />
+                </div>
+                <div>
+                  <label style={labelStyle}>
+                    Exchange rate
+                    {parseFloat(invoiceExchangeRate) > 0 &&
+                      parseFloat(invoiceExchangeRate) !== 1 && (
+                        <span style={exchangeRateBadgeStyle}>✎ overridden</span>
+                      )}
+                  </label>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    min="0"
+                    value={invoiceExchangeRate}
+                    onChange={(e) => setInvoiceExchangeRate(e.target.value)}
+                    className="form-input"
+                    style={{ width: '100%' }}
+                    aria-label="Exchange rate override"
                   />
                 </div>
               </div>

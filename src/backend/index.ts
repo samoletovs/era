@@ -127,7 +127,7 @@ app.use((req, _res, next) => {
   const start = Date.now();
   _res.on('finish', () => {
     const duration = Date.now() - start;
-    if (req.path !== '/health') {
+    if (req.path !== '/health' && req.path !== '/ping') {
       const log = {
         method: req.method,
         path: req.path,
@@ -140,6 +140,11 @@ app.use((req, _res, next) => {
     }
   });
   next();
+});
+
+// Liveness probe — always 200 if the process is alive (used by Container Apps probes)
+app.get('/ping', (_req, res) => {
+  res.json({ ok: true });
 });
 
 // Health check (no auth) — includes dependency checks

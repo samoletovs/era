@@ -120,16 +120,15 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<Invoice>
     data: { invoiceNumber: invoice.invoiceNumber, type: invoice.type, total: invoice.total },
   });
 
-  if (input.exchangeRate) {
+  if (input.exchangeRate && input.exchangeRate !== 1) {
     await emitEvent({
       companyId: input.companyId,
-      type: 'invoice.exchange_rate_override',
+      type: 'invoice.rate_override',
       actor: input.createdBy,
       documentType: 'invoice',
       documentId: invoice.id,
       data: {
         invoiceNumber: invoice.invoiceNumber,
-        currency: invoice.currency,
         exchangeRate: input.exchangeRate,
       },
     });
@@ -213,6 +212,17 @@ export async function postInvoice(
     journalLines = ruleResult ?? buildInvoiceJournalLines(invoice);
   } else {
     journalLines = buildInvoiceJournalLines(invoice);
+  }
+
+  // Annotate GL lines with transaction-level exchange rate override (EUR invoices only)
+  if (invoice.currency === 'EUR' && invoice.exchangeRate && invoice.exchangeRate !== 1) {
+    const rate = invoice.exchangeRate;
+    journalLines = journalLines.map((l) => ({
+      ...l,
+      exchangeRate: rate,
+      currencyCode: 'EUR',
+      amountInCurrency: ((l.debit || 0) + (l.credit || 0)) / rate,
+    }));
   }
 
   // Post journal entry
