@@ -178,6 +178,38 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'ALLOWED_ORIGINS', value: allowedOrigins }
             { name: 'ALLOW_DEV_BYPASS', value: allowDevBypass }
           ]
+          probes: [
+            // Startup probe — give Node.js time to initialise before liveness kicks in
+            {
+              type: 'Startup'
+              httpGet: { path: '/ping', port: 3000, scheme: 'HTTP' }
+              initialDelaySeconds: 5
+              periodSeconds: 5
+              timeoutSeconds: 3
+              failureThreshold: 12  // 60 s total startup budget
+            }
+            // Liveness probe — only checks that the process is alive (/ping always 200).
+            // Deliberately does NOT hit /health so a degraded Cosmos connection does not
+            // trigger a container restart loop.
+            {
+              type: 'Liveness'
+              httpGet: { path: '/ping', port: 3000, scheme: 'HTTP' }
+              initialDelaySeconds: 10
+              periodSeconds: 30
+              timeoutSeconds: 5
+              failureThreshold: 3   // restart after ~90 s of no response
+            }
+            // Readiness probe — stops routing traffic to the replica while deps are down.
+            // Uses the full /health endpoint (returns 503 when Cosmos/OpenAI unhealthy).
+            {
+              type: 'Readiness'
+              httpGet: { path: '/health', port: 3000, scheme: 'HTTP' }
+              initialDelaySeconds: 10
+              periodSeconds: 30
+              timeoutSeconds: 5
+              failureThreshold: 3
+            }
+          ]
         }
       ]
       scale: {

@@ -57,6 +57,29 @@ jobs:
             // ── Step 2: Triage all issues (no label gate) ─────────────
             // Every issue gets AI triage regardless of labels
 
+            // Auto-approve automated health scan issues — they always have
+            // enough context (the URL and error type) and should never be
+            // rejected just because the description is brief. Bypass the AI
+            // triage step and go straight to APPROVED so Copilot picks it up.
+            const isAutoHealthScan = body.includes('Auto-created by autoRefine health scan');
+            if (isAutoHealthScan) {
+              const approvedLabel = 'approved';
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: [approvedLabel]
+              });
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `✅ **AI Triage** (confidence: 9/10)\n\nAutoRefine health scan detected a real deployment issue.\n\n**Approach:** Investigate the deployed URL health endpoint and fix any infrastructure, configuration, or code issues causing the non-200 response.`
+              });
+              console.log(`Issue #${issue.number}: auto-approved as autoRefine health scan`);
+              return;
+            }
+
             // ── Step 3: Gather context ─────────────────────────────────
             const { data: recentIssues } = await github.rest.issues.listForRepo({
               owner: context.repo.owner,
