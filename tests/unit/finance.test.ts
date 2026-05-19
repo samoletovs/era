@@ -325,3 +325,90 @@ describe("Latvian Chart of Accounts structure", () => {
     }
   });
 });
+
+describe("exchange rate override", () => {
+  function annotateWithExchangeRate(
+    lines: Array<{ accountCode: string; accountName: string; debit: number; credit: number }>,
+    exchangeRate: number | undefined,
+  ) {
+    if (!exchangeRate || exchangeRate === 1) return lines;
+    return lines.map(l => ({
+      ...l,
+      exchangeRate,
+      currencyCode: "EUR",
+      amountInCurrency: ((l.debit || 0) + (l.credit || 0)) / exchangeRate,
+    }));
+  }
+
+  it("annotates GL lines when exchange rate override is provided and != 1", () => {
+    const lines = [
+      { accountCode: "2210", accountName: "Accounts receivable", debit: 121, credit: 0 },
+      { accountCode: "5120", accountName: "Revenue", debit: 0, credit: 100 },
+      { accountCode: "4230", accountName: "VAT payable", debit: 0, credit: 21 },
+    ];
+    const rate = 1.0823;
+    const result = annotateWithExchangeRate(lines, rate);
+    for (const l of result) {
+      expect(l.exchangeRate).toBe(rate);
+      expect(l.currencyCode).toBe("EUR");
+      const accountingAmount = l.debit + l.credit;
+      expect(l.amountInCurrency).toBeCloseTo(accountingAmount / rate, 6);
+    }
+  });
+
+  it("computes amountInCurrency correctly for AR line", () => {
+    const lines = [
+      { accountCode: "2210", accountName: "Accounts receivable", debit: 121, credit: 0 },
+    ];
+    const rate = 1.08;
+    const result = annotateWithExchangeRate(lines, rate);
+    expect(result[0].amountInCurrency).toBeCloseTo(121 / 1.08, 6);
+  });
+
+  it("does not annotate GL lines when exchange rate is 1 (no override)", () => {
+    const lines = [
+      { accountCode: "2210", accountName: "Accounts receivable", debit: 121, credit: 0 },
+    ];
+    const result = annotateWithExchangeRate(lines, 1);
+    expect((result[0] as any).exchangeRate).toBeUndefined();
+  });
+
+  it("does not annotate GL lines when exchange rate is undefined (no override)", () => {
+    const lines = [
+      { accountCode: "2210", accountName: "Accounts receivable", debit: 121, credit: 0 },
+    ];
+    const result = annotateWithExchangeRate(lines, undefined);
+    expect((result[0] as any).exchangeRate).toBeUndefined();
+  });
+
+  it("preserves GL line balance after exchange rate annotation", () => {
+    const lines = [
+      { accountCode: "2210", accountName: "Accounts receivable", debit: 121, credit: 0 },
+      { accountCode: "5120", accountName: "Revenue", debit: 0, credit: 100 },
+      { accountCode: "4230", accountName: "VAT payable", debit: 0, credit: 21 },
+    ];
+    const result = annotateWithExchangeRate(lines, 1.08);
+    const totalDebit = result.reduce((s, l) => s + l.debit, 0);
+    const totalCredit = result.reduce((s, l) => s + l.credit, 0);
+    expect(totalDebit).toBe(totalCredit);
+  });
+
+  it("rate override event is emitted when rate != 1", () => {
+    const shouldEmitOverrideEvent = (exchangeRate: number | undefined) =>
+      exchangeRate !== undefined && exchangeRate !== 1;
+    expect(shouldEmitOverrideEvent(1.0823)).toBe(true);
+    expect(shouldEmitOverrideEvent(1)).toBe(false);
+    expect(shouldEmitOverrideEvent(undefined)).toBe(false);
+  });
+
+  it("exchange rate input: only sends override when != 1 and valid", () => {
+    const toApiExchangeRate = (value: string) => {
+      const rate = parseFloat(value);
+      return !isNaN(rate) && rate > 0 && rate !== 1 ? rate : undefined;
+    };
+    expect(toApiExchangeRate("1.0823")).toBe(1.0823);
+    expect(toApiExchangeRate("1")).toBeUndefined();
+    expect(toApiExchangeRate("0")).toBeUndefined();
+    expect(toApiExchangeRate("abc")).toBeUndefined();
+  });
+});

@@ -577,6 +577,7 @@ export interface ParsedInvoiceFields {
   contactName: string;
   date: string;
   dueDate: string;
+  exchangeRate?: number;
   lines: Array<{
     description: string;
     quantity: number;
@@ -593,6 +594,7 @@ Return ONLY valid JSON with these fields:
 - contactName: customer or vendor name
 - date: invoice date in YYYY-MM-DD format (use today if not specified: ${new Date().toISOString().slice(0, 10)})
 - dueDate: due date in YYYY-MM-DD format (default: 30 days from date)
+- exchangeRate: numeric exchange rate if mentioned (e.g. "at bank rate 1.0823" → 1.0823); omit or set to 1 if not mentioned
 - lines: array of line items, each with:
   - description: line item description
   - quantity: number (default 1)
@@ -633,6 +635,10 @@ export async function parseInvoiceDescription(description: string): Promise<Pars
     contactName: String(parsed.contactName || '').slice(0, 120),
     date: String(parsed.date || today),
     dueDate: String(parsed.dueDate || defaultDue),
+    exchangeRate:
+      parsed.exchangeRate && Number(parsed.exchangeRate) > 0 && Number(parsed.exchangeRate) !== 1
+        ? Number(parsed.exchangeRate)
+        : undefined,
     lines: (parsed.lines || []).map((l: any) => ({
       description: String(l.description || 'Item'),
       quantity: Number(l.quantity) || 1,

@@ -82,6 +82,17 @@ export async function createAndPostPayment(input: CreatePaymentInput): Promise<P
     journalLines = buildPaymentJournalLines(payment);
   }
 
+  // Annotate GL lines with transaction-level exchange rate override (EUR payments only)
+  if (payment.currency === 'EUR' && payment.exchangeRate && payment.exchangeRate !== 1) {
+    const rate = payment.exchangeRate;
+    journalLines = journalLines.map((l) => ({
+      ...l,
+      exchangeRate: rate,
+      currencyCode: 'EUR',
+      amountInCurrency: ((l.debit || 0) + (l.credit || 0)) / rate,
+    }));
+  }
+
   // Post journal entry
   const journalEntry = await postJournalEntry({
     companyId: input.companyId,
@@ -115,16 +126,15 @@ export async function createAndPostPayment(input: CreatePaymentInput): Promise<P
     },
   });
 
-  if (input.exchangeRate) {
+  if (input.exchangeRate && input.exchangeRate !== 1) {
     await emitEvent({
       companyId: input.companyId,
-      type: 'payment.exchange_rate_override',
+      type: 'payment.rate_override',
       actor: input.createdBy,
       documentType: 'payment',
       documentId: payment.id,
       data: {
         paymentNumber: payment.paymentNumber,
-        currency: payment.currency,
         exchangeRate: input.exchangeRate,
       },
     });
