@@ -39,12 +39,22 @@ function computeSubtotals(accounts: any[]): Map<string, number> {
   return totals;
 }
 
+function collapsedSetForLevel(accounts: any[], level: number): Set<string> {
+  const toCollapse = new Set<string>();
+  for (const a of accounts) {
+    if (!a.isPostable && a.level >= level) {
+      toCollapse.add(a.code);
+    }
+  }
+  return toCollapse;
+}
+
 export function Accounts() {
   const { companyId, numberFormat: fmt } = useApp();
   const [accounts, setAccounts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-  const defaultClassViewInitializedRef = useRef(false);
+  const isInitialViewSetRef = useRef(false);
   const [search, setSearch] = useState('');
   const [sortBalance, setSortBalance] = useState<'' | 'asc' | 'desc'>('');
   const [asOfDate, setAsOfDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -68,15 +78,9 @@ export function Accounts() {
         .accounts(companyId, date)
         .then((data: any) => {
           setAccounts(data);
-          if (!defaultClassViewInitializedRef.current && Array.isArray(data)) {
-            const classesCollapsed = new Set<string>();
-            for (const account of data) {
-              if (!account.isPostable && account.level >= 1) {
-                classesCollapsed.add(account.code);
-              }
-            }
-            setCollapsed(classesCollapsed);
-            defaultClassViewInitializedRef.current = true;
+          if (!isInitialViewSetRef.current && Array.isArray(data)) {
+            setCollapsed(collapsedSetForLevel(data, 1));
+            isInitialViewSetRef.current = true;
           }
           setLoading(false);
         })
@@ -179,13 +183,7 @@ export function Accounts() {
   };
 
   const expandToLevel = (level: number) => {
-    const toCollapse = new Set<string>();
-    for (const a of accounts) {
-      if (!a.isPostable && a.level >= level) {
-        toCollapse.add(a.code);
-      }
-    }
-    setCollapsed(toCollapse);
+    setCollapsed(collapsedSetForLevel(accounts, level));
   };
 
   // Determine which level button is active
