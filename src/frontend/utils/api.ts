@@ -7,6 +7,13 @@ import {
   type Locale,
 } from '../../shared/errors/catalog';
 
+function getDefaultLocale(): Locale {
+  if (typeof navigator !== 'undefined' && navigator.language.toLowerCase().startsWith('lv')) {
+    return 'lv';
+  }
+  return 'en';
+}
+
 /**
  * Structured API error preserved end-to-end. Carries the server-issued
  * `code` and `details` so UI surfaces can render a clean bilingual message
@@ -26,8 +33,8 @@ export class ApiError extends Error {
     this.status = status;
   }
 
-  /** Human-friendly message in the requested locale ("lv" default). */
-  format(locale: Locale = 'lv'): string {
+  /** Human-friendly message in the requested locale. */
+  format(locale: Locale = getDefaultLocale()): string {
     return formatApiErrorEnvelope(
       { error: { code: this.code, message: this.message, details: this.details } },
       locale,
@@ -40,7 +47,7 @@ export class ApiError extends Error {
  * through the bilingual catalog; plain Error → its message; everything else →
  * generic "Something went wrong".
  */
-export function formatApiError(err: unknown, locale: Locale = 'lv'): string {
+export function formatApiError(err: unknown, locale: Locale = getDefaultLocale()): string {
   if (err instanceof ApiError) return err.format(locale);
   if (err instanceof Error) return err.message;
   return lookupErrorMessage(undefined, locale);

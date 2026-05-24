@@ -114,9 +114,24 @@ export const CreateContactSchema = z.object({
   vatNumber: z.string().max(20).optional(),
   email: z.string().email().optional().or(z.literal('')),
   phone: z.string().max(20).optional(),
-  address: z.string().max(500).optional(),
-  bankAccount: z.string().max(34).optional(),
+  address: z
+    .object({
+      line1: z.string().max(500).optional(),
+      line2: z.string().max(500).optional(),
+      city: z.string().max(100).optional(),
+      postalCode: z.string().max(20).optional(),
+      country: z.string().max(100).optional(),
+    })
+    .optional(),
+  bankAccount: z
+    .object({
+      iban: z.string().max(34),
+      swift: z.string().max(11).optional(),
+      bankName: z.string().max(200).optional(),
+    })
+    .optional(),
   paymentTermsDays: z.number().int().min(0).max(365).optional(),
+  notes: z.string().max(2000).optional(),
 });
 
 // ─── Item ───────────────────────────────────────────────────
