@@ -6,6 +6,7 @@ import { getActiveRule, evaluatePaymentRule } from './posting-rules.js';
 import { getNextNumber } from './sequences.js';
 import { DEFAULT_GL_ACCOUNTS } from '@shared/constants';
 import type { Payment, PaymentAllocation, Invoice, JournalLine } from '@shared/types';
+import { resolveBankLedgerAccountCode } from './bank-accounts.js';
 
 function roundCurrency(n: number): number {
   return Math.round(n * 100) / 100;
@@ -69,6 +70,10 @@ export async function createAndPostPayment(input: CreatePaymentInput): Promise<P
     updatedAt: now,
     createdBy: input.createdBy,
   };
+  const bankAccountCode = await resolveBankLedgerAccountCode(
+    input.companyId,
+    input.bankAccountIban,
+  );
 
   // Build GL journal lines — try rule engine first, fall back to hardcoded
   const ruleType =
@@ -77,10 +82,18 @@ export async function createAndPostPayment(input: CreatePaymentInput): Promise<P
   let journalLines: JournalLine[];
   if (rule) {
     const ruleResult = evaluatePaymentRule(rule, payment);
-    journalLines = ruleResult ?? buildPaymentJournalLines(payment);
+    journalLines = ruleResult ?? buildPaymentJournalLines(payment, bankAccountCode);
   } else {
-    journalLines = buildPaymentJournalLines(payment);
+    journalLines = buildPaymentJournalLines(payment, bankAccountCode);
   }
+
+  // Keep compatibility with rules that still emit the default bank code.
+  // Long term: posting-rule evaluation should accept runtime bank account code input.
+  journalLines = journalLines.map((line) =>
+    line.accountCode === DEFAULT_GL_ACCOUNTS.BANK
+      ? { ...line, accountCode: bankAccountCode, accountName: 'Bank accounts' }
+      : line,
+  );
 
   // Annotate GL lines with transaction-level exchange rate override (EUR payments only)
   if (payment.currency === 'EUR' && payment.exchangeRate && payment.exchangeRate !== 1) {
@@ -145,7 +158,7 @@ export async function createAndPostPayment(input: CreatePaymentInput): Promise<P
 
 // ─── Build GL lines ─────────────────────────────────────────
 
-function buildPaymentJournalLines(payment: Payment): JournalLine[] {
+function buildPaymentJournalLines(payment: Payment, bankAccountCode: string): JournalLine[] {
   const hasFx = payment.currency !== 'EUR' && payment.exchangeRate;
 
   const withCurrency = (line: JournalLine): JournalLine => {
@@ -163,7 +176,7 @@ function buildPaymentJournalLines(payment: Payment): JournalLine[] {
     // Customer payment received
     return [
       withCurrency({
-        accountCode: DEFAULT_GL_ACCOUNTS.BANK, // Bank accounts
+        accountCode: bankAccountCode,
         accountName: 'Bank accounts',
         debit: payment.amount,
         credit: 0,
@@ -191,7 +204,7 @@ function buildPaymentJournalLines(payment: Payment): JournalLine[] {
         contactId: payment.contactId,
       }),
       withCurrency({
-        accountCode: DEFAULT_GL_ACCOUNTS.BANK, // Bank accounts
+        accountCode: bankAccountCode,
         accountName: 'Bank accounts',
         debit: 0,
         credit: payment.amount,

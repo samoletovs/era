@@ -20,8 +20,20 @@ import type {
   CompanySharingEntry,
 } from '@shared/types';
 import { DEFAULT_SEQUENCES, SEQUENCE_LABELS, SYSTEM_RATE_SOURCES } from '@shared/types';
+import { DEFAULT_GL_ACCOUNTS } from '@shared/constants';
+
+interface BankAccountForm {
+  id: string;
+  name: string;
+  iban: string;
+  swift: string;
+  bankName: string;
+  isDefault: boolean;
+  ledgerAccountCodes: string[];
+}
 
 export function Settings() {
+  const DEFAULT_BANK_ACCOUNT_CODE = DEFAULT_GL_ACCOUNTS.BANK;
   const { companyId, setCompanyId, refreshCompanies } = useApp();
   const navigate = useNavigate();
   const [company, setCompany] = useState<any>(null);
@@ -43,6 +55,7 @@ export function Settings() {
   const [dateFormat, setDateFormat] = useState<DateFormat>('dd.MM.yyyy');
   const [dateTimeFormat, setDateTimeFormat] = useState<DateTimeFormat>('24h');
   const [sequences, setSequences] = useState<Record<string, NumberSequence>>({});
+  const [bankAccounts, setBankAccounts] = useState<BankAccountForm[]>([]);
 
   // Currency settings state
   const [accountingCurrency, setAccountingCurrency] = useState('EUR');
@@ -83,6 +96,24 @@ export function Settings() {
         };
       }
       setSequences(merged);
+      setBankAccounts(
+        (data.bankAccounts || []).map((bank: any) => ({
+          id:
+            bank.id ||
+            `bank-${String(bank.iban || bank.bankName || bank.name || 'unknown')
+              .toLowerCase()
+              .replace(/\s+/g, '-')}`,
+          name: bank.name || '',
+          iban: bank.iban || '',
+          swift: bank.swift || '',
+          bankName: bank.bankName || '',
+          isDefault: !!bank.isDefault,
+          ledgerAccountCodes:
+            Array.isArray(bank.ledgerAccountCodes) && bank.ledgerAccountCodes.length > 0
+              ? bank.ledgerAccountCodes
+              : [DEFAULT_BANK_ACCOUNT_CODE],
+        })),
+      );
 
       // Load currency settings
       const cs = data.settings?.currency;
@@ -167,6 +198,20 @@ export function Settings() {
         name,
         shortName: shortName || undefined,
         vatNumber: vatNumber || undefined,
+        bankAccounts: bankAccounts
+          .filter((b) => b.name.trim() && b.iban.trim() && b.swift.trim() && b.bankName.trim())
+          .map((b) => ({
+            id: b.id,
+            name: b.name.trim(),
+            iban: b.iban.trim(),
+            swift: b.swift.trim(),
+            bankName: b.bankName.trim(),
+            isDefault: b.isDefault,
+            ledgerAccountCodes:
+              b.ledgerAccountCodes.map((c) => c.trim()).filter(Boolean).length > 0
+                ? b.ledgerAccountCodes.map((c) => c.trim()).filter(Boolean)
+                : [DEFAULT_BANK_ACCOUNT_CODE],
+          })),
         settings: {
           ...company.settings,
           defaultPaymentTermsDays: paymentTerms,
@@ -306,6 +351,160 @@ export function Settings() {
         </CollapsibleSection>
 
         {/* Block 2: Currency settings — collapsed by default */}
+        <CollapsibleSection title="Bank accounts" defaultExpanded>
+          <p
+            style={{
+              fontSize: 12,
+              color: 'var(--text-secondary)',
+              marginBottom: 12,
+            }}
+          >
+            Link each company bank account to one or more ledger cash accounts. The first code is
+            used as the primary posting account.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {bankAccounts.map((bank) => (
+              <div key={bank.id} className="settings-card" style={{ padding: 12 }}>
+                <div className="settings-grid">
+                  <div className="settings-field">
+                    <label>Account name</label>
+                    <input
+                      className="settings-input"
+                      value={bank.name}
+                      onChange={(e) =>
+                        setBankAccounts((prev) =>
+                          prev.map((b) => (b.id === bank.id ? { ...b, name: e.target.value } : b)),
+                        )
+                      }
+                    />
+                  </div>
+                  <div className="settings-field">
+                    <label>Bank name</label>
+                    <input
+                      className="settings-input"
+                      value={bank.bankName}
+                      onChange={(e) =>
+                        setBankAccounts((prev) =>
+                          prev.map((b) =>
+                            b.id === bank.id ? { ...b, bankName: e.target.value } : b,
+                          ),
+                        )
+                      }
+                    />
+                  </div>
+                  <div className="settings-field">
+                    <label>IBAN</label>
+                    <input
+                      className="settings-input mono"
+                      value={bank.iban}
+                      onChange={(e) =>
+                        setBankAccounts((prev) =>
+                          prev.map((b) =>
+                            b.id === bank.id
+                              ? { ...b, iban: e.target.value.toUpperCase().replace(/\s/g, '') }
+                              : b,
+                          ),
+                        )
+                      }
+                    />
+                  </div>
+                  <div className="settings-field">
+                    <label>SWIFT/BIC</label>
+                    <input
+                      className="settings-input mono"
+                      value={bank.swift}
+                      onChange={(e) =>
+                        setBankAccounts((prev) =>
+                          prev.map((b) =>
+                            b.id === bank.id
+                              ? { ...b, swift: e.target.value.toUpperCase().replace(/\s/g, '') }
+                              : b,
+                          ),
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="settings-row" style={{ marginTop: 8 }}>
+                  <div className="settings-field" style={{ flex: 1 }}>
+                    <label>Linked ledger accounts</label>
+                    <input
+                      className="settings-input mono"
+                      value={bank.ledgerAccountCodes.join(', ')}
+                      onChange={(e) =>
+                        setBankAccounts((prev) =>
+                          prev.map((b) =>
+                            b.id === bank.id
+                              ? {
+                                  ...b,
+                                  ledgerAccountCodes: e.target.value
+                                    .split(',')
+                                    .map((c) => c.trim())
+                                    .filter(Boolean),
+                                }
+                              : b,
+                          ),
+                        )
+                      }
+                      placeholder="2420, 2421"
+                    />
+                  </div>
+                  <div className="settings-field" style={{ maxWidth: 180 }}>
+                    <label>Default</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
+                      <input
+                        type="checkbox"
+                        checked={bank.isDefault}
+                        onChange={(e) =>
+                          setBankAccounts((prev) =>
+                            prev.map((b) =>
+                              b.id === bank.id
+                                ? { ...b, isDefault: e.target.checked }
+                                : e.target.checked
+                                  ? { ...b, isDefault: false }
+                                  : b,
+                            ),
+                          )
+                        }
+                        aria-label="Default bank account"
+                      />
+                      <button
+                        className="btn-secondary"
+                        onClick={() =>
+                          setBankAccounts((prev) => prev.filter((b) => b.id !== bank.id))
+                        }
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+            <div>
+              <button
+                className="btn-secondary"
+                onClick={() =>
+                  setBankAccounts((prev) => [
+                    ...prev,
+                    {
+                      id: crypto.randomUUID(),
+                      name: '',
+                      iban: '',
+                      swift: '',
+                      bankName: '',
+                      isDefault: prev.length === 0,
+                      ledgerAccountCodes: [DEFAULT_BANK_ACCOUNT_CODE],
+                    },
+                  ])
+                }
+              >
+                Add bank account
+              </button>
+            </div>
+          </div>
+        </CollapsibleSection>
+
         <CollapsibleSection title="Currency settings">
           <p
             style={{

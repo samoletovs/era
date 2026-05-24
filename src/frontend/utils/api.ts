@@ -57,6 +57,10 @@ export function formatApiError(err: unknown, locale: Locale = getDefaultLocale()
 // Typed interfaces for API responses — improves type safety across all pages
 
 export interface DashboardData {
+  cash: number;
+  receivables: number;
+  payables: number;
+  vatDue: number;
   kpiAccounts: Record<string, { balance: number; accountCodes: string[] }>;
   recentInvoices: {
     id: string;

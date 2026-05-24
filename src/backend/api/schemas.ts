@@ -12,6 +12,16 @@ import {
 
 // ─── Company ────────────────────────────────────────────────
 
+const BankAccountSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1).max(200),
+  iban: z.string().min(1).max(34),
+  swift: z.string().min(1).max(20),
+  bankName: z.string().min(1).max(200),
+  isDefault: z.boolean(),
+  ledgerAccountCodes: z.array(AccountCode).min(1).optional(),
+});
+
 export const CreateCompanySchema = z
   .object({
     name: z.string().min(1).max(200),
@@ -30,6 +40,7 @@ export const CreateCompanySchema = z
       })
       .optional(),
     country: z.string().max(2).optional(),
+    bankAccounts: z.array(BankAccountSchema).optional(),
   })
   .strict();
 
