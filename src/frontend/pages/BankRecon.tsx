@@ -96,7 +96,7 @@ export function BankRecon() {
   const [busy, setBusy] = useState(false);
   const [creatingManual, setCreatingManual] = useState(false);
   const [bankOptions, setBankOptions] = useState<BankOption[]>([]);
-  const [selectedBankCode, setSelectedBankCode] = useState(DEFAULT_BANK_ACCOUNT_CODE);
+  const [selectedBankCode, setSelectedBankCode] = useState<string>(DEFAULT_BANK_ACCOUNT_CODE);
   const [selectedBankIban, setSelectedBankIban] = useState('');
 
   useEffect(() => {
