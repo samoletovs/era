@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&display=swap");
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&display=swap');
 
 :root {
   /* Backgrounds */
@@ -43,7 +43,7 @@
   --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
 
   /* Typography */
-  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --text-xs: 0.75rem;
   --text-sm: 0.8125rem;
   --text-base: 0.875rem;
@@ -538,7 +538,7 @@ body {
   padding: 2px 6px;
   font-size: 11px;
   font-weight: 600;
-  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
   color: var(--accent);
   background: var(--accent-bg);
   border-radius: 4px;
@@ -699,7 +699,7 @@ body {
 }
 
 .mono {
-  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
   font-size: var(--text-sm);
 }
 
@@ -780,7 +780,7 @@ body {
   padding: 4px 8px;
   font-size: 13px;
   font-weight: 600;
-  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
   color: var(--accent);
   background: var(--accent-bg);
   border: 1px solid transparent;
@@ -996,7 +996,7 @@ select.settings-input {
 }
 
 .detail-label.required::after {
-  content: " *";
+  content: ' *';
   color: #ff3b30;
 }
 
@@ -1023,7 +1023,7 @@ select.settings-input {
   padding: 0 10px;
   font-size: 15px;
   font-weight: 600;
-  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
   color: var(--accent);
   background: var(--accent-bg);
   border: 1px solid transparent;
@@ -1068,7 +1068,7 @@ select.settings-input {
 }
 
 .data-table .mono {
-  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
   font-size: var(--text-sm);
   color: var(--text-secondary);
 }
@@ -1344,7 +1344,7 @@ select.settings-input {
   letter-spacing: 0.04em;
 }
 
-.period-dates input[type="date"] {
+.period-dates input[type='date'] {
   height: 32px;
   padding: 0 8px;
   font-size: var(--text-sm);
@@ -1356,7 +1356,7 @@ select.settings-input {
   outline: none;
 }
 
-.period-dates input[type="date"]:focus {
+.period-dates input[type='date']:focus {
   border-color: var(--accent);
 }
 
@@ -1792,6 +1792,32 @@ select.settings-input {
   margin: 4px 0 0;
 }
 
+/* On narrow screens, stack the action buttons below the textarea so the
+   prompt field can use the full width. Otherwise the mic + submit button
+   eat ~120px and leave very little room for typed text on phones. */
+@media (max-width: 640px) {
+  .ai-input-wrap {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .ai-input-textarea {
+    width: 100%;
+    min-height: 64px;
+    max-height: 200px;
+  }
+
+  .ai-input-actions {
+    justify-content: flex-end;
+    padding: 0 6px 6px;
+  }
+
+  .ai-input-submit {
+    flex: 1;
+    justify-content: center;
+  }
+}
+
 /* ─── Feedback Button + Popover ──────────────────────────── */
 
 .feedback-fab {
@@ -1896,7 +1922,7 @@ select.settings-input {
 .feedback-page {
   font-size: var(--text-xs);
   color: var(--text-tertiary);
-  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
 }
 
 .feedback-sent {
@@ -2195,7 +2221,7 @@ select.settings-input {
     gap: 6px;
   }
 
-  .period-dates input[type="date"] {
+  .period-dates input[type='date'] {
     flex: 1;
     min-width: 120px;
   }
@@ -2461,7 +2487,7 @@ select.settings-input {
   .mobile-card-amount {
     font-weight: 500;
     font-size: var(--text-base);
-    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
   }
 
   .mobile-card-meta {
@@ -2573,11 +2599,11 @@ select.settings-input {
   .coa-mobile-item .coa-mobile-code {
     font-size: var(--text-xs);
     color: var(--text-tertiary);
-    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
   }
 
   .coa-mobile-item .coa-mobile-balance {
-    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
     font-size: var(--text-sm);
     font-weight: 500;
     white-space: nowrap;
@@ -2627,7 +2653,7 @@ select.settings-input {
   .tx-mobile-item .tx-mobile-date {
     font-size: var(--text-xs);
     color: var(--text-tertiary);
-    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
   }
 
   .tx-mobile-item .tx-mobile-desc {
@@ -2645,13 +2671,13 @@ select.settings-input {
 
   .tx-mobile-item .tx-mobile-debit {
     font-size: var(--text-sm);
-    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
     color: var(--text-primary);
   }
 
   .tx-mobile-item .tx-mobile-credit {
     font-size: var(--text-sm);
-    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
     color: var(--text-secondary);
   }
 
@@ -2692,7 +2718,7 @@ select.settings-input {
 
   .invoice-line-card .line-total {
     margin-left: auto;
-    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
     font-weight: 500;
     color: var(--text-primary);
     font-size: var(--text-sm);
