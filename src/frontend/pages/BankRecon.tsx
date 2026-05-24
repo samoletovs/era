@@ -161,12 +161,13 @@ export function BankRecon() {
         };
       });
       const fallback2420 = accountNameByCode.get('2420') || 'Bank accounts';
-      const all =
+      const all: Array<{ code: string; iban?: string; label: string; isDefault: boolean }> =
         fromCompany.length > 0
           ? fromCompany
           : [
               {
                 code: '2420',
+                iban: undefined,
                 label: `Default bank account — 2420 ${fallback2420}`,
                 isDefault: true,
               },
