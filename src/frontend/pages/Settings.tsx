@@ -97,8 +97,12 @@ export function Settings() {
       }
       setSequences(merged);
       setBankAccounts(
-        (data.bankAccounts || []).map((bank: any, index: number) => ({
-          id: bank.id || `bank-${bank.iban || bank.name || index}`,
+        (data.bankAccounts || []).map((bank: any) => ({
+          id:
+            bank.id ||
+            `bank-${String(bank.iban || bank.bankName || bank.name || 'unknown')
+              .toLowerCase()
+              .replace(/\s+/g, '-')}`,
           name: bank.name || '',
           iban: bank.iban || '',
           swift: bank.swift || '',

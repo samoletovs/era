@@ -152,6 +152,7 @@ export function BankRecon() {
       const accountNameByCode = new Map(accounts.map((a) => [a.code, a.name]));
       const fromCompany = (company.bankAccounts || []).map((bank) => {
         // `ledgerAccountCode` (singular) is kept for legacy company records.
+        // Remove this fallback after legacy bank-account payloads are backfilled.
         const firstCode =
           bank.ledgerAccountCodes?.[0] || bank.ledgerAccountCode || DEFAULT_BANK_ACCOUNT_CODE;
         const code = firstCode.trim() || DEFAULT_BANK_ACCOUNT_CODE;

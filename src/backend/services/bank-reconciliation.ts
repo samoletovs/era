@@ -369,7 +369,8 @@ export async function completeReconciliation(
 
 export async function listReconciliations(companyId: string): Promise<BankReconciliation[]> {
   // Legacy compatibility: early records were created without docType.
-  // Keep fallback detection until a full backfill migration is applied.
+  // Backfill strategy: patch historical reconciliation docs with docType,
+  // then remove the fallback branch to restore index-only filtering.
   const { resources } = await containers
     .documents()
     .items.query<BankReconciliation>({

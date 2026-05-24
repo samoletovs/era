@@ -88,6 +88,7 @@ export async function createAndPostPayment(input: CreatePaymentInput): Promise<P
   }
 
   // Keep compatibility with rules that still emit the default bank code.
+  // Long term: posting-rule evaluation should accept runtime bank account code input.
   journalLines = journalLines.map((line) =>
     line.accountCode === DEFAULT_GL_ACCOUNTS.BANK
       ? { ...line, accountCode: bankAccountCode, accountName: 'Bank accounts' }
