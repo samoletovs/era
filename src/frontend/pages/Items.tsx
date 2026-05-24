@@ -1,15 +1,15 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { api } from "../utils/api";
-import { useApp } from "../utils/context";
-import { formatMoney } from "../utils/format";
-import { GlPostings } from "../components/GlPostings";
-import { AiInput } from "../components/AiInput";
-import { UniversalGrid, type GridColumn } from "../components/UniversalGrid";
+import React, { useEffect, useMemo, useState } from 'react';
+import { api, formatApiError } from '../utils/api';
+import { useApp } from '../utils/context';
+import { formatMoney } from '../utils/format';
+import { GlPostings } from '../components/GlPostings';
+import { AiInput } from '../components/AiInput';
+import { UniversalGrid, type GridColumn } from '../components/UniversalGrid';
 
 interface ItemForm {
   name: string;
   description: string;
-  type: "product" | "service";
+  type: 'product' | 'service';
   unitOfMeasure: string;
   costPrice: string;
   sellingPrice: string;
@@ -19,15 +19,15 @@ interface ItemForm {
 }
 
 const EMPTY_FORM: ItemForm = {
-  name: "",
-  description: "",
-  type: "product",
-  unitOfMeasure: "pcs",
-  costPrice: "0",
-  sellingPrice: "0",
-  vatRate: "21",
-  purchaseAccountCode: "6110",
-  salesAccountCode: "5110",
+  name: '',
+  description: '',
+  type: 'product',
+  unitOfMeasure: 'pcs',
+  costPrice: '0',
+  sellingPrice: '0',
+  vatRate: '21',
+  purchaseAccountCode: '6110',
+  salesAccountCode: '5110',
 };
 
 export function Items() {
@@ -44,7 +44,7 @@ export function Items() {
   const [selected, setSelected] = useState<any>(null);
   const [itemEntries, setItemEntries] = useState<any[]>([]);
   const [loadingEntries, setLoadingEntries] = useState(false);
-  const [typeFilter, setTypeFilter] = useState<"" | "product" | "service">("");
+  const [typeFilter, setTypeFilter] = useState<'' | 'product' | 'service'>('');
 
   useEffect(() => {
     if (!selected || !companyId) {
@@ -81,51 +81,46 @@ export function Items() {
   const itemColumns: GridColumn<any>[] = useMemo(
     () => [
       {
-        id: "code",
-        header: "Code",
-        accessor: (item) => item.code || "",
+        id: 'code',
+        header: 'Code',
+        accessor: (item) => item.code || '',
         render: (item) => <span className="mono">{item.code}</span>,
       },
       {
-        id: "name",
-        header: "Name",
-        accessor: (item) => item.name || "",
+        id: 'name',
+        header: 'Name',
+        accessor: (item) => item.name || '',
         render: (item) => <span style={{ fontWeight: 500 }}>{item.name}</span>,
       },
       {
-        id: "type",
-        header: "Type",
-        accessor: (item) => item.type || "",
+        id: 'type',
+        header: 'Type',
+        accessor: (item) => item.type || '',
         render: (item) => <span className="badge">{item.type}</span>,
         hideOnMobile: true,
       },
       {
-        id: "sellingPrice",
-        header: "Price",
+        id: 'sellingPrice',
+        header: 'Price',
         accessor: (item) => Number(item.sellingPrice || 0),
-        render: (item) => (
-          <span className="num">{formatMoney(item.sellingPrice, fmt)}</span>
-        ),
-        align: "right",
+        render: (item) => <span className="num">{formatMoney(item.sellingPrice, fmt)}</span>,
+        align: 'right',
       },
       {
-        id: "vatRate",
-        header: "VAT",
+        id: 'vatRate',
+        header: 'VAT',
         accessor: (item) => Number(item.vatRate || 0),
         render: (item) => `${item.vatRate}%`,
         hideOnMobile: true,
       },
       {
-        id: "quantityOnHand",
-        header: "On hand",
-        accessor: (item) =>
-          item.type === "service" ? -1 : Number(item.quantityOnHand || 0),
+        id: 'quantityOnHand',
+        header: 'On hand',
+        accessor: (item) => (item.type === 'service' ? -1 : Number(item.quantityOnHand || 0)),
         render: (item) => (
-          <span className="num">
-            {item.type === "service" ? "—" : item.quantityOnHand}
-          </span>
+          <span className="num">{item.type === 'service' ? '—' : item.quantityOnHand}</span>
         ),
-        align: "right",
+        align: 'right',
         hideOnMobile: true,
       },
     ],
@@ -136,24 +131,24 @@ export function Items() {
 
   // AI-first: form fields only shown after AI has filled something
   const itemFormFilled =
-    form.name.trim() !== "" ||
-    form.description.trim() !== "" ||
-    form.costPrice !== "0" ||
-    form.sellingPrice !== "0";
+    form.name.trim() !== '' ||
+    form.description.trim() !== '' ||
+    form.costPrice !== '0' ||
+    form.sellingPrice !== '0';
 
   async function handleAiDescribe(desc: string) {
     if (!companyId) return;
     const fields = (await api.parseItemDescription(companyId, desc)) as any;
     setForm({
-      name: fields.name || "",
-      description: fields.description || "",
-      type: fields.type || "product",
-      unitOfMeasure: fields.unitOfMeasure || "pcs",
+      name: fields.name || '',
+      description: fields.description || '',
+      type: fields.type || 'product',
+      unitOfMeasure: fields.unitOfMeasure || 'pcs',
       costPrice: String(fields.costPrice ?? 0),
       sellingPrice: String(fields.sellingPrice ?? 0),
       vatRate: String(fields.vatRate ?? 21),
-      purchaseAccountCode: fields.purchaseAccountCode || "6110",
-      salesAccountCode: fields.salesAccountCode || "5110",
+      purchaseAccountCode: fields.purchaseAccountCode || '6110',
+      salesAccountCode: fields.salesAccountCode || '5110',
     });
   }
 
@@ -164,7 +159,7 @@ export function Items() {
     setSaving(true);
     try {
       await api.createItem(companyId, {
-        code: "",
+        code: '',
         name: form.name,
         description: form.description,
         type: form.type,
@@ -179,7 +174,7 @@ export function Items() {
       setShowForm(false);
       loadItems();
     } catch (err: any) {
-      toast(err.message || "Failed to create item");
+      toast(formatApiError(err) || 'Failed to create item');
     } finally {
       setSaving(false);
     }
@@ -188,12 +183,12 @@ export function Items() {
   // ─── Label style ──────────────────────────────────────────
 
   const labelStyle: React.CSSProperties = {
-    display: "block",
+    display: 'block',
     fontSize: 11,
     fontWeight: 500,
-    color: "var(--text-tertiary)",
-    textTransform: "uppercase",
-    letterSpacing: "0.02em",
+    color: 'var(--text-tertiary)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.02em',
     marginBottom: 4,
   };
 
@@ -253,7 +248,7 @@ export function Items() {
                   <span className="detail-label">VAT rate</span>
                   <span>{selected.vatRate}%</span>
                 </div>
-                {selected.type !== "service" && (
+                {selected.type !== 'service' && (
                   <div className="detail-row">
                     <span className="detail-label">On hand</span>
                     <span>{selected.quantityOnHand}</span>
@@ -273,9 +268,7 @@ export function Items() {
 
           <div style={{ flex: 1 }}>
             <div className="settings-card">
-              <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>
-                GL postings
-              </h3>
+              <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>GL postings</h3>
               <GlPostings
                 entries={itemEntries}
                 loading={loadingEntries}
@@ -297,7 +290,7 @@ export function Items() {
           Items
         </h2>
         <button className="btn-primary" onClick={() => setShowForm((f) => !f)}>
-          {showForm ? "Cancel" : "+ Add item"}
+          {showForm ? 'Cancel' : '+ Add item'}
         </button>
       </div>
 
@@ -319,34 +312,30 @@ export function Items() {
               {/* Form fields */}
               <div
                 style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
                   gap: 12,
                 }}
               >
-                <div style={{ gridColumn: "span 2" }}>
+                <div style={{ gridColumn: 'span 2' }}>
                   <label style={labelStyle}>Name</label>
                   <input
                     type="text"
                     value={form.name}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, name: e.target.value }))
-                    }
+                    onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                     className="form-input"
-                    style={{ width: "100%" }}
+                    style={{ width: '100%' }}
                     aria-label="Item name"
                   />
                 </div>
-                <div style={{ gridColumn: "span 2" }}>
+                <div style={{ gridColumn: 'span 2' }}>
                   <label style={labelStyle}>Description</label>
                   <input
                     type="text"
                     value={form.description}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, description: e.target.value }))
-                    }
+                    onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                     className="form-input"
-                    style={{ width: "100%" }}
+                    style={{ width: '100%' }}
                     aria-label="Item description"
                   />
                 </div>
@@ -354,9 +343,7 @@ export function Items() {
                   <label style={labelStyle}>Type</label>
                   <select
                     value={form.type}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, type: e.target.value as any }))
-                    }
+                    onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as any }))}
                     className="table-filter-select"
                     aria-label="Item type"
                   >
@@ -369,11 +356,9 @@ export function Items() {
                   <input
                     type="text"
                     value={form.unitOfMeasure}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, unitOfMeasure: e.target.value }))
-                    }
+                    onChange={(e) => setForm((f) => ({ ...f, unitOfMeasure: e.target.value }))}
                     className="form-input"
-                    style={{ width: "100%" }}
+                    style={{ width: '100%' }}
                     aria-label="Unit of measure"
                   />
                 </div>
@@ -383,11 +368,9 @@ export function Items() {
                     type="number"
                     step="0.01"
                     value={form.costPrice}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, costPrice: e.target.value }))
-                    }
+                    onChange={(e) => setForm((f) => ({ ...f, costPrice: e.target.value }))}
                     className="form-input"
-                    style={{ width: "100%" }}
+                    style={{ width: '100%' }}
                     aria-label="Cost price"
                   />
                 </div>
@@ -397,11 +380,9 @@ export function Items() {
                     type="number"
                     step="0.01"
                     value={form.sellingPrice}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, sellingPrice: e.target.value }))
-                    }
+                    onChange={(e) => setForm((f) => ({ ...f, sellingPrice: e.target.value }))}
                     className="form-input"
-                    style={{ width: "100%" }}
+                    style={{ width: '100%' }}
                     aria-label="Selling price"
                   />
                 </div>
@@ -409,9 +390,7 @@ export function Items() {
                   <label style={labelStyle}>VAT rate (%)</label>
                   <select
                     value={form.vatRate}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, vatRate: e.target.value }))
-                    }
+                    onChange={(e) => setForm((f) => ({ ...f, vatRate: e.target.value }))}
                     className="table-filter-select"
                     aria-label="VAT rate"
                   >
@@ -433,7 +412,7 @@ export function Items() {
                       }))
                     }
                     className="form-input"
-                    style={{ width: "100%" }}
+                    style={{ width: '100%' }}
                     aria-label="Purchase account code"
                   />
                 </div>
@@ -449,19 +428,19 @@ export function Items() {
                       }))
                     }
                     className="form-input"
-                    style={{ width: "100%" }}
+                    style={{ width: '100%' }}
                     aria-label="Sales account code"
                   />
                 </div>
               </div>
 
-              <div style={{ marginTop: 16, display: "flex", gap: 8 }}>
+              <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
                 <button
                   className="btn-primary"
                   onClick={handleSave}
                   disabled={saving || !form.name.trim()}
                 >
-                  {saving ? "Saving..." : "Save item"}
+                  {saving ? 'Saving...' : 'Save item'}
                 </button>
                 <button
                   className="btn-secondary"
@@ -479,48 +458,43 @@ export function Items() {
       )}
 
       {loading ? (
-        <p style={{ color: "var(--text-tertiary)" }}>Loading...</p>
+        <p style={{ color: 'var(--text-tertiary)' }}>Loading...</p>
       ) : items.length === 0 ? (
         <div className="empty-state">
           <div className="icon">📦</div>
           <h3>No items yet</h3>
-          <p>
-            Click "+ Add item" to create your first item, or describe it with
-            your voice.
-          </p>
+          <p>Click "+ Add item" to create your first item, or describe it with your voice.</p>
         </div>
       ) : (
         <>
           <div className="coa-level-controls" style={{ marginBottom: 12 }}>
             <button
-              className={`coa-level-btn ${!typeFilter ? "active" : ""}`}
-              onClick={() => setTypeFilter("")}
+              className={`coa-level-btn ${!typeFilter ? 'active' : ''}`}
+              onClick={() => setTypeFilter('')}
             >
               All
             </button>
             <button
-              className={`coa-level-btn ${typeFilter === "product" ? "active" : ""}`}
-              onClick={() => setTypeFilter("product")}
+              className={`coa-level-btn ${typeFilter === 'product' ? 'active' : ''}`}
+              onClick={() => setTypeFilter('product')}
             >
               Products
             </button>
             <button
-              className={`coa-level-btn ${typeFilter === "service" ? "active" : ""}`}
-              onClick={() => setTypeFilter("service")}
+              className={`coa-level-btn ${typeFilter === 'service' ? 'active' : ''}`}
+              onClick={() => setTypeFilter('service')}
             >
               Services
             </button>
           </div>
           <UniversalGrid
-            rows={
-              typeFilter ? items.filter((i) => i.type === typeFilter) : items
-            }
+            rows={typeFilter ? items.filter((i) => i.type === typeFilter) : items}
             columns={itemColumns}
             rowKey={(row) => String(row.id)}
             onRowClick={(item) => setSelected(item)}
             searchPlaceholder="Search items..."
             emptyMessage="No matching items. Try adjusting filters."
-            initialSort={{ columnId: "code", direction: "asc" }}
+            initialSort={{ columnId: 'code', direction: 'asc' }}
           />
         </>
       )}

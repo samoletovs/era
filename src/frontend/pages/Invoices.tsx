@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useLocation } from 'react-router';
-import { api } from '../utils/api';
+import { api, formatApiError } from '../utils/api';
 import { useApp } from '../utils/context';
 import { formatMoney } from '../utils/format';
 import { GlPostings } from '../components/GlPostings';
@@ -190,7 +190,7 @@ export function Invoices() {
       loadInvoices();
       setSelected(null);
     } catch (e: any) {
-      toast(e.message || 'Failed to cancel');
+      toast(formatApiError(e) || 'Failed to cancel');
     }
   }
 
@@ -244,7 +244,7 @@ export function Invoices() {
       setSelected(null);
       setCreditNoteInv(null);
     } catch (e: any) {
-      toast(e.message || 'Failed to create credit note');
+      toast(formatApiError(e) || 'Failed to create credit note');
     } finally {
       setCreditProcessing(false);
     }
@@ -322,7 +322,7 @@ export function Invoices() {
       setParsedInvoice(null);
       loadInvoices();
     } catch (err: any) {
-      toast(err.message || 'Failed to create invoice');
+      toast(formatApiError(err) || 'Failed to create invoice');
     } finally {
       setCreating(false);
     }
@@ -432,7 +432,7 @@ export function Invoices() {
       setPayInvoice(null);
       loadInvoices();
     } catch (err: any) {
-      toast(err.message || 'Failed to record payment');
+      toast(formatApiError(err) || 'Failed to record payment');
     } finally {
       setPaying(false);
     }
