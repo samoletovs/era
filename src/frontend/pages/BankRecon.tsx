@@ -3,6 +3,7 @@ import { api, formatApiError } from '../utils/api';
 import { useApp } from '../utils/context';
 import { formatMoney } from '../utils/format';
 import { UniversalGrid, type GridColumn } from '../components/UniversalGrid';
+import { DEFAULT_GL_ACCOUNTS } from '@shared/constants';
 
 interface StatementLine {
   id: string;
@@ -57,6 +58,7 @@ interface BankOption {
 }
 
 export function BankRecon() {
+  const DEFAULT_BANK_ACCOUNT_CODE = DEFAULT_GL_ACCOUNTS.BANK;
   const { companyId, numberFormat: fmt, toast } = useApp();
   const [recons, setRecons] = useState<Reconciliation[]>([]);
   const [selected, setSelected] = useState<Reconciliation | null>(null);
@@ -94,7 +96,7 @@ export function BankRecon() {
   const [busy, setBusy] = useState(false);
   const [creatingManual, setCreatingManual] = useState(false);
   const [bankOptions, setBankOptions] = useState<BankOption[]>([]);
-  const [selectedBankCode, setSelectedBankCode] = useState('2420');
+  const [selectedBankCode, setSelectedBankCode] = useState(DEFAULT_BANK_ACCOUNT_CODE);
   const [selectedBankIban, setSelectedBankIban] = useState('');
 
   useEffect(() => {
@@ -149,8 +151,10 @@ export function BankRecon() {
         .map((a) => ({ code: a.code, name: a.name }));
       const accountNameByCode = new Map(accounts.map((a) => [a.code, a.name]));
       const fromCompany = (company.bankAccounts || []).map((bank) => {
-        const firstCode = bank.ledgerAccountCodes?.[0] || bank.ledgerAccountCode || '2420';
-        const code = firstCode.trim() || '2420';
+        // `ledgerAccountCode` (singular) is kept for legacy company records.
+        const firstCode =
+          bank.ledgerAccountCodes?.[0] || bank.ledgerAccountCode || DEFAULT_BANK_ACCOUNT_CODE;
+        const code = firstCode.trim() || DEFAULT_BANK_ACCOUNT_CODE;
         const name = accountNameByCode.get(code) || 'Bank accounts';
         const iban = (bank.iban || '').trim();
         return {
@@ -160,15 +164,16 @@ export function BankRecon() {
           isDefault: !!bank.isDefault,
         };
       });
-      const fallback2420 = accountNameByCode.get('2420') || 'Bank accounts';
+      const fallbackAccountName =
+        accountNameByCode.get(DEFAULT_BANK_ACCOUNT_CODE) || 'Bank accounts';
       const all: Array<{ code: string; iban?: string; label: string; isDefault: boolean }> =
         fromCompany.length > 0
           ? fromCompany
           : [
               {
-                code: '2420',
+                code: DEFAULT_BANK_ACCOUNT_CODE,
                 iban: undefined,
-                label: `Default bank account — 2420 ${fallback2420}`,
+                label: `Default bank account — ${DEFAULT_BANK_ACCOUNT_CODE} ${fallbackAccountName}`,
                 isDefault: true,
               },
             ];
@@ -185,8 +190,13 @@ export function BankRecon() {
       setSelectedBankCode(defaultOption.code);
       setSelectedBankIban(defaultOption.iban || '');
     } catch {
-      setBankOptions([{ code: '2420', label: 'Default bank account — 2420 Bank accounts' }]);
-      setSelectedBankCode('2420');
+      setBankOptions([
+        {
+          code: DEFAULT_BANK_ACCOUNT_CODE,
+          label: `Default bank account — ${DEFAULT_BANK_ACCOUNT_CODE} Bank accounts`,
+        },
+      ]);
+      setSelectedBankCode(DEFAULT_BANK_ACCOUNT_CODE);
       setSelectedBankIban('');
     }
   }, [companyId]);
@@ -213,7 +223,7 @@ export function BankRecon() {
 
       const balance = lines.reduce((s, l) => s + l.amount, 0);
       const result = (await api.importBankStatement(companyId, {
-        bankAccountCode: selectedBankCode || '2420',
+        bankAccountCode: selectedBankCode || DEFAULT_BANK_ACCOUNT_CODE,
         bankIban: selectedBankIban || undefined,
         statementDate: new Date().toISOString().slice(0, 10),
         statementBalance: Math.round(balance * 100) / 100,
@@ -252,7 +262,7 @@ export function BankRecon() {
     setCreatingManual(true);
     try {
       const result = (await api.importBankStatement(companyId, {
-        bankAccountCode: selectedBankCode || '2420',
+        bankAccountCode: selectedBankCode || DEFAULT_BANK_ACCOUNT_CODE,
         bankIban: selectedBankIban || undefined,
         statementDate: new Date().toISOString().slice(0, 10),
         statementBalance: 0,
@@ -1297,7 +1307,7 @@ export function BankRecon() {
             value={`${selectedBankCode}|${selectedBankIban}`}
             onChange={(e) => {
               const [code, iban] = e.target.value.split('|');
-              setSelectedBankCode(code || '2420');
+              setSelectedBankCode(code || DEFAULT_BANK_ACCOUNT_CODE);
               setSelectedBankIban(iban || '');
             }}
             aria-label="Bank account for statement import"

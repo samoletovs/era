@@ -368,6 +368,8 @@ export async function completeReconciliation(
 // ─── List Reconciliations ───────────────────────────────────
 
 export async function listReconciliations(companyId: string): Promise<BankReconciliation[]> {
+  // Legacy compatibility: early records were created without docType.
+  // Keep fallback detection until a full backfill migration is applied.
   const { resources } = await containers
     .documents()
     .items.query<BankReconciliation>({

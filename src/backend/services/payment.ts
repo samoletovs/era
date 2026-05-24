@@ -87,6 +87,7 @@ export async function createAndPostPayment(input: CreatePaymentInput): Promise<P
     journalLines = buildPaymentJournalLines(payment, bankAccountCode);
   }
 
+  // Keep compatibility with rules that still emit the default bank code.
   journalLines = journalLines.map((line) =>
     line.accountCode === DEFAULT_GL_ACCOUNTS.BANK
       ? { ...line, accountCode: bankAccountCode, accountName: 'Bank accounts' }

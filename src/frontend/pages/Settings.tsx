@@ -20,6 +20,7 @@ import type {
   CompanySharingEntry,
 } from '@shared/types';
 import { DEFAULT_SEQUENCES, SEQUENCE_LABELS, SYSTEM_RATE_SOURCES } from '@shared/types';
+import { DEFAULT_GL_ACCOUNTS } from '@shared/constants';
 
 interface BankAccountForm {
   id: string;
@@ -32,6 +33,7 @@ interface BankAccountForm {
 }
 
 export function Settings() {
+  const DEFAULT_BANK_ACCOUNT_CODE = DEFAULT_GL_ACCOUNTS.BANK;
   const { companyId, setCompanyId, refreshCompanies } = useApp();
   const navigate = useNavigate();
   const [company, setCompany] = useState<any>(null);
@@ -95,8 +97,8 @@ export function Settings() {
       }
       setSequences(merged);
       setBankAccounts(
-        (data.bankAccounts || []).map((bank: any) => ({
-          id: bank.id || crypto.randomUUID(),
+        (data.bankAccounts || []).map((bank: any, index: number) => ({
+          id: bank.id || `bank-${bank.iban || bank.name || index}`,
           name: bank.name || '',
           iban: bank.iban || '',
           swift: bank.swift || '',
@@ -105,7 +107,7 @@ export function Settings() {
           ledgerAccountCodes:
             Array.isArray(bank.ledgerAccountCodes) && bank.ledgerAccountCodes.length > 0
               ? bank.ledgerAccountCodes
-              : ['2420'],
+              : [DEFAULT_BANK_ACCOUNT_CODE],
         })),
       );
 
@@ -204,7 +206,7 @@ export function Settings() {
             ledgerAccountCodes:
               b.ledgerAccountCodes.map((c) => c.trim()).filter(Boolean).length > 0
                 ? b.ledgerAccountCodes.map((c) => c.trim()).filter(Boolean)
-                : ['2420'],
+                : [DEFAULT_BANK_ACCOUNT_CODE],
           })),
         settings: {
           ...company.settings,
@@ -488,7 +490,7 @@ export function Settings() {
                       swift: '',
                       bankName: '',
                       isDefault: prev.length === 0,
-                      ledgerAccountCodes: ['2420'],
+                      ledgerAccountCodes: [DEFAULT_BANK_ACCOUNT_CODE],
                     },
                   ])
                 }
