@@ -99,6 +99,13 @@ describe("bank reconciliation — import & match", () => {
     const lineId = recon.lines[0].id;
     expect(recon.lines[0].amount).toBe(605);
 
+    const listRes = await request(app as never)
+      .get(`/api/companies/${company.id}/bank-reconciliations`)
+      .set(authHeader);
+    expect(listRes.status).toBe(200);
+    expect(Array.isArray(listRes.body.data)).toBe(true);
+    expect(listRes.body.data.some((r: { id: string }) => r.id === recon.id)).toBe(true);
+
     // ─── Match the line to the invoice ─────────────────────
     const matchRes = await request(app as never)
       .post(`/api/companies/${company.id}/bank-reconciliations/${recon.id}/match-invoice`)

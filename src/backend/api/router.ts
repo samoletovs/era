@@ -41,6 +41,7 @@ import {
   createCreditNote,
 } from '../services/invoice.js';
 import { createAndPostPayment, listPayments } from '../services/payment.js';
+import { getCashAccountCodes } from '../services/bank-accounts.js';
 import {
   createContact,
   getContact,
@@ -1706,14 +1707,19 @@ router.post('/companies/:companyId/vat-returns', async (req, res) => {
 router.get('/companies/:companyId/dashboard', async (req, res) => {
   try {
     const cid = req.params.companyId;
+    const cashAccountCodes = await getCashAccountCodes(cid);
 
     // Get key account balances in parallel
-    const [cashResult, arResult, apResult, vatOutResult, vatInResult] = await Promise.all([
-      containers
-        .ledger()
-        .item(`${cid}-acct-2420`, cid)
-        .read<Account>()
-        .catch(() => ({ resource: null })),
+    const [cashResults, arResult, apResult, vatOutResult, vatInResult] = await Promise.all([
+      Promise.all(
+        cashAccountCodes.map((code) =>
+          containers
+            .ledger()
+            .item(`${cid}-acct-${code}`, cid)
+            .read<Account>()
+            .catch(() => ({ resource: null })),
+        ),
+      ),
       containers
         .ledger()
         .item(`${cid}-acct-2210`, cid)
@@ -1736,7 +1742,10 @@ router.get('/companies/:companyId/dashboard', async (req, res) => {
         .catch(() => ({ resource: null })),
     ]);
 
-    const cash = cashResult.resource?.balance ?? 0;
+    const cash =
+      Math.round(
+        cashResults.reduce((sum, result) => sum + (result.resource?.balance ?? 0), 0) * 100,
+      ) / 100;
     const receivables = arResult.resource?.balance ?? 0;
     const payables = Math.abs(apResult.resource?.balance ?? 0);
     const vatPayable = Math.abs(vatOutResult.resource?.balance ?? 0);
@@ -1759,6 +1768,12 @@ router.get('/companies/:companyId/dashboard', async (req, res) => {
         receivables,
         payables,
         vatDue,
+        kpiAccounts: {
+          cash: {
+            balance: cash,
+            accountCodes: cashAccountCodes,
+          },
+        },
         recentInvoices,
       },
     } as ApiResponse);

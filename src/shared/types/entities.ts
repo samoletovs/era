@@ -120,11 +120,15 @@ export type DateTimeFormat = '24h' | '12h';
 // "12h" → 2:30 PM (US/UK)
 
 export interface BankAccount {
+  id?: string;
   name: string;
   iban: string;
   swift: string;
   bankName: string;
   isDefault: boolean;
+  // One bank account can be reported to one or multiple GL cash accounts.
+  // First code is treated as primary posting account.
+  ledgerAccountCodes?: string[];
 }
 
 // ─── Multi-Currency (D365 F&O dual-currency model) ──────────

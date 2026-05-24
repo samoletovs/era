@@ -50,6 +50,12 @@ interface OpenInvoice {
   amountDue: number;
 }
 
+interface BankOption {
+  code: string;
+  iban?: string;
+  label: string;
+}
+
 export function BankRecon() {
   const { companyId, numberFormat: fmt, toast } = useApp();
   const [recons, setRecons] = useState<Reconciliation[]>([]);
@@ -87,11 +93,15 @@ export function BankRecon() {
 
   const [busy, setBusy] = useState(false);
   const [creatingManual, setCreatingManual] = useState(false);
+  const [bankOptions, setBankOptions] = useState<BankOption[]>([]);
+  const [selectedBankCode, setSelectedBankCode] = useState('2420');
+  const [selectedBankIban, setSelectedBankIban] = useState('');
 
   useEffect(() => {
     if (!companyId) return;
     loadRecons();
     loadAccounts();
+    loadBankOptions();
   }, [companyId]);
 
   const loadRecons = useCallback(() => {
@@ -117,6 +127,69 @@ export function BankRecon() {
       .catch(() => {});
   }, [companyId]);
 
+  const loadBankOptions = useCallback(async () => {
+    try {
+      const [companyRaw, accountsRaw] = await Promise.all([
+        api.company(companyId),
+        api.accounts(companyId),
+      ]);
+      const company = companyRaw as {
+        bankAccounts?: Array<{
+          name?: string;
+          iban?: string;
+          isDefault?: boolean;
+          ledgerAccountCodes?: string[];
+          ledgerAccountCode?: string;
+        }>;
+      };
+      const accounts = (
+        accountsRaw as Array<{ code: string; name: string; type?: string; isPostable?: boolean }>
+      )
+        .filter((a) => a.isPostable !== false)
+        .map((a) => ({ code: a.code, name: a.name }));
+      const accountNameByCode = new Map(accounts.map((a) => [a.code, a.name]));
+      const fromCompany = (company.bankAccounts || []).map((bank) => {
+        const firstCode = bank.ledgerAccountCodes?.[0] || bank.ledgerAccountCode || '2420';
+        const code = firstCode.trim() || '2420';
+        const name = accountNameByCode.get(code) || 'Bank accounts';
+        const iban = (bank.iban || '').trim();
+        return {
+          code,
+          iban: iban || undefined,
+          label: `${bank.name || bank.iban || 'Bank account'}${iban ? ` (${iban})` : ''} — ${code} ${name}`,
+          isDefault: !!bank.isDefault,
+        };
+      });
+      const fallback2420 = accountNameByCode.get('2420') || 'Bank accounts';
+      const all =
+        fromCompany.length > 0
+          ? fromCompany
+          : [
+              {
+                code: '2420',
+                label: `Default bank account — 2420 ${fallback2420}`,
+                isDefault: true,
+              },
+            ];
+      const deduped: BankOption[] = [];
+      const seen = new Set<string>();
+      for (const option of all) {
+        const key = `${option.code}|${option.iban || ''}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        deduped.push({ code: option.code, iban: option.iban, label: option.label });
+      }
+      setBankOptions(deduped);
+      const defaultOption = all.find((o) => o.isDefault) || all[0];
+      setSelectedBankCode(defaultOption.code);
+      setSelectedBankIban(defaultOption.iban || '');
+    } catch {
+      setBankOptions([{ code: '2420', label: 'Default bank account — 2420 Bank accounts' }]);
+      setSelectedBankCode('2420');
+      setSelectedBankIban('');
+    }
+  }, [companyId]);
+
   async function handleImport() {
     if (!csvText.trim()) return;
     setImporting(true);
@@ -139,7 +212,8 @@ export function BankRecon() {
 
       const balance = lines.reduce((s, l) => s + l.amount, 0);
       const result = (await api.importBankStatement(companyId, {
-        bankAccountCode: '2420',
+        bankAccountCode: selectedBankCode || '2420',
+        bankIban: selectedBankIban || undefined,
         statementDate: new Date().toISOString().slice(0, 10),
         statementBalance: Math.round(balance * 100) / 100,
         lines,
@@ -177,7 +251,8 @@ export function BankRecon() {
     setCreatingManual(true);
     try {
       const result = (await api.importBankStatement(companyId, {
-        bankAccountCode: '2420',
+        bankAccountCode: selectedBankCode || '2420',
+        bankIban: selectedBankIban || undefined,
         statementDate: new Date().toISOString().slice(0, 10),
         statementBalance: 0,
         lines: [],
@@ -1204,6 +1279,37 @@ export function BankRecon() {
         </div>
         <div className="form-hint">
           Paste semicolon-separated CSV with headers: date;description;reference;amount;counterparty
+        </div>
+        <div style={{ marginTop: 10, marginBottom: 10 }}>
+          <label
+            style={{
+              display: 'block',
+              fontSize: 'var(--text-sm)',
+              marginBottom: 6,
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Bank account
+          </label>
+          <select
+            className="settings-input"
+            value={`${selectedBankCode}|${selectedBankIban}`}
+            onChange={(e) => {
+              const [code, iban] = e.target.value.split('|');
+              setSelectedBankCode(code || '2420');
+              setSelectedBankIban(iban || '');
+            }}
+            aria-label="Bank account for statement import"
+          >
+            {bankOptions.map((option) => (
+              <option
+                key={`${option.code}|${option.iban || ''}`}
+                value={`${option.code}|${option.iban || ''}`}
+              >
+                {option.label}
+              </option>
+            ))}
+          </select>
         </div>
         <textarea
           value={csvText}

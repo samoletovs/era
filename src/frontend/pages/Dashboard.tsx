@@ -50,6 +50,14 @@ export function Dashboard() {
       .catch(() => {});
   }, [companyId]);
 
+  function getKpiCodes(key: KpiKey): string[] {
+    if (key === 'cash') {
+      const dynamic = data?.kpiAccounts?.cash?.accountCodes;
+      if (Array.isArray(dynamic) && dynamic.length > 0) return dynamic;
+    }
+    return KPI_ACCOUNTS[key].codes;
+  }
+
   async function handleKpiClick(key: KpiKey) {
     if (activeKpi === key) {
       setActiveKpi(null);
@@ -60,7 +68,7 @@ export function Dashboard() {
     setDrillLoading(true);
     setDrillTxns([]);
     try {
-      const { codes } = KPI_ACCOUNTS[key];
+      const codes = getKpiCodes(key);
       const results = await Promise.all(
         codes.map((code) => api.accountTransactions(companyId, code)),
       );
@@ -236,7 +244,7 @@ export function Dashboard() {
                 style={{ fontSize: 'var(--text-sm)' }}
                 onClick={() =>
                   navigate('/accounts', {
-                    state: { accountCode: KPI_ACCOUNTS[activeKpi].codes[0] },
+                    state: { accountCode: getKpiCodes(activeKpi)[0] },
                   })
                 }
               >
