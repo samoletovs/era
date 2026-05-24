@@ -1,8 +1,8 @@
-import React, { useEffect, useState, useCallback } from "react";
-import { api } from "../utils/api";
-import { useApp } from "../utils/context";
-import { formatMoney } from "../utils/format";
-import { UniversalGrid, type GridColumn } from "../components/UniversalGrid";
+import React, { useEffect, useState, useCallback } from 'react';
+import { api, formatApiError } from '../utils/api';
+import { useApp } from '../utils/context';
+import { formatMoney } from '../utils/format';
+import { UniversalGrid, type GridColumn } from '../components/UniversalGrid';
 
 interface StatementLine {
   id: string;
@@ -11,13 +11,13 @@ interface StatementLine {
   reference?: string;
   amount: number;
   counterparty?: string;
-  status: "unmatched" | "matched" | "posted";
+  status: 'unmatched' | 'matched' | 'posted';
   matchedJournalEntryId?: string;
   matchedInvoiceId?: string;
   matchedInvoiceNumber?: string;
   allocatedAmount?: number;
   differenceAmount?: number;
-  differenceType?: "overpayment" | "underpayment" | "exact";
+  differenceType?: 'overpayment' | 'underpayment' | 'exact';
   differenceAccountCode?: string;
   differenceAccountName?: string;
   suggestedAccountCode?: string;
@@ -35,7 +35,7 @@ interface Reconciliation {
   statementBalance: number;
   bookBalance: number;
   lines: StatementLine[];
-  status: "in-progress" | "reconciled";
+  status: 'in-progress' | 'reconciled';
 }
 
 interface OpenInvoice {
@@ -56,12 +56,12 @@ export function BankRecon() {
   const [selected, setSelected] = useState<Reconciliation | null>(null);
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
-  const [csvText, setCsvText] = useState("");
+  const [csvText, setCsvText] = useState('');
 
   // Detail view state
-  const [tab, setTab] = useState<"lines" | "invoices" | "add">("lines");
+  const [tab, setTab] = useState<'lines' | 'invoices' | 'add'>('lines');
   const [openInvoices, setOpenInvoices] = useState<OpenInvoice[]>([]);
-  const [invoiceSearch, setInvoiceSearch] = useState("");
+  const [invoiceSearch, setInvoiceSearch] = useState('');
   const [matchingLine, setMatchingLine] = useState<StatementLine | null>(null);
   const [postingLine, setPostingLine] = useState<StatementLine | null>(null);
   const [accounts, setAccounts] = useState<
@@ -69,25 +69,21 @@ export function BankRecon() {
   >([]);
 
   // Match invoice form
-  const [allocatedAmount, setAllocatedAmount] = useState("");
-  const [diffAccountCode, setDiffAccountCode] = useState("");
-  const [diffAccountName, setDiffAccountName] = useState("");
-  const [selectedInvoice, setSelectedInvoice] = useState<OpenInvoice | null>(
-    null,
-  );
+  const [allocatedAmount, setAllocatedAmount] = useState('');
+  const [diffAccountCode, setDiffAccountCode] = useState('');
+  const [diffAccountName, setDiffAccountName] = useState('');
+  const [selectedInvoice, setSelectedInvoice] = useState<OpenInvoice | null>(null);
 
   // Post to GL form
-  const [postAccountCode, setPostAccountCode] = useState("");
-  const [postAccountName, setPostAccountName] = useState("");
+  const [postAccountCode, setPostAccountCode] = useState('');
+  const [postAccountName, setPostAccountName] = useState('');
 
   // Manual transaction form
-  const [manualDate, setManualDate] = useState(
-    new Date().toISOString().slice(0, 10),
-  );
-  const [manualDesc, setManualDesc] = useState("");
-  const [manualAmount, setManualAmount] = useState("");
-  const [manualAccountCode, setManualAccountCode] = useState("");
-  const [manualAccountName, setManualAccountName] = useState("");
+  const [manualDate, setManualDate] = useState(new Date().toISOString().slice(0, 10));
+  const [manualDesc, setManualDesc] = useState('');
+  const [manualAmount, setManualAmount] = useState('');
+  const [manualAccountCode, setManualAccountCode] = useState('');
+  const [manualAccountName, setManualAccountName] = useState('');
 
   const [busy, setBusy] = useState(false);
   const [creatingManual, setCreatingManual] = useState(false);
@@ -110,9 +106,7 @@ export function BankRecon() {
   const loadAccounts = useCallback(() => {
     api
       .accounts(companyId)
-      .then((d: any) =>
-        setAccounts((d as any[]).filter((a: any) => a.isPostable)),
-      )
+      .then((d: any) => setAccounts((d as any[]).filter((a: any) => a.isPostable)))
       .catch(() => {});
   }, [companyId]);
 
@@ -129,35 +123,33 @@ export function BankRecon() {
     try {
       const lines = csvText
         .trim()
-        .split("\n")
+        .split('\n')
         .slice(1)
         .map((row) => {
-          const cols = row
-            .split(";")
-            .map((c) => c.trim().replace(/^"|"$/g, ""));
+          const cols = row.split(';').map((c) => c.trim().replace(/^"|"$/g, ''));
           return {
             date: cols[0],
-            description: cols[1] || "",
-            reference: cols[2] || "",
+            description: cols[1] || '',
+            reference: cols[2] || '',
             amount: parseFloat(cols[3]) || 0,
-            counterparty: cols[4] || "",
+            counterparty: cols[4] || '',
           };
         })
         .filter((l) => l.amount !== 0);
 
       const balance = lines.reduce((s, l) => s + l.amount, 0);
       const result = (await api.importBankStatement(companyId, {
-        bankAccountCode: "2420",
+        bankAccountCode: '2420',
         statementDate: new Date().toISOString().slice(0, 10),
         statementBalance: Math.round(balance * 100) / 100,
         lines,
       })) as Reconciliation;
-      setCsvText("");
+      setCsvText('');
       setSelected(result);
       loadRecons();
       loadOpenInvoices();
     } catch (err: any) {
-      toast(err.message);
+      toast(formatApiError(err));
     } finally {
       setImporting(false);
     }
@@ -165,7 +157,7 @@ export function BankRecon() {
 
   function selectRecon(r: Reconciliation) {
     setSelected(r);
-    setTab("lines");
+    setTab('lines');
     setMatchingLine(null);
     setPostingLine(null);
     loadOpenInvoices();
@@ -185,17 +177,17 @@ export function BankRecon() {
     setCreatingManual(true);
     try {
       const result = (await api.importBankStatement(companyId, {
-        bankAccountCode: "2420",
+        bankAccountCode: '2420',
         statementDate: new Date().toISOString().slice(0, 10),
         statementBalance: 0,
         lines: [],
       })) as Reconciliation;
       setSelected(result);
-      setTab("add");
+      setTab('add');
       loadRecons();
       loadOpenInvoices();
     } catch (err: any) {
-      toast(err.message);
+      toast(formatApiError(err));
     } finally {
       setCreatingManual(false);
     }
@@ -208,17 +200,15 @@ export function BankRecon() {
     setPostingLine(null);
     setSelectedInvoice(null);
     setAllocatedAmount(String(Math.abs(line.amount)));
-    setDiffAccountCode("");
-    setDiffAccountName("");
-    setTab("invoices");
+    setDiffAccountCode('');
+    setDiffAccountName('');
+    setTab('invoices');
     loadOpenInvoices();
   }
 
   function pickInvoice(inv: OpenInvoice) {
     setSelectedInvoice(inv);
-    setAllocatedAmount(
-      String(Math.min(Math.abs(matchingLine?.amount || 0), inv.amountDue)),
-    );
+    setAllocatedAmount(String(Math.min(Math.abs(matchingLine?.amount || 0), inv.amountDue)));
   }
 
   async function handleMatchInvoice() {
@@ -229,7 +219,7 @@ export function BankRecon() {
     const absAmount = Math.abs(matchingLine.amount);
     const diff = Math.round((absAmount - allocated) * 100) / 100;
     if (Math.abs(diff) > 0.005 && !diffAccountCode) {
-      toast("Please select a GL account for the over/underpayment difference.");
+      toast('Please select a GL account for the over/underpayment difference.');
       return;
     }
 
@@ -246,10 +236,10 @@ export function BankRecon() {
       setSelected(result);
       setMatchingLine(null);
       setSelectedInvoice(null);
-      setTab("lines");
+      setTab('lines');
       loadOpenInvoices();
     } catch (err: any) {
-      toast(err.message);
+      toast(formatApiError(err));
     } finally {
       setBusy(false);
     }
@@ -260,8 +250,8 @@ export function BankRecon() {
   function startPostDirect(line: StatementLine) {
     setPostingLine(line);
     setMatchingLine(null);
-    setPostAccountCode(line.suggestedAccountCode || "");
-    setPostAccountName(line.suggestedAccountName || "");
+    setPostAccountCode(line.suggestedAccountCode || '');
+    setPostAccountName(line.suggestedAccountName || '');
   }
 
   async function handlePostDirect() {
@@ -276,7 +266,7 @@ export function BankRecon() {
       refreshSelected();
       setPostingLine(null);
     } catch (err: any) {
-      toast(err.message);
+      toast(formatApiError(err));
     } finally {
       setBusy(false);
     }
@@ -287,11 +277,7 @@ export function BankRecon() {
   async function handleSuggest(description: string) {
     if (!selected || !description.trim()) return;
     try {
-      const s = (await api.suggestAccount(
-        companyId,
-        selected.id,
-        description,
-      )) as any;
+      const s = (await api.suggestAccount(companyId, selected.id, description)) as any;
       if (s) {
         setManualAccountCode(s.accountCode);
         setManualAccountName(s.accountName);
@@ -302,8 +288,7 @@ export function BankRecon() {
   }
 
   async function handleAddManual() {
-    if (!selected || !manualDesc.trim() || !manualAmount || !manualAccountCode)
-      return;
+    if (!selected || !manualDesc.trim() || !manualAmount || !manualAccountCode) return;
     setBusy(true);
     try {
       const result = (await api.addManualTransaction(companyId, selected.id, {
@@ -314,12 +299,12 @@ export function BankRecon() {
         accountName: manualAccountName,
       })) as Reconciliation;
       setSelected(result);
-      setManualDesc("");
-      setManualAmount("");
-      setManualAccountCode("");
-      setManualAccountName("");
+      setManualDesc('');
+      setManualAmount('');
+      setManualAccountCode('');
+      setManualAccountName('');
     } catch (err: any) {
-      toast(err.message);
+      toast(formatApiError(err));
     } finally {
       setBusy(false);
     }
@@ -331,14 +316,11 @@ export function BankRecon() {
     if (!selected) return;
     setBusy(true);
     try {
-      const result = (await api.completeBankRecon(
-        companyId,
-        selected.id,
-      )) as Reconciliation;
+      const result = (await api.completeBankRecon(companyId, selected.id)) as Reconciliation;
       setSelected(result);
       loadRecons();
     } catch (err: any) {
-      toast(err.message);
+      toast(formatApiError(err));
     } finally {
       setBusy(false);
     }
@@ -348,16 +330,16 @@ export function BankRecon() {
 
   function badgeClass(status: string): string {
     switch (status) {
-      case "matched":
-        return "badge badge-paid";
-      case "posted":
-        return "badge badge-posted";
-      case "unmatched":
-        return "badge badge-draft";
-      case "reconciled":
-        return "badge badge-paid";
+      case 'matched':
+        return 'badge badge-paid';
+      case 'posted':
+        return 'badge badge-posted';
+      case 'unmatched':
+        return 'badge badge-draft';
+      case 'reconciled':
+        return 'badge badge-paid';
       default:
-        return "badge";
+        return 'badge';
     }
   }
 
@@ -372,31 +354,28 @@ export function BankRecon() {
 
   const reconColumns: GridColumn<Reconciliation>[] = [
     {
-      id: "statementDate",
-      header: "Date",
+      id: 'statementDate',
+      header: 'Date',
       accessor: (r) => r.statementDate,
       render: (r) => <span className="mono">{r.statementDate}</span>,
     },
     {
-      id: "bankAccountCode",
-      header: "Bank account",
+      id: 'bankAccountCode',
+      header: 'Bank account',
       accessor: (r) => r.bankAccountCode,
       render: (r) => <span className="mono">{r.bankAccountCode}</span>,
     },
     {
-      id: "lines",
-      header: "Lines",
+      id: 'lines',
+      header: 'Lines',
       accessor: (r) => r.lines?.length || 0,
       render: (r) => {
-        const unmatched =
-          r.lines?.filter((line) => line.status === "unmatched").length || 0;
+        const unmatched = r.lines?.filter((line) => line.status === 'unmatched').length || 0;
         return (
           <>
             {r.lines?.length || 0}
             {unmatched > 0 && (
-              <span
-                style={{ marginLeft: 6, fontSize: 11, color: "var(--warning)" }}
-              >
+              <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--warning)' }}>
                 {unmatched} unmatched
               </span>
             )}
@@ -405,17 +384,15 @@ export function BankRecon() {
       },
     },
     {
-      id: "statementBalance",
-      header: "Statement balance",
+      id: 'statementBalance',
+      header: 'Statement balance',
       accessor: (r) => r.statementBalance,
-      render: (r) => (
-        <span className="num">{formatMoney(r.statementBalance, fmt)}</span>
-      ),
-      align: "right",
+      render: (r) => <span className="num">{formatMoney(r.statementBalance, fmt)}</span>,
+      align: 'right',
     },
     {
-      id: "status",
-      header: "Status",
+      id: 'status',
+      header: 'Status',
       accessor: (r) => r.status,
       render: (r) => <span className={badgeClass(r.status)}>{r.status}</span>,
     },
@@ -424,20 +401,16 @@ export function BankRecon() {
   // ─── Detail view ──────────────────────────────────────────
 
   if (selected) {
-    const matched =
-      selected.lines?.filter((l) => l.status === "matched").length || 0;
-    const unmatched =
-      selected.lines?.filter((l) => l.status === "unmatched").length || 0;
-    const posted =
-      selected.lines?.filter((l) => l.status === "posted").length || 0;
+    const matched = selected.lines?.filter((l) => l.status === 'matched').length || 0;
+    const unmatched = selected.lines?.filter((l) => l.status === 'unmatched').length || 0;
+    const posted = selected.lines?.filter((l) => l.status === 'posted').length || 0;
     const manual = selected.lines?.filter((l) => l.isManual).length || 0;
 
     const filteredInvoices = openInvoices.filter((inv) => {
       if (!invoiceSearch) return true;
       const q = invoiceSearch.toLowerCase();
       return (
-        inv.invoiceNumber.toLowerCase().includes(q) ||
-        inv.contactName.toLowerCase().includes(q)
+        inv.invoiceNumber.toLowerCase().includes(q) || inv.contactName.toLowerCase().includes(q)
       );
     });
 
@@ -445,14 +418,10 @@ export function BankRecon() {
       <div>
         <div className="coa-header">
           <h2 className="page-title">Reconciliation details</h2>
-          <div style={{ display: "flex", gap: 8 }}>
-            {selected.status === "in-progress" && unmatched === 0 && (
-              <button
-                className="btn-primary"
-                onClick={handleComplete}
-                disabled={busy}
-              >
-                {busy ? "Completing..." : "Complete reconciliation"}
+          <div style={{ display: 'flex', gap: 8 }}>
+            {selected.status === 'in-progress' && unmatched === 0 && (
+              <button className="btn-primary" onClick={handleComplete} disabled={busy}>
+                {busy ? 'Completing...' : 'Complete reconciliation'}
               </button>
             )}
             <button
@@ -476,7 +445,7 @@ export function BankRecon() {
           </div>
           <div className="metric-card">
             <div className="label">Matched</div>
-            <div className="value" style={{ color: "var(--success)" }}>
+            <div className="value" style={{ color: 'var(--success)' }}>
               {matched}
             </div>
           </div>
@@ -485,7 +454,7 @@ export function BankRecon() {
             <div
               className="value"
               style={{
-                color: unmatched > 0 ? "var(--warning)" : "var(--success)",
+                color: unmatched > 0 ? 'var(--warning)' : 'var(--success)',
               }}
             >
               {unmatched}
@@ -506,45 +475,41 @@ export function BankRecon() {
         {/* Tabs */}
         <div
           style={{
-            display: "flex",
+            display: 'flex',
             gap: 0,
-            borderBottom: "1px solid var(--border)",
+            borderBottom: '1px solid var(--border)',
             marginBottom: 16,
           }}
         >
-          {(["lines", "invoices", "add"] as const).map((t) => (
+          {(['lines', 'invoices', 'add'] as const).map((t) => (
             <button
               key={t}
               onClick={() => {
                 setTab(t);
-                if (t === "invoices") loadOpenInvoices();
+                if (t === 'invoices') loadOpenInvoices();
               }}
               style={{
-                padding: "8px 16px",
-                fontSize: "var(--text-sm)",
+                padding: '8px 16px',
+                fontSize: 'var(--text-sm)',
                 fontWeight: 500,
-                color:
-                  tab === t ? "var(--text-primary)" : "var(--text-secondary)",
-                background: "none",
-                border: "none",
-                borderBottom:
-                  tab === t
-                    ? "2px solid var(--text-primary)"
-                    : "2px solid transparent",
-                cursor: "pointer",
+                color: tab === t ? 'var(--text-primary)' : 'var(--text-secondary)',
+                background: 'none',
+                border: 'none',
+                borderBottom: tab === t ? '2px solid var(--text-primary)' : '2px solid transparent',
+                cursor: 'pointer',
               }}
             >
-              {t === "lines"
-                ? "Statement lines"
-                : t === "invoices"
-                  ? "Open invoices"
-                  : "Add transaction"}
+              {t === 'lines'
+                ? 'Statement lines'
+                : t === 'invoices'
+                  ? 'Open invoices'
+                  : 'Add transaction'}
             </button>
           ))}
         </div>
 
         {/* Tab: Statement lines */}
-        {tab === "lines" && (
+        {tab === 'lines' && (
           <>
             <table className="data-table">
               <thead>
@@ -552,7 +517,7 @@ export function BankRecon() {
                   <th>Date</th>
                   <th>Description</th>
                   <th>Reference</th>
-                  <th style={{ textAlign: "right" }}>Amount</th>
+                  <th style={{ textAlign: 'right' }}>Amount</th>
                   <th>Status</th>
                   <th>Matched to</th>
                   <th></th>
@@ -563,43 +528,30 @@ export function BankRecon() {
                   <tr
                     key={l.id}
                     style={{
-                      background:
-                        postingLine?.id === l.id
-                          ? "var(--accent-bg)"
-                          : undefined,
+                      background: postingLine?.id === l.id ? 'var(--accent-bg)' : undefined,
                     }}
                   >
                     <td className="mono">{l.date}</td>
                     <td>
                       {l.description}
                       {l.counterparty ? (
-                        <span style={{ color: "var(--text-tertiary)" }}>
-                          {" "}
-                          — {l.counterparty}
-                        </span>
+                        <span style={{ color: 'var(--text-tertiary)' }}> — {l.counterparty}</span>
                       ) : (
-                        ""
+                        ''
                       )}
                       {l.isManual && (
-                        <span
-                          className="badge"
-                          style={{ marginLeft: 6, fontSize: 10 }}
-                        >
+                        <span className="badge" style={{ marginLeft: 6, fontSize: 10 }}>
                           manual
                         </span>
                       )}
                     </td>
-                    <td
-                      className="mono"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      {l.reference || ""}
+                    <td className="mono" style={{ color: 'var(--text-secondary)' }}>
+                      {l.reference || ''}
                     </td>
                     <td
                       className="num"
                       style={{
-                        color:
-                          l.amount >= 0 ? "var(--success)" : "var(--error)",
+                        color: l.amount >= 0 ? 'var(--success)' : 'var(--error)',
                       }}
                     >
                       {formatMoney(l.amount, fmt)}
@@ -609,24 +561,24 @@ export function BankRecon() {
                     </td>
                     <td
                       style={{
-                        fontSize: "var(--text-sm)",
-                        color: "var(--text-secondary)",
+                        fontSize: 'var(--text-sm)',
+                        color: 'var(--text-secondary)',
                       }}
                     >
-                      {l.matchedInvoiceNumber || ""}
-                      {l.differenceType && l.differenceType !== "exact" && (
+                      {l.matchedInvoiceNumber || ''}
+                      {l.differenceType && l.differenceType !== 'exact' && (
                         <span
                           style={{
                             marginLeft: 4,
                             fontSize: 11,
                             color:
-                              l.differenceType === "overpayment"
-                                ? "var(--success)"
-                                : "var(--warning)",
+                              l.differenceType === 'overpayment'
+                                ? 'var(--success)'
+                                : 'var(--warning)',
                           }}
                         >
-                          ({l.differenceType}:{" "}
-                          {formatMoney(Math.abs(l.differenceAmount || 0), fmt)})
+                          ({l.differenceType}: {formatMoney(Math.abs(l.differenceAmount || 0), fmt)}
+                          )
                         </span>
                       )}
                       {l.accountCode && !l.matchedInvoiceNumber && (
@@ -636,11 +588,11 @@ export function BankRecon() {
                       )}
                     </td>
                     <td>
-                      {l.status === "unmatched" && (
-                        <div style={{ display: "flex", gap: 4 }}>
+                      {l.status === 'unmatched' && (
+                        <div style={{ display: 'flex', gap: 4 }}>
                           <button
                             className="btn-secondary"
-                            style={{ fontSize: 11, padding: "2px 8px" }}
+                            style={{ fontSize: 11, padding: '2px 8px' }}
                             onClick={() => startMatchInvoice(l)}
                             aria-label={`Match ${l.description} to invoice`}
                           >
@@ -648,7 +600,7 @@ export function BankRecon() {
                           </button>
                           <button
                             className="btn-secondary"
-                            style={{ fontSize: 11, padding: "2px 8px" }}
+                            style={{ fontSize: 11, padding: '2px 8px' }}
                             onClick={() => startPostDirect(l)}
                             aria-label={`Post ${l.description} to GL`}
                           >
@@ -666,38 +618,37 @@ export function BankRecon() {
             {postingLine && (
               <div className="settings-card" style={{ marginTop: 16 }}>
                 <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>
-                  Post to GL: {postingLine.description} (
-                  {formatMoney(postingLine.amount, fmt)})
+                  Post to GL: {postingLine.description} ({formatMoney(postingLine.amount, fmt)})
                 </h3>
                 {postingLine.suggestedAccountCode && (
                   <p
                     style={{
-                      fontSize: "var(--text-sm)",
-                      color: "var(--text-secondary)",
+                      fontSize: 'var(--text-sm)',
+                      color: 'var(--text-secondary)',
                       marginBottom: 8,
                     }}
                   >
-                    Suggested: {postingLine.suggestedAccountCode} —{" "}
+                    Suggested: {postingLine.suggestedAccountCode} —{' '}
                     {postingLine.suggestedAccountName}
                   </p>
                 )}
                 <div
                   style={{
-                    display: "flex",
+                    display: 'flex',
                     gap: 8,
-                    alignItems: "flex-end",
-                    flexWrap: "wrap",
+                    alignItems: 'flex-end',
+                    flexWrap: 'wrap',
                   }}
                 >
                   <div>
                     <label
                       style={{
-                        display: "block",
+                        display: 'block',
                         fontSize: 11,
                         fontWeight: 500,
-                        color: "var(--text-tertiary)",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.02em",
+                        color: 'var(--text-tertiary)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.02em',
                         marginBottom: 4,
                       }}
                     >
@@ -707,10 +658,8 @@ export function BankRecon() {
                       value={postAccountCode}
                       onChange={(e) => {
                         setPostAccountCode(e.target.value);
-                        const acct = accounts.find(
-                          (a) => a.code === e.target.value,
-                        );
-                        setPostAccountName(acct?.name || "");
+                        const acct = accounts.find((a) => a.code === e.target.value);
+                        setPostAccountName(acct?.name || '');
                       }}
                       className="table-filter-select"
                       aria-label="GL account"
@@ -725,15 +674,15 @@ export function BankRecon() {
                   </div>
                   <button
                     className="btn-primary"
-                    style={{ fontSize: "var(--text-sm)" }}
+                    style={{ fontSize: 'var(--text-sm)' }}
                     onClick={handlePostDirect}
                     disabled={busy || !postAccountCode}
                   >
-                    {busy ? "Posting..." : "Post"}
+                    {busy ? 'Posting...' : 'Post'}
                   </button>
                   <button
                     className="btn-secondary"
-                    style={{ fontSize: "var(--text-sm)" }}
+                    style={{ fontSize: 'var(--text-sm)' }}
                     onClick={() => setPostingLine(null)}
                   >
                     Cancel
@@ -745,18 +694,17 @@ export function BankRecon() {
         )}
 
         {/* Tab: Open invoices */}
-        {tab === "invoices" && (
+        {tab === 'invoices' && (
           <>
             {matchingLine && (
               <div className="settings-card" style={{ marginBottom: 16 }}>
                 <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
-                  Matching: {matchingLine.description} (
-                  {formatMoney(matchingLine.amount, fmt)})
+                  Matching: {matchingLine.description} ({formatMoney(matchingLine.amount, fmt)})
                 </h3>
                 <p
                   style={{
-                    fontSize: "var(--text-sm)",
-                    color: "var(--text-secondary)",
+                    fontSize: 'var(--text-sm)',
+                    color: 'var(--text-secondary)',
                     margin: 0,
                   }}
                 >
@@ -782,9 +730,9 @@ export function BankRecon() {
                   <th>Contact</th>
                   <th>Date</th>
                   <th>Due date</th>
-                  <th style={{ textAlign: "right" }}>Total</th>
-                  <th style={{ textAlign: "right" }}>Paid</th>
-                  <th style={{ textAlign: "right" }}>Due</th>
+                  <th style={{ textAlign: 'right' }}>Total</th>
+                  <th style={{ textAlign: 'right' }}>Paid</th>
+                  <th style={{ textAlign: 'right' }}>Due</th>
                   {matchingLine && <th></th>}
                 </tr>
               </thead>
@@ -793,22 +741,15 @@ export function BankRecon() {
                   <tr
                     key={inv.id}
                     style={{
-                      background:
-                        selectedInvoice?.id === inv.id
-                          ? "var(--accent-bg)"
-                          : undefined,
-                      cursor: matchingLine ? "pointer" : undefined,
+                      background: selectedInvoice?.id === inv.id ? 'var(--accent-bg)' : undefined,
+                      cursor: matchingLine ? 'pointer' : undefined,
                     }}
                     onClick={matchingLine ? () => pickInvoice(inv) : undefined}
                   >
                     <td className="mono">{inv.invoiceNumber}</td>
                     <td>
                       <span
-                        className={
-                          inv.type === "sales"
-                            ? "badge badge-paid"
-                            : "badge badge-posted"
-                        }
+                        className={inv.type === 'sales' ? 'badge badge-paid' : 'badge badge-posted'}
                       >
                         {inv.type}
                       </span>
@@ -825,7 +766,7 @@ export function BankRecon() {
                       <td>
                         <button
                           className="btn-secondary"
-                          style={{ fontSize: 11, padding: "2px 8px" }}
+                          style={{ fontSize: 11, padding: '2px 8px' }}
                           onClick={(e) => {
                             e.stopPropagation();
                             pickInvoice(inv);
@@ -843,8 +784,8 @@ export function BankRecon() {
                     <td
                       colSpan={matchingLine ? 9 : 8}
                       style={{
-                        textAlign: "center",
-                        color: "var(--text-tertiary)",
+                        textAlign: 'center',
+                        color: 'var(--text-tertiary)',
                         padding: 32,
                       }}
                     >
@@ -859,25 +800,24 @@ export function BankRecon() {
             {matchingLine && selectedInvoice && (
               <div className="settings-card" style={{ marginTop: 16 }}>
                 <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>
-                  Match {matchingLine.description} →{" "}
-                  {selectedInvoice.invoiceNumber}
+                  Match {matchingLine.description} → {selectedInvoice.invoiceNumber}
                 </h3>
                 <div
                   style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
                     gap: 12,
                   }}
                 >
                   <div>
                     <label
                       style={{
-                        display: "block",
+                        display: 'block',
                         fontSize: 11,
                         fontWeight: 500,
-                        color: "var(--text-tertiary)",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.02em",
+                        color: 'var(--text-tertiary)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.02em',
                         marginBottom: 4,
                       }}
                     >
@@ -885,9 +825,8 @@ export function BankRecon() {
                     </label>
                     <div
                       style={{
-                        fontFamily:
-                          "var(--font-mono, ui-monospace, Consolas, monospace)",
-                        fontSize: "var(--text-base)",
+                        fontFamily: 'var(--font-mono, ui-monospace, Consolas, monospace)',
+                        fontSize: 'var(--text-base)',
                         fontWeight: 500,
                       }}
                     >
@@ -897,12 +836,12 @@ export function BankRecon() {
                   <div>
                     <label
                       style={{
-                        display: "block",
+                        display: 'block',
                         fontSize: 11,
                         fontWeight: 500,
-                        color: "var(--text-tertiary)",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.02em",
+                        color: 'var(--text-tertiary)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.02em',
                         marginBottom: 4,
                       }}
                     >
@@ -910,9 +849,8 @@ export function BankRecon() {
                     </label>
                     <div
                       style={{
-                        fontFamily:
-                          "var(--font-mono, ui-monospace, Consolas, monospace)",
-                        fontSize: "var(--text-base)",
+                        fontFamily: 'var(--font-mono, ui-monospace, Consolas, monospace)',
+                        fontSize: 'var(--text-base)',
                         fontWeight: 500,
                       }}
                     >
@@ -922,12 +860,12 @@ export function BankRecon() {
                   <div>
                     <label
                       style={{
-                        display: "block",
+                        display: 'block',
                         fontSize: 11,
                         fontWeight: 500,
-                        color: "var(--text-tertiary)",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.02em",
+                        color: 'var(--text-tertiary)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.02em',
                         marginBottom: 4,
                       }}
                     >
@@ -945,50 +883,44 @@ export function BankRecon() {
                   </div>
                   {(() => {
                     const alloc = parseFloat(allocatedAmount) || 0;
-                    const diff =
-                      Math.round(
-                        (Math.abs(matchingLine.amount) - alloc) * 100,
-                      ) / 100;
+                    const diff = Math.round((Math.abs(matchingLine.amount) - alloc) * 100) / 100;
                     if (Math.abs(diff) <= 0.005) return null;
                     return (
                       <>
                         <div>
                           <label
                             style={{
-                              display: "block",
+                              display: 'block',
                               fontSize: 11,
                               fontWeight: 500,
-                              color:
-                                diff > 0 ? "var(--success)" : "var(--warning)",
-                              textTransform: "uppercase",
-                              letterSpacing: "0.02em",
+                              color: diff > 0 ? 'var(--success)' : 'var(--warning)',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.02em',
                               marginBottom: 4,
                             }}
                           >
-                            {diff > 0 ? "Overpayment" : "Underpayment"}
+                            {diff > 0 ? 'Overpayment' : 'Underpayment'}
                           </label>
                           <div
                             style={{
-                              fontFamily:
-                                "var(--font-mono, ui-monospace, Consolas, monospace)",
-                              fontSize: "var(--text-base)",
+                              fontFamily: 'var(--font-mono, ui-monospace, Consolas, monospace)',
+                              fontSize: 'var(--text-base)',
                               fontWeight: 500,
-                              color:
-                                diff > 0 ? "var(--success)" : "var(--warning)",
+                              color: diff > 0 ? 'var(--success)' : 'var(--warning)',
                             }}
                           >
                             {formatMoney(Math.abs(diff), fmt)}
                           </div>
                         </div>
-                        <div style={{ gridColumn: "span 2" }}>
+                        <div style={{ gridColumn: 'span 2' }}>
                           <label
                             style={{
-                              display: "block",
+                              display: 'block',
                               fontSize: 11,
                               fontWeight: 500,
-                              color: "var(--text-tertiary)",
-                              textTransform: "uppercase",
-                              letterSpacing: "0.02em",
+                              color: 'var(--text-tertiary)',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.02em',
                               marginBottom: 4,
                             }}
                           >
@@ -998,17 +930,13 @@ export function BankRecon() {
                             value={diffAccountCode}
                             onChange={(e) => {
                               setDiffAccountCode(e.target.value);
-                              const acct = accounts.find(
-                                (a) => a.code === e.target.value,
-                              );
-                              setDiffAccountName(acct?.name || "");
+                              const acct = accounts.find((a) => a.code === e.target.value);
+                              setDiffAccountName(acct?.name || '');
                             }}
                             className="table-filter-select"
                             aria-label="Difference GL account"
                           >
-                            <option value="">
-                              Select account for difference
-                            </option>
+                            <option value="">Select account for difference</option>
                             {accounts.map((a) => (
                               <option key={a.code} value={a.code}>
                                 {a.code} — {a.name}
@@ -1020,20 +948,20 @@ export function BankRecon() {
                     );
                   })()}
                 </div>
-                <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+                <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
                   <button
                     className="btn-primary"
                     onClick={handleMatchInvoice}
                     disabled={busy || !allocatedAmount}
                   >
-                    {busy ? "Matching..." : "Match & post"}
+                    {busy ? 'Matching...' : 'Match & post'}
                   </button>
                   <button
                     className="btn-secondary"
                     onClick={() => {
                       setMatchingLine(null);
                       setSelectedInvoice(null);
-                      setTab("lines");
+                      setTab('lines');
                     }}
                   >
                     Cancel
@@ -1045,39 +973,38 @@ export function BankRecon() {
         )}
 
         {/* Tab: Add manual transaction */}
-        {tab === "add" && (
+        {tab === 'add' && (
           <div className="settings-card">
             <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>
               Add manual transaction
             </h3>
             <p
               style={{
-                fontSize: "var(--text-sm)",
-                color: "var(--text-secondary)",
+                fontSize: 'var(--text-sm)',
+                color: 'var(--text-secondary)',
                 marginBottom: 16,
                 marginTop: 0,
               }}
             >
-              Record fees, commissions, interest, or other transactions not in
-              the bank statement. The system will suggest a ledger account based
-              on the description.
+              Record fees, commissions, interest, or other transactions not in the bank statement.
+              The system will suggest a ledger account based on the description.
             </p>
             <div
               style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
                 gap: 12,
               }}
             >
               <div>
                 <label
                   style={{
-                    display: "block",
+                    display: 'block',
                     fontSize: 11,
                     fontWeight: 500,
-                    color: "var(--text-tertiary)",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.02em",
+                    color: 'var(--text-tertiary)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.02em',
                     marginBottom: 4,
                   }}
                 >
@@ -1091,15 +1018,15 @@ export function BankRecon() {
                   aria-label="Transaction date"
                 />
               </div>
-              <div style={{ gridColumn: "span 2" }}>
+              <div style={{ gridColumn: 'span 2' }}>
                 <label
                   style={{
-                    display: "block",
+                    display: 'block',
                     fontSize: 11,
                     fontWeight: 500,
-                    color: "var(--text-tertiary)",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.02em",
+                    color: 'var(--text-tertiary)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.02em',
                     marginBottom: 4,
                   }}
                 >
@@ -1112,19 +1039,19 @@ export function BankRecon() {
                   onBlur={() => handleSuggest(manualDesc)}
                   placeholder="e.g. Bank commission, Interest charge"
                   className="table-search-input"
-                  style={{ width: "100%" }}
+                  style={{ width: '100%' }}
                   aria-label="Transaction description"
                 />
               </div>
               <div>
                 <label
                   style={{
-                    display: "block",
+                    display: 'block',
                     fontSize: 11,
                     fontWeight: 500,
-                    color: "var(--text-tertiary)",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.02em",
+                    color: 'var(--text-tertiary)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.02em',
                     marginBottom: 4,
                   }}
                 >
@@ -1141,15 +1068,15 @@ export function BankRecon() {
                   aria-label="Transaction amount"
                 />
               </div>
-              <div style={{ gridColumn: "span 2" }}>
+              <div style={{ gridColumn: 'span 2' }}>
                 <label
                   style={{
-                    display: "block",
+                    display: 'block',
                     fontSize: 11,
                     fontWeight: 500,
-                    color: "var(--text-tertiary)",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.02em",
+                    color: 'var(--text-tertiary)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.02em',
                     marginBottom: 4,
                   }}
                 >
@@ -1158,11 +1085,11 @@ export function BankRecon() {
                     <span
                       style={{
                         fontWeight: 400,
-                        color: "var(--text-secondary)",
+                        color: 'var(--text-secondary)',
                         marginLeft: 8,
-                        textTransform: "none",
+                        textTransform: 'none',
                         letterSpacing: 0,
-                        fontSize: "var(--text-sm)",
+                        fontSize: 'var(--text-sm)',
                       }}
                     >
                       suggested: {manualAccountCode}
@@ -1173,13 +1100,11 @@ export function BankRecon() {
                   value={manualAccountCode}
                   onChange={(e) => {
                     setManualAccountCode(e.target.value);
-                    const acct = accounts.find(
-                      (a) => a.code === e.target.value,
-                    );
-                    setManualAccountName(acct?.name || "");
+                    const acct = accounts.find((a) => a.code === e.target.value);
+                    setManualAccountName(acct?.name || '');
                   }}
                   className="table-filter-select"
-                  style={{ width: "100%" }}
+                  style={{ width: '100%' }}
                   aria-label="Ledger account"
                 >
                   <option value="">Select account</option>
@@ -1191,18 +1116,13 @@ export function BankRecon() {
                 </select>
               </div>
             </div>
-            <div style={{ marginTop: 16, display: "flex", gap: 8 }}>
+            <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
               <button
                 className="btn-primary"
                 onClick={handleAddManual}
-                disabled={
-                  busy ||
-                  !manualDesc.trim() ||
-                  !manualAmount ||
-                  !manualAccountCode
-                }
+                disabled={busy || !manualDesc.trim() || !manualAmount || !manualAccountCode}
               >
-                {busy ? "Adding..." : "Add & post"}
+                {busy ? 'Adding...' : 'Add & post'}
               </button>
             </div>
           </div>
@@ -1224,7 +1144,7 @@ export function BankRecon() {
           <div className="value">
             {formatMoney(
               recons
-                .filter((r) => r.status === "reconciled")
+                .filter((r) => r.status === 'reconciled')
                 .reduce((s, r) => s + r.statementBalance, 0),
               fmt,
             )}
@@ -1235,8 +1155,7 @@ export function BankRecon() {
           <div className="label">Reconciliations</div>
           <div className="value">{recons.length}</div>
           <div className="subtitle">
-            {recons.filter((r) => r.status === "in-progress").length} in
-            progress
+            {recons.filter((r) => r.status === 'in-progress').length} in progress
           </div>
         </div>
         <div className="metric-card">
@@ -1246,20 +1165,15 @@ export function BankRecon() {
             style={{
               color:
                 recons.reduce(
-                  (s, r) =>
-                    s +
-                    (r.lines?.filter((l) => l.status === "unmatched").length ||
-                      0),
+                  (s, r) => s + (r.lines?.filter((l) => l.status === 'unmatched').length || 0),
                   0,
                 ) > 0
-                  ? "var(--warning)"
-                  : "var(--success)",
+                  ? 'var(--warning)'
+                  : 'var(--success)',
             }}
           >
             {recons.reduce(
-              (s, r) =>
-                s +
-                (r.lines?.filter((l) => l.status === "unmatched").length || 0),
+              (s, r) => s + (r.lines?.filter((l) => l.status === 'unmatched').length || 0),
               0,
             )}
           </div>
@@ -1270,70 +1184,66 @@ export function BankRecon() {
       <div className="settings-card" style={{ marginBottom: 20 }}>
         <div
           style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
             marginBottom: 8,
-            flexWrap: "wrap",
+            flexWrap: 'wrap',
             gap: 8,
           }}
         >
-          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>
-            Import bank statement
-          </h3>
+          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>Import bank statement</h3>
           <span
             style={{
-              fontSize: "var(--text-xs)",
-              color: "var(--text-tertiary)",
+              fontSize: 'var(--text-xs)',
+              color: 'var(--text-tertiary)',
             }}
           >
-            Tip: click a reconciliation → "Add transaction" tab for manual
-            entries
+            Tip: click a reconciliation → "Add transaction" tab for manual entries
           </span>
         </div>
         <div className="form-hint">
-          Paste semicolon-separated CSV with headers:
-          date;description;reference;amount;counterparty
+          Paste semicolon-separated CSV with headers: date;description;reference;amount;counterparty
         </div>
         <textarea
           value={csvText}
           onChange={(e) => setCsvText(e.target.value)}
           rows={6}
           placeholder={
-            "date;description;reference;amount;counterparty\n2026-03-01;Office rent;R-001;-1200.00;SIA Landlord\n2026-03-05;Customer payment;INV-00001;4840.00;SIA Client"
+            'date;description;reference;amount;counterparty\n2026-03-01;Office rent;R-001;-1200.00;SIA Landlord\n2026-03-05;Customer payment;INV-00001;4840.00;SIA Client'
           }
           style={{
-            width: "100%",
+            width: '100%',
             padding: 12,
-            fontFamily: "ui-monospace, Consolas, monospace",
-            fontSize: "var(--text-sm)",
-            border: "1px solid var(--border)",
-            borderRadius: "var(--radius-sm)",
-            resize: "vertical",
-            background: "var(--bg-page)",
+            fontFamily: 'ui-monospace, Consolas, monospace',
+            fontSize: 'var(--text-sm)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-sm)',
+            resize: 'vertical',
+            background: 'var(--bg-page)',
           }}
           aria-label="Bank statement CSV"
         />
-        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
           <button
             className="btn-primary"
             onClick={handleImport}
             disabled={importing || !csvText.trim()}
           >
-            {importing ? "Importing..." : "Import & auto-match"}
+            {importing ? 'Importing...' : 'Import & auto-match'}
           </button>
           <button
             className="btn-secondary"
             onClick={handleCreateManualRecon}
             disabled={creatingManual}
           >
-            {creatingManual ? "Creating..." : "New manual reconciliation"}
+            {creatingManual ? 'Creating...' : 'New manual reconciliation'}
           </button>
         </div>
       </div>
 
       {loading ? (
-        <p style={{ color: "var(--text-tertiary)" }}>Loading...</p>
+        <p style={{ color: 'var(--text-tertiary)' }}>Loading...</p>
       ) : recons.length === 0 ? (
         <div className="empty-state">
           <div className="icon">🏦</div>
@@ -1348,7 +1258,7 @@ export function BankRecon() {
           onRowClick={selectRecon}
           searchPlaceholder="Search reconciliations..."
           emptyMessage="No matching reconciliations. Try adjusting filters."
-          initialSort={{ columnId: "statementDate", direction: "desc" }}
+          initialSort={{ columnId: 'statementDate', direction: 'desc' }}
         />
       )}
     </div>
