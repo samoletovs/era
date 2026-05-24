@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useMemo, useCallback } from "react";
-import { api } from "../utils/api";
-import { useApp } from "../utils/context";
-import { formatMoney } from "../utils/format";
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { api } from '../utils/api';
+import { useApp } from '../utils/context';
+import { formatMoney } from '../utils/format';
 
 interface Transaction {
   entryId: string;
@@ -39,16 +39,25 @@ function computeSubtotals(accounts: any[]): Map<string, number> {
   return totals;
 }
 
+function collapsedSetForLevel(accounts: any[], level: number): Set<string> {
+  const toCollapse = new Set<string>();
+  for (const a of accounts) {
+    if (!a.isPostable && a.level >= level) {
+      toCollapse.add(a.code);
+    }
+  }
+  return toCollapse;
+}
+
 export function Accounts() {
   const { companyId, numberFormat: fmt } = useApp();
   const [accounts, setAccounts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-  const [search, setSearch] = useState("");
-  const [sortBalance, setSortBalance] = useState<"" | "asc" | "desc">("");
-  const [asOfDate, setAsOfDate] = useState(() =>
-    new Date().toISOString().slice(0, 10),
-  );
+  const isInitialViewSetRef = useRef(false);
+  const [search, setSearch] = useState('');
+  const [sortBalance, setSortBalance] = useState<'' | 'asc' | 'desc'>('');
+  const [asOfDate, setAsOfDate] = useState(() => new Date().toISOString().slice(0, 10));
 
   // Transaction drawer state
   const [selectedAccount, setSelectedAccount] = useState<{
@@ -69,6 +78,10 @@ export function Accounts() {
         .accounts(companyId, date)
         .then((data: any) => {
           setAccounts(data);
+          if (!isInitialViewSetRef.current && Array.isArray(data)) {
+            setCollapsed(collapsedSetForLevel(data, 1));
+            isInitialViewSetRef.current = true;
+          }
           setLoading(false);
         })
         .catch(() => setLoading(false));
@@ -115,7 +128,7 @@ export function Accounts() {
         if (
           a.code.toLowerCase().includes(q) ||
           a.name.toLowerCase().includes(q) ||
-          (a.type || "").toLowerCase().includes(q)
+          (a.type || '').toLowerCase().includes(q)
         ) {
           matchingCodes.add(a.code);
           let parent = a.parentCode;
@@ -131,7 +144,7 @@ export function Accounts() {
         result = [...result].sort((a, b) => {
           const ba = totals.get(a.code) ?? 0;
           const bb = totals.get(b.code) ?? 0;
-          return sortBalance === "asc" ? ba - bb : bb - ba;
+          return sortBalance === 'asc' ? ba - bb : bb - ba;
         });
       }
       return result;
@@ -153,7 +166,7 @@ export function Accounts() {
       result = [...result].sort((a, b) => {
         const ba = totals.get(a.code) ?? 0;
         const bb = totals.get(b.code) ?? 0;
-        return sortBalance === "asc" ? ba - bb : bb - ba;
+        return sortBalance === 'asc' ? ba - bb : bb - ba;
       });
     }
 
@@ -170,13 +183,7 @@ export function Accounts() {
   };
 
   const expandToLevel = (level: number) => {
-    const toCollapse = new Set<string>();
-    for (const a of accounts) {
-      if (!a.isPostable && a.level >= level) {
-        toCollapse.add(a.code);
-      }
-    }
-    setCollapsed(toCollapse);
+    setCollapsed(collapsedSetForLevel(accounts, level));
   };
 
   // Determine which level button is active
@@ -194,7 +201,7 @@ export function Accounts() {
     <div>
       <div className="coa-header">
         <h2 className="page-title">Main accounts</h2>
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <div className="coa-date-filter">
             <label className="detail-label" htmlFor="coa-date">
               Balance as of
@@ -206,32 +213,32 @@ export function Accounts() {
               onChange={handleDateChange}
               style={{
                 height: 34,
-                padding: "0 10px",
-                border: "1px solid var(--border)",
-                borderRadius: "var(--radius-sm)",
-                fontFamily: "var(--font-sans)",
-                fontSize: "var(--text-sm)",
-                color: "var(--text-body)",
-                background: "var(--bg-card)",
+                padding: '0 10px',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-sm)',
+                fontFamily: 'var(--font-sans)',
+                fontSize: 'var(--text-sm)',
+                color: 'var(--text-body)',
+                background: 'var(--bg-card)',
               }}
             />
           </div>
           {!loading && accounts.length > 0 && (
             <div className="coa-level-controls">
               <button
-                className={`coa-level-btn ${activeLevel === 1 ? "active" : ""}`}
+                className={`coa-level-btn ${activeLevel === 1 ? 'active' : ''}`}
                 onClick={() => expandToLevel(1)}
               >
                 Classes
               </button>
               <button
-                className={`coa-level-btn ${activeLevel === 2 ? "active" : ""}`}
+                className={`coa-level-btn ${activeLevel === 2 ? 'active' : ''}`}
                 onClick={() => expandToLevel(2)}
               >
                 Groups
               </button>
               <button
-                className={`coa-level-btn ${activeLevel === 3 ? "active" : ""}`}
+                className={`coa-level-btn ${activeLevel === 3 ? 'active' : ''}`}
                 onClick={() => expandToLevel(3)}
               >
                 All
@@ -253,8 +260,8 @@ export function Accounts() {
           {search && (
             <span
               style={{
-                fontSize: "var(--text-sm)",
-                color: "var(--text-tertiary)",
+                fontSize: 'var(--text-sm)',
+                color: 'var(--text-tertiary)',
               }}
             >
               {visibleAccounts.filter((a: any) => a.isPostable).length} accounts
@@ -264,7 +271,7 @@ export function Accounts() {
       )}
 
       {loading ? (
-        <p style={{ color: "#A0A0A0" }}>Loading...</p>
+        <p style={{ color: '#A0A0A0' }}>Loading...</p>
       ) : (
         <>
           {/* Desktop table */}
@@ -275,19 +282,15 @@ export function Accounts() {
                 <th>Name</th>
                 <th className="hide-mobile">Type</th>
                 <th
-                  className={`sortable-th${sortBalance ? " sorted" : ""}`}
+                  className={`sortable-th${sortBalance ? ' sorted' : ''}`}
                   onClick={() =>
-                    setSortBalance((prev) =>
-                      prev === "" ? "desc" : prev === "desc" ? "asc" : "",
-                    )
+                    setSortBalance((prev) => (prev === '' ? 'desc' : prev === 'desc' ? 'asc' : ''))
                   }
-                  style={{ textAlign: "right" }}
+                  style={{ textAlign: 'right' }}
                 >
                   Balance
                   {sortBalance && (
-                    <span className="sort-indicator">
-                      {sortBalance === "asc" ? " ▲" : " ▼"}
-                    </span>
+                    <span className="sort-indicator">{sortBalance === 'asc' ? ' ▲' : ' ▼'}</span>
                   )}
                 </th>
               </tr>
@@ -296,8 +299,7 @@ export function Accounts() {
               {visibleAccounts.map((a: any) => {
                 const balance = totals.get(a.code) ?? 0;
                 const hasChildren =
-                  !a.isPostable &&
-                  accounts.some((c: any) => c.parentCode === a.code);
+                  !a.isPostable && accounts.some((c: any) => c.parentCode === a.code);
                 const isCollapsed = collapsed.has(a.code);
                 const isSelected = selectedAccount?.code === a.code;
 
@@ -311,9 +313,7 @@ export function Accounts() {
                       <td className="mono">{a.code}</td>
                       <td>
                         {hasChildren && (
-                          <span className="coa-toggle">
-                            {isCollapsed ? "▸" : "▾"}
-                          </span>
+                          <span className="coa-toggle">{isCollapsed ? '▸' : '▾'}</span>
                         )}
                         {a.name}
                       </td>
@@ -335,9 +335,7 @@ export function Accounts() {
                       <td className="mono">{a.code}</td>
                       <td>
                         {hasChildren && (
-                          <span className="coa-toggle">
-                            {isCollapsed ? "▸" : "▾"}
-                          </span>
+                          <span className="coa-toggle">{isCollapsed ? '▸' : '▾'}</span>
                         )}
                         {a.name}
                       </td>
@@ -350,7 +348,7 @@ export function Accounts() {
                 return (
                   <tr
                     key={a.id}
-                    className={`coa-account coa-account-clickable${isSelected ? " coa-account-selected" : ""}`}
+                    className={`coa-account coa-account-clickable${isSelected ? ' coa-account-selected' : ''}`}
                     onClick={() => openTransactions(a.code, a.name)}
                     aria-label={`View transactions for ${a.code} ${a.name}`}
                   >
@@ -369,37 +367,28 @@ export function Accounts() {
             {visibleAccounts.map((a: any) => {
               const balance = totals.get(a.code) ?? 0;
               const hasChildren =
-                !a.isPostable &&
-                accounts.some((c: any) => c.parentCode === a.code);
+                !a.isPostable && accounts.some((c: any) => c.parentCode === a.code);
               const isCollapsed = collapsed.has(a.code);
               const isSelected = selectedAccount?.code === a.code;
 
               return (
                 <div
                   key={a.id}
-                  className={`coa-mobile-item level-${a.level}${isSelected ? " coa-account-selected" : ""}`}
+                  className={`coa-mobile-item level-${a.level}${isSelected ? ' coa-account-selected' : ''}`}
                   onClick={() => {
                     if (hasChildren) toggleCollapse(a.code);
                     else if (a.isPostable) openTransactions(a.code, a.name);
                   }}
                   aria-label={
-                    a.isPostable
-                      ? `View transactions for ${a.code} ${a.name}`
-                      : `Toggle ${a.name}`
+                    a.isPostable ? `View transactions for ${a.code} ${a.name}` : `Toggle ${a.name}`
                   }
                 >
-                  {hasChildren && (
-                    <span className="coa-toggle">
-                      {isCollapsed ? "▸" : "▾"}
-                    </span>
-                  )}
+                  {hasChildren && <span className="coa-toggle">{isCollapsed ? '▸' : '▾'}</span>}
                   <div className="coa-mobile-info">
                     <div className="coa-mobile-name">{a.name}</div>
                     <div className="coa-mobile-code">{a.code}</div>
                   </div>
-                  <div className="coa-mobile-balance">
-                    {formatMoney(balance, fmt)}
-                  </div>
+                  <div className="coa-mobile-balance">{formatMoney(balance, fmt)}</div>
                 </div>
               );
             })}
@@ -409,19 +398,14 @@ export function Accounts() {
 
       {/* Transaction drawer */}
       {selectedAccount && (
-        <div
-          className="coa-drawer-overlay"
-          onClick={() => setSelectedAccount(null)}
-        >
+        <div className="coa-drawer-overlay" onClick={() => setSelectedAccount(null)}>
           <div className="coa-drawer" onClick={(e) => e.stopPropagation()}>
             <div className="coa-drawer-header">
               <div>
                 <div className="coa-drawer-title">
                   {selectedAccount.code} — {selectedAccount.name}
                 </div>
-                <div className="coa-drawer-subtitle">
-                  Transactions as of {asOfDate}
-                </div>
+                <div className="coa-drawer-subtitle">Transactions as of {asOfDate}</div>
               </div>
               <button
                 className="coa-drawer-close"
@@ -433,13 +417,11 @@ export function Accounts() {
             </div>
             <div className="coa-drawer-body">
               {txLoading ? (
-                <p style={{ color: "var(--text-tertiary)", padding: 16 }}>
+                <p style={{ color: 'var(--text-tertiary)', padding: 16 }}>
                   Loading transactions...
                 </p>
               ) : transactions.length === 0 ? (
-                <p style={{ color: "var(--text-tertiary)", padding: 16 }}>
-                  No transactions found
-                </p>
+                <p style={{ color: 'var(--text-tertiary)', padding: 16 }}>No transactions found</p>
               ) : (
                 <>
                   {/* Desktop table */}
@@ -457,18 +439,13 @@ export function Accounts() {
                       {transactions.map((tx, i) => (
                         <tr key={`${tx.entryId}-${i}`}>
                           <td className="mono">{tx.date}</td>
-                          <td
-                            className="mono hide-mobile"
-                            style={{ fontSize: "var(--text-xs)" }}
-                          >
+                          <td className="mono hide-mobile" style={{ fontSize: 'var(--text-xs)' }}>
                             {tx.entryNumber}
                           </td>
                           <td className="hide-mobile">{tx.description}</td>
+                          <td className="num">{tx.debit > 0 ? formatMoney(tx.debit, fmt) : ''}</td>
                           <td className="num">
-                            {tx.debit > 0 ? formatMoney(tx.debit, fmt) : ""}
-                          </td>
-                          <td className="num">
-                            {tx.credit > 0 ? formatMoney(tx.credit, fmt) : ""}
+                            {tx.credit > 0 ? formatMoney(tx.credit, fmt) : ''}
                           </td>
                         </tr>
                       ))}
@@ -478,26 +455,17 @@ export function Accounts() {
                   {/* Mobile card view */}
                   <div className="tx-mobile-list">
                     {transactions.map((tx, i) => (
-                      <div
-                        key={`${tx.entryId}-${i}`}
-                        className="tx-mobile-item"
-                      >
+                      <div key={`${tx.entryId}-${i}`} className="tx-mobile-item">
                         <div className="tx-mobile-left">
                           <div className="tx-mobile-date">{tx.date}</div>
-                          <div className="tx-mobile-desc">
-                            {tx.description || tx.entryNumber}
-                          </div>
+                          <div className="tx-mobile-desc">{tx.description || tx.entryNumber}</div>
                         </div>
                         <div className="tx-mobile-amounts">
                           {tx.debit > 0 && (
-                            <div className="tx-mobile-debit">
-                              {formatMoney(tx.debit, fmt)}
-                            </div>
+                            <div className="tx-mobile-debit">{formatMoney(tx.debit, fmt)}</div>
                           )}
                           {tx.credit > 0 && (
-                            <div className="tx-mobile-credit">
-                              ({formatMoney(tx.credit, fmt)})
-                            </div>
+                            <div className="tx-mobile-credit">({formatMoney(tx.credit, fmt)})</div>
                           )}
                         </div>
                       </div>
@@ -518,10 +486,7 @@ function NoCompany() {
     <div className="empty-state">
       <div className="icon">🏢</div>
       <h3>No company selected</h3>
-      <p>
-        Use the agent chat to create a company first: "Create a company called
-        SIA MyCompany"
-      </p>
+      <p>Use the agent chat to create a company first: "Create a company called SIA MyCompany"</p>
     </div>
   );
 }
