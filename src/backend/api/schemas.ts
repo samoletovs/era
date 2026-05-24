@@ -131,7 +131,6 @@ export const CreateContactSchema = z.object({
     })
     .optional(),
   paymentTermsDays: z.number().int().min(0).max(365).optional(),
-  notes: z.string().max(2000).optional(),
 });
 
 // ─── Item ───────────────────────────────────────────────────
