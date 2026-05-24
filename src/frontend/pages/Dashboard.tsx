@@ -424,44 +424,46 @@ export function Dashboard() {
           return (
             <div className="metric-card">
               <div className="label">Recent invoices</div>
-              <table className="data-table" style={{ marginTop: 12 }}>
-                <thead>
-                  <tr>
-                    <SortTh colKey="invoiceNumber">Number</SortTh>
-                    <SortTh colKey="type">Type</SortTh>
-                    <SortTh colKey="contactName">Contact</SortTh>
-                    <SortTh colKey="total" style={{ textAlign: 'right' }}>
-                      Total
-                    </SortTh>
-                    <SortTh colKey="status">Status</SortTh>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sorted.map((inv: any, i: number) => (
-                    <tr
-                      key={i}
-                      onClick={() => handleInvoiceClick(inv)}
-                      className="row-clickable"
-                      role="link"
-                      tabIndex={0}
-                      aria-label={`Open invoice ${inv.invoiceNumber}`}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleInvoiceClick(inv);
-                      }}
-                    >
-                      <td className="mono">{inv.invoiceNumber}</td>
-                      <td>
-                        <span className="badge">{inv.type}</span>
-                      </td>
-                      <td>{inv.contactName}</td>
-                      <td className="num">{formatMoney(inv.total, fmt)}</td>
-                      <td>
-                        <span className={`badge badge-${inv.status}`}>{inv.status}</span>
-                      </td>
+              <div style={{ overflowX: 'auto', marginTop: 12 }}>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <SortTh colKey="invoiceNumber">Number</SortTh>
+                      <SortTh colKey="type">Type</SortTh>
+                      <SortTh colKey="contactName">Contact</SortTh>
+                      <SortTh colKey="total" style={{ textAlign: 'right' }}>
+                        Total
+                      </SortTh>
+                      <SortTh colKey="status">Status</SortTh>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {sorted.map((inv: any, i: number) => (
+                      <tr
+                        key={i}
+                        onClick={() => handleInvoiceClick(inv)}
+                        className="row-clickable"
+                        role="link"
+                        tabIndex={0}
+                        aria-label={`Open invoice ${inv.invoiceNumber}`}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleInvoiceClick(inv);
+                        }}
+                      >
+                        <td className="mono">{inv.invoiceNumber}</td>
+                        <td>
+                          <span className="badge">{inv.type}</span>
+                        </td>
+                        <td>{inv.contactName}</td>
+                        <td className="num">{formatMoney(inv.total, fmt)}</td>
+                        <td>
+                          <span className={`badge badge-${inv.status}`}>{inv.status}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           );
         })()}
