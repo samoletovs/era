@@ -454,6 +454,9 @@ export const api = {
       body: JSON.stringify(body),
     }),
 
+  // Posting rules
+  rules: (country?: string) => apiFetch(`/rules${country ? `?country=${country}` : ''}`),
+
   // Health check
   companyHealth: (companyId: string) => apiFetch(`/companies/${companyId}/health`),
 

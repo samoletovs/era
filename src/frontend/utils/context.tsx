@@ -1,19 +1,13 @@
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useCallback,
-} from "react";
-import type { NumberFormat, DateFormat, DateTimeFormat } from "@shared/types";
-import { getAuthToken, setAuthToken, clearAuthToken } from "./api";
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import type { NumberFormat, DateFormat, DateTimeFormat } from '@shared/types';
+import { getAuthToken, setAuthToken, clearAuthToken } from './api';
 
 interface AuthUser {
   id: string;
   email: string;
   displayName: string;
   photoUrl?: string;
-  provider: "google" | "microsoft";
+  provider: 'google' | 'microsoft';
 }
 
 interface CompanyInfo {
@@ -21,6 +15,7 @@ interface CompanyInfo {
   code: string;
   name: string;
   shortName?: string;
+  country?: string;
   numberFormat?: NumberFormat;
   dateFormat?: DateFormat;
   dateTimeFormat?: DateTimeFormat;
@@ -29,7 +24,7 @@ interface CompanyInfo {
 interface ToastItem {
   id: number;
   message: string;
-  type: "error" | "success" | "info";
+  type: 'error' | 'success' | 'info';
 }
 
 interface AppState {
@@ -45,7 +40,7 @@ interface AppState {
   numberFormat: NumberFormat;
   dateFormat: DateFormat;
   dateTimeFormat: DateTimeFormat;
-  toast: (message: string, type?: "error" | "success" | "info") => void;
+  toast: (message: string, type?: 'error' | 'success' | 'info') => void;
   dismissToast: (id: number) => void;
   toasts: ToastItem[];
 }
@@ -55,14 +50,14 @@ const AppContext = createContext<AppState>({
   isAuthenticated: false,
   login: async () => {},
   logout: () => {},
-  companyId: "",
+  companyId: '',
   setCompanyId: () => {},
   companies: [],
   setCompanies: () => {},
   refreshCompanies: async () => {},
-  numberFormat: "space_comma",
-  dateFormat: "dd.MM.yyyy",
-  dateTimeFormat: "24h",
+  numberFormat: 'space_comma',
+  dateFormat: 'dd.MM.yyyy',
+  dateTimeFormat: '24h',
   toast: () => {},
   dismissToast: () => {},
   toasts: [],
@@ -72,23 +67,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [companyId, setCompanyIdState] = useState(
-    () => localStorage.getItem("era_companyId") || "",
+    () => localStorage.getItem('era_companyId') || '',
   );
   const [companies, setCompanies] = useState<CompanyInfo[]>([]);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const toastCounter = React.useRef(0);
 
-  const toast = useCallback(
-    (message: string, type: "error" | "success" | "info" = "error") => {
-      const id = ++toastCounter.current;
-      setToasts((prev) => [...prev, { id, message, type }]);
-      setTimeout(
-        () => setToasts((prev) => prev.filter((t) => t.id !== id)),
-        4000,
-      );
-    },
-    [],
-  );
+  const toast = useCallback((message: string, type: 'error' | 'success' | 'info' = 'error') => {
+    const id = ++toastCounter.current;
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
+  }, []);
 
   const dismissToast = useCallback((id: number) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -96,12 +85,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   function setCompanyId(id: string) {
     setCompanyIdState(id);
-    if (id) localStorage.setItem("era_companyId", id);
+    if (id) localStorage.setItem('era_companyId', id);
   }
 
   async function fetchMe(): Promise<AuthUser | null> {
     try {
-      const res = await fetch("/api/auth/me", {
+      const res = await fetch('/api/auth/me', {
         headers: { Authorization: `Bearer ${getAuthToken()}` },
       });
       if (!res.ok) return null;
@@ -126,13 +115,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     clearAuthToken();
     setUser(null);
     setCompanies([]);
-    setCompanyIdState("");
-    localStorage.removeItem("era_companyId");
+    setCompanyIdState('');
+    localStorage.removeItem('era_companyId');
   }, []);
 
   async function refreshCompanies() {
     try {
-      const res = await fetch("/api/companies", {
+      const res = await fetch('/api/companies', {
         headers: { Authorization: `Bearer ${getAuthToken()}` },
       });
       if (res.status === 401) {
@@ -144,9 +133,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setCompanies(
           json.data.map((c: any) => ({
             id: c.id,
-            code: c.code || "-",
+            code: c.code || '-',
             name: c.name,
             shortName: c.shortName,
+            country: c.country,
             numberFormat: c.settings?.numberFormat,
             dateFormat: c.settings?.dateFormat,
             dateTimeFormat: c.settings?.dateTimeFormat,
@@ -158,7 +148,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
       }
     } catch (err) {
-      console.error("Failed to load companies:", err);
+      console.error('Failed to load companies:', err);
     }
   }
 
@@ -166,12 +156,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Check for OAuth redirect response (id_token in URL hash)
     const hash = window.location.hash;
-    if (hash && hash.includes("id_token=")) {
+    if (hash && hash.includes('id_token=')) {
       const params = new URLSearchParams(hash.slice(1));
-      const idToken = params.get("id_token");
+      const idToken = params.get('id_token');
       if (idToken) {
         // Clear the hash and login with the token
-        window.history.replaceState(null, "", window.location.pathname);
+        window.history.replaceState(null, '', window.location.pathname);
         setAuthToken(idToken);
         fetchMe().then((me) => {
           if (me) setUser(me);
@@ -183,21 +173,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     const token = getAuthToken();
-    if (token && token !== "dev-bypass") {
+    if (token && token !== 'dev-bypass') {
       fetchMe().then((me) => {
         if (me) setUser(me);
         setAuthChecked(true);
       });
-    } else if (
-      token === "dev-bypass" &&
-      process.env.NODE_ENV !== "production"
-    ) {
+    } else if (token === 'dev-bypass' && process.env.NODE_ENV !== 'production') {
       // Dev bypass — set a fake user
       setUser({
-        id: "dev-user",
-        email: "dev@era.local",
-        displayName: "Developer",
-        provider: "google",
+        id: 'dev-user',
+        email: 'dev@era.local',
+        displayName: 'Developer',
+        provider: 'google',
       });
       setAuthChecked(true);
     } else {
@@ -213,10 +200,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const isAuthenticated = !!user;
 
   const activeCompany = companies.find((c) => c.id === companyId);
-  const numberFormat: NumberFormat =
-    activeCompany?.numberFormat || "space_comma";
-  const dateFormat: DateFormat = activeCompany?.dateFormat || "dd.MM.yyyy";
-  const dateTimeFormat: DateTimeFormat = activeCompany?.dateTimeFormat || "24h";
+  const numberFormat: NumberFormat = activeCompany?.numberFormat || 'space_comma';
+  const dateFormat: DateFormat = activeCompany?.dateFormat || 'dd.MM.yyyy';
+  const dateTimeFormat: DateTimeFormat = activeCompany?.dateTimeFormat || '24h';
 
   // Show nothing until auth check completes to avoid flash
   if (!authChecked) return null;

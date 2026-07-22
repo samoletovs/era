@@ -1,15 +1,16 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import type { PostingRule } from '@shared/types';
 import { api, formatApiError } from '../utils/api';
 import { useApp } from '../utils/context';
 import { formatMoney } from '../utils/format';
+import { buildReportingDashboard, type ReportView } from '../utils/reporting-dashboard';
 
 export function Reports() {
-  const { companyId } = useApp();
-  const [view, setView] = useState<
-    'pl' | 'bs' | 'tb' | 'ar-aging' | 'ap-aging' | 'vat' | 'annual' | 'budget'
-  >('pl');
+  const { companyId, companies } = useApp();
+  const [view, setView] = useState<ReportView>('pl');
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [rules, setRules] = useState<PostingRule[]>([]);
 
   // Period controls — default to this month
   const today = new Date().toISOString().slice(0, 10);
@@ -67,6 +68,31 @@ export function Reports() {
 
   const fetchIdRef = useRef(0);
   const [refreshKey, setRefreshKey] = useState(0);
+  const activeCompany = companies.find((company) => company.id === companyId);
+  const companyCountry = activeCompany?.country || 'LV';
+  const reportingDashboard = useMemo(
+    () => buildReportingDashboard(companyCountry, rules),
+    [companyCountry, rules],
+  );
+
+  useEffect(() => {
+    if (!companyId) {
+      setRules([]);
+      return;
+    }
+    let cancelled = false;
+    api
+      .rules(companyCountry)
+      .then((result) => {
+        if (!cancelled) setRules(Array.isArray(result) ? result : []);
+      })
+      .catch(() => {
+        if (!cancelled) setRules([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [companyId, companyCountry]);
 
   useEffect(() => {
     if (!companyId) return;
@@ -111,6 +137,111 @@ export function Reports() {
   return (
     <div>
       <h2 className="page-title">Reports</h2>
+      <div className="metric-card" style={{ marginBottom: 16 }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            gap: 16,
+            alignItems: 'flex-start',
+            flexWrap: 'wrap',
+            marginBottom: reportingDashboard.legalBasis.length > 0 ? 12 : 0,
+          }}
+        >
+          <div style={{ flex: '1 1 280px' }}>
+            <div className="label">Reporting profile</div>
+            <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--text-primary)' }}>
+              {reportingDashboard.country} company
+            </div>
+            <div className="subtitle" style={{ maxWidth: 680 }}>
+              {reportingDashboard.profileSummary}
+            </div>
+          </div>
+          <div className="dashboard-grid" style={{ flex: '1 1 320px', minWidth: 280 }}>
+            <div className="metric-card" style={{ padding: 16, marginBottom: 0 }}>
+              <div className="label">Active posting rules</div>
+              <div className="value">{reportingDashboard.activeRuleCount}</div>
+            </div>
+            <div className="metric-card" style={{ padding: 16, marginBottom: 0 }}>
+              <div className="label">Localized filings</div>
+              <div className="value">{reportingDashboard.localizedReportCount}</div>
+            </div>
+          </div>
+        </div>
+        {reportingDashboard.legalBasis.length > 0 && (
+          <div>
+            <div className="label" style={{ marginBottom: 8 }}>
+              Legal basis
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {reportingDashboard.legalBasis.slice(0, 6).map((basis) => (
+                <span
+                  key={basis}
+                  style={{
+                    padding: '6px 10px',
+                    borderRadius: '999px',
+                    background: 'var(--bg-page)',
+                    border: '1px solid var(--border)',
+                    fontSize: 'var(--text-sm)',
+                    color: 'var(--text-secondary)',
+                  }}
+                >
+                  {basis}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="dashboard-grid" style={{ marginBottom: 16 }}>
+        {reportingDashboard.cards.map((card) => (
+          <div
+            key={card.view}
+            className={`metric-card metric-card-clickable${view === card.view ? ' metric-card-active' : ''}`}
+            onClick={() => setView(card.view)}
+            role="button"
+            tabIndex={0}
+            aria-label={`Open ${card.title}`}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                setView(card.view);
+              }
+            }}
+          >
+            <div className="label">{card.category}</div>
+            <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-primary)' }}>
+              {card.title}
+            </div>
+            <div className="subtitle" style={{ marginTop: 6 }}>
+              {card.description}
+            </div>
+            <div
+              style={{
+                marginTop: 12,
+                fontSize: 'var(--text-sm)',
+                color: card.isLocalized ? 'var(--accent)' : 'var(--text-tertiary)',
+                fontWeight: 500,
+              }}
+            >
+              {card.statusLabel}
+            </div>
+            {card.legalBasis[0] && (
+              <div
+                style={{
+                  marginTop: 8,
+                  fontSize: 12,
+                  color: 'var(--text-tertiary)',
+                }}
+              >
+                {card.legalBasis[0]}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
       <div className="coa-level-controls" style={{ marginBottom: 16, flexWrap: 'wrap' }}>
         <button
           className={`coa-level-btn ${view === 'pl' ? 'active' : ''}`}
@@ -191,7 +322,7 @@ export function Reports() {
       </div>
 
       {loading ? (
-        <p style={{ color: '#A0A0A0' }}>Loading...</p>
+        <ReportLoadingSkeleton />
       ) : !data ? (
         <div className="empty-state">
           <div className="icon">📊</div>
@@ -207,9 +338,9 @@ export function Reports() {
       ) : view === 'ar-aging' || view === 'ap-aging' ? (
         <AgingReport data={data} />
       ) : view === 'vat' ? (
-        <VatDeclaration data={data} />
+        <VatDeclaration data={data} country={reportingDashboard.country} />
       ) : view === 'annual' ? (
-        <AnnualReport data={data} />
+        <AnnualReport data={data} country={reportingDashboard.country} />
       ) : view === 'budget' ? (
         <BudgetVsActual data={data} onRefresh={() => setRefreshKey((k) => k + 1)} />
       ) : null}
@@ -473,15 +604,63 @@ function AgingReport({ data }: { data: any }) {
   );
 }
 
-function VatDeclaration({ data }: { data: any }) {
+function ReportLoadingSkeleton() {
+  return (
+    <div className="dashboard-grid" aria-hidden="true">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <div key={index} className="metric-card">
+          <div
+            style={{
+              height: 12,
+              width: '30%',
+              borderRadius: 999,
+              background: 'var(--bg-page)',
+              marginBottom: 12,
+            }}
+          />
+          <div
+            style={{
+              height: 24,
+              width: '60%',
+              borderRadius: 999,
+              background: 'var(--bg-page)',
+              marginBottom: 10,
+            }}
+          />
+          <div
+            style={{
+              height: 12,
+              width: '100%',
+              borderRadius: 999,
+              background: 'var(--bg-page)',
+              marginBottom: 8,
+            }}
+          />
+          <div
+            style={{
+              height: 12,
+              width: '80%',
+              borderRadius: 999,
+              background: 'var(--bg-page)',
+            }}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function VatDeclaration({ data, country }: { data: any; country: string }) {
   const { numberFormat: fmt } = useApp();
+  const isLatvia = country === 'LV';
   return (
     <div className="metric-card">
       <h3 style={{ marginBottom: 16, fontSize: 16, fontWeight: 600 }}>
-        PVN deklarācija — {data?.period}
+        {isLatvia ? 'PVN deklarācija' : 'VAT report'} — {data?.period}
       </h3>
       <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', marginBottom: 16 }}>
-        {data?.companyName} · {data?.vatNumber}
+        {data?.companyName}
+        {data?.vatNumber ? ` · ${data.vatNumber}` : ''}
       </div>
       <table className="data-table">
         <thead>
@@ -536,7 +715,9 @@ function VatDeclaration({ data }: { data: any }) {
           justifyContent: 'space-between',
         }}
       >
-        <span style={{ fontSize: 16, fontWeight: 600 }}>VAT payable to VID</span>
+        <span style={{ fontSize: 16, fontWeight: 600 }}>
+          {isLatvia ? 'VAT payable to VID' : 'VAT payable'}
+        </span>
         <span
           style={{
             fontSize: 20,
@@ -551,10 +732,11 @@ function VatDeclaration({ data }: { data: any }) {
   );
 }
 
-function AnnualReport({ data }: { data: any }) {
+function AnnualReport({ data, country }: { data: any; country: string }) {
   const { numberFormat: fmt } = useApp();
   const lv = data?.profitAndLossLv || {};
   const bsLv = data?.balanceSheetLv || {};
+  const isLatvia = country === 'LV';
   return (
     <div className="metric-card">
       <h3 style={{ marginBottom: 16, fontSize: 16, fontWeight: 600 }}>
@@ -563,8 +745,26 @@ function AnnualReport({ data }: { data: any }) {
       <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', marginBottom: 16 }}>
         {data?.companyName} · Reg. {data?.registrationNumber}
       </div>
+      {!isLatvia && (
+        <div
+          style={{
+            marginBottom: 16,
+            padding: 12,
+            borderRadius: 'var(--radius-sm)',
+            background: 'var(--bg-page)',
+            border: '1px solid var(--border)',
+            fontSize: 'var(--text-sm)',
+            color: 'var(--text-secondary)',
+          }}
+        >
+          This year-end view currently uses the default Latvian grouping until a {country}
+          specific statutory layout is added.
+        </div>
+      )}
 
-      <div className="label">Balance sheet (Latvian format)</div>
+      <div className="label">
+        {isLatvia ? 'Balance sheet (Latvian format)' : 'Balance sheet (default layout)'}
+      </div>
       <table className="data-table report-table" style={{ marginBottom: 20 }}>
         <colgroup>
           <col />
@@ -610,7 +810,9 @@ function AnnualReport({ data }: { data: any }) {
         </tbody>
       </table>
 
-      <div className="label">Profit & loss (Latvian format)</div>
+      <div className="label">
+        {isLatvia ? 'Profit & loss (Latvian format)' : 'Profit & loss (default layout)'}
+      </div>
       <table className="data-table report-table">
         <colgroup>
           <col />
