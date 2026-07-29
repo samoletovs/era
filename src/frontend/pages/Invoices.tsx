@@ -7,56 +7,12 @@ import { GlPostings } from '../components/GlPostings';
 import { AiInput } from '../components/AiInput';
 import { UniversalGrid, type GridColumn } from '../components/UniversalGrid';
 import { EmptyState } from '../components/PageControls';
+import { prepareInvoiceUpload } from '../utils/invoice-upload';
 
 import { getAuthToken } from '../utils/api';
 
 // Cancel confirmation state type
 type CancelConfirm = { inv: any } | null;
-
-// ─── PDF rendering helpers (from UploadInvoice) ─────────────
-
-async function pdfToImage(file: File): Promise<{ base64: string; dataUrl: string }> {
-  const pdfjsLib = await loadPdfJs();
-  const arrayBuffer = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-  const page = await pdf.getPage(1);
-  const scale = 2;
-  const viewport = page.getViewport({ scale });
-  const canvas = document.createElement('canvas');
-  canvas.width = viewport.width;
-  canvas.height = viewport.height;
-  const ctx = canvas.getContext('2d')!;
-  await page.render({ canvasContext: ctx, viewport }).promise;
-  const dataUrl = canvas.toDataURL('image/png');
-  const base64 = dataUrl.split(',')[1];
-  return { base64, dataUrl };
-}
-
-let pdfJsPromise: Promise<any> | null = null;
-function loadPdfJs(): Promise<any> {
-  if (pdfJsPromise) return pdfJsPromise;
-  pdfJsPromise = new Promise((resolve, reject) => {
-    if ((window as any).pdfjsLib) {
-      resolve((window as any).pdfjsLib);
-      return;
-    }
-    const scriptClassic = document.createElement('script');
-    scriptClassic.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-    scriptClassic.onload = () => {
-      const lib = (window as any).pdfjsLib;
-      if (lib) {
-        lib.GlobalWorkerOptions.workerSrc =
-          'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-        resolve(lib);
-      } else {
-        reject(new Error('pdf.js failed to load'));
-      }
-    };
-    scriptClassic.onerror = () => reject(new Error('Failed to load pdf.js'));
-    document.head.appendChild(scriptClassic);
-  });
-  return pdfJsPromise;
-}
 
 // ─── Exchange rate helpers ───────────────────────────────────
 
@@ -345,35 +301,17 @@ export function Invoices() {
       setUploadStatus('processing');
       setUploadError('');
       setUploadResult(null);
-      let base64: string;
-      let mimeType: string;
-      if (isPdf) {
-        try {
-          const pdfData = await pdfToImage(file);
-          base64 = pdfData.base64;
-          mimeType = 'image/png';
-          setUploadPreview(pdfData.dataUrl);
-        } catch {
-          setUploadError('Could not render PDF. Try uploading a photo of the invoice instead.');
-          setUploadStatus('error');
-          return;
-        }
-      } else {
-        const buffer = await file.arrayBuffer();
-        base64 = btoa(
-          new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), ''),
-        );
-        mimeType = file.type;
-        setUploadPreview(URL.createObjectURL(file));
-      }
       try {
+        const { requestBody, previewUrl } = await prepareInvoiceUpload(file);
+        setUploadPreview(previewUrl);
+
         const res = await fetch(`/api/companies/${companyId}/invoices/upload`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${getAuthToken()}`,
+            Authorization: 'Bearer ' + getAuthToken(),
           },
-          body: JSON.stringify({ image: base64, mimeType }),
+          body: JSON.stringify(requestBody),
         });
         const json = await res.json();
         if (json.error) {
@@ -385,7 +323,13 @@ export function Invoices() {
           loadInvoices();
         }
       } catch (err) {
-        setUploadError(err instanceof Error ? err.message : 'Upload failed');
+        setUploadError(
+          isPdf
+            ? 'Could not render PDF. Try uploading a screenshot or photo of the invoice instead.'
+            : err instanceof Error
+              ? err.message
+              : 'Upload failed',
+        );
         setUploadStatus('error');
       }
     },
@@ -1187,6 +1131,32 @@ export function Invoices() {
                   </span>
                 )}
               </div>
+              {uploadResult.recognized && (
+                <div className="onboarding-details" style={{ marginBottom: 12 }}>
+                  <div className="detail-row">
+                    <span className="detail-label">Vendor</span>
+                    <span>{uploadResult.recognized.vendorName}</span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="detail-label">Invoice #</span>
+                    <span className="mono">{uploadResult.recognized.invoiceNumber}</span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="detail-label">Total</span>
+                    <span>{formatMoney(uploadResult.recognized.total ?? 0, fmt)}</span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="detail-label">Confidence</span>
+                    <span className="badge badge-posted">{uploadResult.recognized.confidence}</span>
+                  </div>
+                  {uploadResult.recognized.pageCount > 1 && (
+                    <div className="detail-row">
+                      <span className="detail-label">Pages</span>
+                      <span>{uploadResult.recognized.pageCount}</span>
+                    </div>
+                  )}
+                </div>
+              )}
               <button
                 className="btn-secondary"
                 onClick={() => {
