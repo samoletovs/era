@@ -1,6 +1,15 @@
 import type { PostingRule } from '@shared/types';
 
-export type ReportView = 'pl' | 'bs' | 'tb' | 'ar-aging' | 'ap-aging' | 'vat' | 'annual' | 'budget';
+export type ReportView =
+  | 'pl'
+  | 'bs'
+  | 'tb'
+  | 'ar-aging'
+  | 'ap-aging'
+  | 'vat'
+  | 'annual'
+  | 'budget'
+  | 'multi-country';
 
 export interface ReportingDashboardCard {
   view: ReportView;
@@ -131,6 +140,16 @@ export function buildReportingDashboard(
       legalBasis: uniqueStrings(
         getRelevantRules('annual', rules).flatMap((rule) => rule.legalBasis ?? []),
       ),
+    },
+    {
+      view: 'multi-country',
+      title: 'Multi-country overview',
+      category: 'Consolidated',
+      description:
+        'Consolidates revenue, expenses, profit, and assets for every company you can access, grouped by country.',
+      statusLabel: 'All accessible companies',
+      isLocalized: false,
+      legalBasis: [],
     },
     {
       view: 'budget',

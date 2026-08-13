@@ -16,6 +16,7 @@ interface CompanyInfo {
   name: string;
   shortName?: string;
   country?: string;
+  currency?: string;
   numberFormat?: NumberFormat;
   dateFormat?: DateFormat;
   dateTimeFormat?: DateTimeFormat;
@@ -137,6 +138,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             name: c.name,
             shortName: c.shortName,
             country: c.country,
+            currency: c.currency,
             numberFormat: c.settings?.numberFormat,
             dateFormat: c.settings?.dateFormat,
             dateTimeFormat: c.settings?.dateTimeFormat,

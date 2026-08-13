@@ -4,6 +4,7 @@ import { api, formatApiError } from '../utils/api';
 import { useApp } from '../utils/context';
 import { formatMoney } from '../utils/format';
 import { buildReportingDashboard, type ReportView } from '../utils/reporting-dashboard';
+import { MultiCountryOverview } from '../components/MultiCountryOverview';
 
 export function Reports() {
   const { companyId, companies } = useApp();
@@ -74,6 +75,17 @@ export function Reports() {
     () => buildReportingDashboard(companyCountry, rules),
     [companyCountry, rules],
   );
+  const consolidatedCompanies = useMemo(
+    () =>
+      companies.map((company) => ({
+        id: company.id,
+        name: company.name,
+        shortName: company.shortName,
+        country: company.country,
+        currency: company.currency,
+      })),
+    [companies],
+  );
 
   useEffect(() => {
     if (!companyId) {
@@ -96,6 +108,13 @@ export function Reports() {
 
   useEffect(() => {
     if (!companyId) return;
+    if (view === 'multi-country') {
+      // Consolidated view fetches per company itself — invalidate any inflight single-company fetch.
+      ++fetchIdRef.current;
+      setLoading(false);
+      setData(null);
+      return;
+    }
     const id = ++fetchIdRef.current;
     setLoading(true);
     setData(null);
@@ -291,6 +310,12 @@ export function Reports() {
         >
           Budget vs actual
         </button>
+        <button
+          className={`coa-level-btn ${view === 'multi-country' ? 'active' : ''}`}
+          onClick={() => setView('multi-country')}
+        >
+          Multi-country overview
+        </button>
       </div>
 
       <div className="report-period-bar">
@@ -321,7 +346,13 @@ export function Reports() {
         </div>
       </div>
 
-      {loading ? (
+      {view === 'multi-country' ? (
+        <MultiCountryOverview
+          companies={consolidatedCompanies}
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+        />
+      ) : loading ? (
         <ReportLoadingSkeleton />
       ) : !data ? (
         <div className="empty-state">
