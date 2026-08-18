@@ -25,9 +25,7 @@ else
         else
             "$LEAK_PS" -NoProfile -ExecutionPolicy Bypass -File ./scripts/audit-leaks.ps1 -PrePushRange "${remote_sha}..${local_sha}" || LEAK_FAIL=1
         fi
-    done << __LEAK_REFS__
-$LEAK_INPUT
-__LEAK_REFS__
+    done <<< "$LEAK_INPUT"
 fi
 if [ "$LEAK_FAIL" -ne 0 ]; then exit 1; fi
 # <<< nauroLabs-leak-audit-v1
