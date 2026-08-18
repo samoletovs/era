@@ -14,6 +14,17 @@ permissions:
   contents: read
   id-token: write
 
+# Every push to a PR branch used to leave its predecessor running to completion, so a
+# branch pushed four times paid for four full build-and-test cycles when only the last
+# could still matter. At 194 Actions minutes over 20 runs in a month - against an
+# allowance the account was already 243% through - that waste is worth removing.
+#
+# Cancellation is limited to pull_request on purpose: the deploy job runs off main and
+# interrupting a deployment mid-flight costs more than the minutes it saves.
+concurrency:
+  group: era-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
