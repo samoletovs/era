@@ -32,35 +32,68 @@ import { errorHandlerMiddleware } from './middleware/error-handler.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const port = process.env.PORT || 3000;
+let getIndexHtml: (() => string) | null = null;
 
-// Serve frontend static files BEFORE any middleware — same-origin assets must not go through CORS
+// Security headers — crossOriginOpenerPolicy: false allows Google OAuth popup to communicate back
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        baseUri: ["'self'"],
+        objectSrc: ["'none'"],
+        scriptSrc: [
+          "'self'",
+          'https://accounts.google.com',
+          'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
+        ],
+        styleSrc: ["'self'", 'https://fonts.googleapis.com'],
+        styleSrcAttr: ["'unsafe-inline'"],
+        fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
+        imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
+        connectSrc: ["'self'", 'https://accounts.google.com'],
+        frameSrc: ["'self'", 'https://accounts.google.com'],
+        workerSrc: [
+          "'self'",
+          'blob:',
+          'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',
+        ],
+      },
+    },
+    crossOriginOpenerPolicy: false,
+  }),
+);
+
+// Serve frontend static files before CORS — same-origin assets must not go through CORS checks
 import fs from 'fs';
 
 if (process.env.NODE_ENV === 'production') {
   const frontendPath = path.join(__dirname, '../frontend');
   const indexPath = path.join(frontendPath, 'index.html');
 
-  // Cache index.html with injected runtime config (Google Client ID)
+  // Cache index.html
   let indexHtml: string | null = null;
-  function getIndexHtml(): string {
+  getIndexHtml = () => {
     if (!indexHtml) {
-      const raw = fs.readFileSync(indexPath, 'utf-8');
-      indexHtml = raw.replace('%%GOOGLE_CLIENT_ID%%', process.env.GOOGLE_CLIENT_ID || '');
+      indexHtml = fs.readFileSync(indexPath, 'utf-8');
     }
     return indexHtml;
-  }
+  };
+
+  app.get('/runtime-config.js', (_req, res) => {
+    res.type('application/javascript');
+    const clientId = process.env.GOOGLE_CLIENT_ID || '';
+    res.send(`window.__ERA_GOOGLE_CLIENT_ID__ = ${JSON.stringify(clientId)};`);
+  });
 
   // Serve index.html with injected config for root and SPA routes
   app.get('/', (_req, res) => {
-    res.type('html').send(getIndexHtml());
+    res.type('html').send(getIndexHtml?.() ?? '');
   });
 
   // Static assets (JS, CSS, images) — excludes index.html since GET / is handled above
   app.use(express.static(frontendPath, { index: false }));
 }
-
-// Security headers — crossOriginOpenerPolicy: false allows Google OAuth popup to communicate back
-app.use(helmet({ contentSecurityPolicy: false, crossOriginOpenerPolicy: false }));
 
 // CORS — whitelist known origins
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
@@ -156,14 +189,9 @@ app.get('/health', async (_req, res) => {
 // API routes
 app.use('/api', router);
 
-// SPA catch-all — serve index.html for client-side routes
 if (process.env.NODE_ENV === 'production') {
   app.get('/{*splat}', (_req, res) => {
-    const frontendPath = path.join(__dirname, '../frontend');
-    const indexPath = path.join(frontendPath, 'index.html');
-    const raw = fs.readFileSync(indexPath, 'utf-8');
-    const html = raw.replace('%%GOOGLE_CLIENT_ID%%', process.env.GOOGLE_CLIENT_ID || '');
-    res.type('html').send(html);
+    res.type('html').send(getIndexHtml?.() ?? '');
   });
 }
 

@@ -22,7 +22,7 @@ export function safeError(
   if (msg.toLowerCase().includes('not found')) {
     return {
       status: 404,
-      body: { error: { code: 'NOT_FOUND', message: msg } },
+      body: { error: { code: 'NOT_FOUND', message: 'Resource not found' } },
     };
   }
 

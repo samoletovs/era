@@ -15,6 +15,7 @@ describe("integration harness smoke test", () => {
     const app = await getApp();
     const res = await request(app as never).get("/health");
     expect(res.status).toBe(200);
+    expect(res.headers["content-security-policy"]).toContain("default-src 'self'");
     expect(res.body.status).toBe("healthy");
     expect(res.body.checks.api).toBe("healthy");
     expect(res.body.checks.database).toBe("healthy");

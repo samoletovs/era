@@ -37,6 +37,7 @@ describe("safeError", () => {
     const out = safeError(new Error("Invoice not found"));
     expect(out.status).toBe(404);
     expect(out.body.error.code).toBe("NOT_FOUND");
+    expect(out.body.error.message).toBe("Resource not found");
   });
 
   it("masks unknown errors as a generic 500 — never leaks the stack", () => {

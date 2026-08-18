@@ -31,7 +31,8 @@ src/
 ├── backend/
 │   ├── index.ts       # Express server entry point
 │   ├── api/
-│   │   ├── router.ts  # All API routes
+│   │   ├── router.ts  # Composition root — mounts the domain route modules
+│   │   ├── routes/    # Domain route modules (invoices, contacts, reports, …)
 │   │   └── schemas.ts # Zod validation schemas
 │   ├── middleware/     # auth, validation, error handling, pagination
 │   └── services/      # Business logic (invoice, payment, ledger, etc.)

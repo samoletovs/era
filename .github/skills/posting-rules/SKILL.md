@@ -146,7 +146,7 @@ For EVERY rule, manually verify that:
 
 ### 4. Register the Seed in the Router
 
-Add an import for the new country in `src/backend/api/router.ts` in the
+Add an import for the new country in `src/backend/api/routes/rules.ts` in the
 `/rules/seed` endpoint, so `POST /api/rules/seed?country=XX` works.
 
 ### 5. Update Posting Services to Use Company Country
