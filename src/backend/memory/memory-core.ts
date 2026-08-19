@@ -53,7 +53,10 @@ export interface MemoryRecord {
   expiresAt?: string;
 }
 
-export type NewMemory = Omit<MemoryRecord, 'id' | 'createdAt' | 'lastUsedAt' | 'useCount'> &
+export type NewMemory = Omit<
+  MemoryRecord,
+  'id' | 'createdAt' | 'lastUsedAt' | 'useCount'
+> &
   Partial<Pick<MemoryRecord, 'id' | 'createdAt' | 'lastUsedAt' | 'useCount'>>;
 
 /** Storage contract. Implement per store; the rules above never change. */
@@ -73,11 +76,10 @@ export const MAX_RECORDS_PER_USER = 500;
 // ---------------------------------------------------------------------------
 
 const STOPWORDS = new Set(
-  (
-    'the a an and or but if then than that this these those is are was were be been being ' +
+  ('the a an and or but if then than that this these those is are was were be been being ' +
     'to of in on at by for with from as it its his her their your my our i you he she they we ' +
-    'do does did done have has had will would should could can may might must not no yes'
-  ).split(' '),
+    'do does did done have has had will would should could can may might must not no yes')
+    .split(' '),
 );
 
 /**
@@ -298,17 +300,15 @@ export function recall(
     records.map((record) => record.supersedes).filter((id): id is string => Boolean(id)),
   );
 
-  return (
-    records
-      .filter((record) => !superseded.has(record.id) && !isExpired(record, now))
-      .map((record) => ({ record, score: scoreRecord(record, queryTerms, now, options.weights) }))
-      .filter((scored) => scored.score >= minScore)
-      // id breaks ties so identical scores cannot reorder between calls; an unstable
-      // order would change the prompt, and with it the model's answer, for no reason.
-      .sort((a, b) => b.score - a.score || a.record.id.localeCompare(b.record.id))
-      .slice(0, limit)
-      .map((scored) => scored.record)
-  );
+  return records
+    .filter((record) => !superseded.has(record.id) && !isExpired(record, now))
+    .map((record) => ({ record, score: scoreRecord(record, queryTerms, now, options.weights) }))
+    .filter((scored) => scored.score >= minScore)
+    // id breaks ties so identical scores cannot reorder between calls; an unstable
+    // order would change the prompt, and with it the model's answer, for no reason.
+    .sort((a, b) => b.score - a.score || a.record.id.localeCompare(b.record.id))
+    .slice(0, limit)
+    .map((scored) => scored.record);
 }
 
 /** Mark a memory as actually used - this is what resets decay. */
