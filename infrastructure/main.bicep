@@ -23,7 +23,7 @@ param azureOpenAiApiKey string
 param azureOpenAiDeployment string = 'gpt-4o'
 
 @description('ACR login server')
-param acrLoginServer string = 'caae790480deacr.azurecr.io'
+param acrLoginServer string
 
 @description('Container image tag')
 param imageTag string = 'v4'

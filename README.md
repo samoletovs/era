@@ -1,113 +1,52 @@
-# era - Enterprise Resource Application
+# era
 
-Cloud-based ERP system built with modern web technologies and deployed on Microsoft Azure.
+era is an experimental cloud ERP in which users provide business facts and
+country-specific posting rules determine the accounting treatment.
 
-## Design Philosophy: Zero-Config, Agent-Driven ERP
+## Research question
 
-ERA is designed as a **next-generation ERP run by AI agents**, not by users manually
-configuring settings. The core principle:
+era tests the NauroLabs question **"Do we still need apps?"** It asks how far an
+ERP can reduce configuration and manual accounting work when agents and
+deterministic rules apply the business logic and a person reviews the result.
 
-> **Users provide facts. The system decides how to process them.**
+## What it does
 
-### How it works
+- Manages companies, contacts, invoices, payments, ledger entries, and reports.
+- Applies country-specific accounting and tax posting rules.
+- Exposes the same business operations through an API and a React interface.
+- Uses AI-assisted inputs where useful while keeping financial calculations and
+  postings deterministic.
 
-1. **Country onboarding** — When a company is created in a new country, the system
-   (or an AI agent/Copilot) researches the country's legislation, accounting standards,
-   and chart of accounts, then generates **posting rules** that encode all the accounting
-   logic (which GL accounts to debit/credit, VAT treatment, FX gain/loss accounts, etc.).
+## Stack
 
-2. **Posting rules, not settings** — Instead of requiring users to configure GL accounts
-   for revaluation, VAT, AR/AP, and other posting targets, the system resolves them
-   automatically from country-specific posting rules stored in `src/shared/rules/{cc}.ts`.
-   Users never need to know account codes.
+- React 18, TypeScript, and Vite
+- Node.js, Express, and Zod
+- Azure Cosmos DB and Azure OpenAI
+- Azure Container Apps and Bicep
 
-3. **Minimal user interaction** — The user's job is to provide inputs (invoices,
-   payments, bank statements). The system applies the correct accounting treatment
-   automatically based on the company's country, chart of accounts, and legislation.
+## Run locally
 
-4. **Agent-first architecture** — Every feature should be designed so an AI agent can
-   operate it end-to-end. Settings screens exist only for genuine business choices
-   (company name, payment terms, currency), not for accounting configuration that
-   can be derived from rules.
-
-### When adding new features
-
-- **Ask**: "Can the system figure this out from the posting rules or country legislation?"
-  If yes, don't add a settings field — add a posting rule instead.
-- **Ask**: "Would an AI agent need this UI?" If not, the feature should be API-driven
-  with rules, not UI-driven with manual configuration.
-- New countries: create `src/shared/rules/{cc}.ts` with all posting rules (invoices,
-  payments, FX revaluation, period close, etc.) — the skill `posting-rules` guides this.
-
-## Tech Stack
-
-- **Frontend**: React 18 + TypeScript + Vite
-- **Backend**: Node.js + Express + TypeScript
-- **Database**: Azure Cosmos DB (NoSQL)
-- **Auth**: Microsoft Entra ID (Azure AD)
-- **Infrastructure**: Azure (App Service, Functions, Storage, CDN)
-- **IaC**: Bicep
-- **CI/CD**: GitHub Actions
-
-## Modules
-
-| Module | Description | Status |
-|--------|-------------|--------|
-| Finance & Accounting | GL, AP, AR, Fixed Assets | Planned |
-| Inventory Management | Stock, Warehousing, Transfers | Planned |
-| Sales & CRM | Quotes, Orders, Customer Mgmt | Planned |
-| Procurement | Purchase Orders, Vendor Mgmt | Planned |
-| HR & Payroll | Employees, Payroll, Leave | Planned |
-| Reporting & Analytics | Dashboards, Reports, Export | Planned |
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 20+
-- Azure CLI
-- GitHub CLI
-- VS Code
-
-### Setup
-
-```bash
-# Install dependencies
+```powershell
 npm install
-
-# Copy env template
-cp .env.example .env
-
-# Start development
+Copy-Item .env.example .env
 npm run dev
 ```
 
-### Project Structure
+Before submitting a change:
 
-```
-ERA/
-├── src/
-│   ├── frontend/         # React SPA
-│   ├── backend/          # Express API
-│   └── shared/           # Shared types & constants
-├── infrastructure/       # Bicep IaC templates
-├── tests/                # Unit, integration, e2e tests
-├── docs/                 # Documentation
-├── scripts/              # Build & deployment scripts
-└── .skills/              # Anthropic Claude skills
+```powershell
+npm run lint
+npm test -- --run
+npm run test:integration -- --run
+npm run build
 ```
 
-## Azure Resources
+## Status
 
-- **App Service**: Web frontend hosting
-- **Azure Functions**: Serverless API endpoints
-- **Cosmos DB**: NoSQL document database
-- **Azure Storage**: Blob storage for documents
-- **Azure CDN**: Static asset delivery
-- **Application Insights**: Monitoring & telemetry
-- **Key Vault**: Secrets management
-- **Entra ID**: Authentication & authorization
+**Active research prototype.** Core accounting workflows, country posting
+rules, APIs, and automated tests are implemented. era is not production
+accounting software and its rule coverage is still being expanded.
 
 ## License
 
-Proprietary - All Rights Reserved
+MIT
