@@ -54,6 +54,26 @@ router.use(authRoutes);
 router.use('/companies/:companyId', companyAccess);
 router.use('/companies/:id', companyAccess);
 
+// `POST /chat` is a flat route that takes its companyId from the BODY, so neither
+// pattern above matches it and it ran with no company check at all - while the
+// agent behind it holds post_journal_entry and record_payment. Anyone
+// authenticated could drive it against any company id they could name.
+//
+// Surface the body's companyId as a route param so the same guard applies. Doing
+// it here rather than inside the handler means the check cannot be forgotten when
+// another flat agent route is added next to it.
+router.use(
+  '/chat',
+  function chatCompanyIdFromBody(req, _res, next) {
+    const fromBody = (req.body as { companyId?: unknown } | undefined)?.companyId;
+    if (typeof fromBody === 'string' && fromBody && !req.params.companyId) {
+      req.params.companyId = fromBody;
+    }
+    next();
+  },
+  companyAccess,
+);
+
 router.use(companiesRoutes);
 router.use(companySharingRoutes);
 router.use(accountsRoutes);

@@ -27,7 +27,15 @@ router.get('/companies', async (req, res) => {
         parameters: [],
       })
       .fetchAll();
-    let visibleCompanies = resources;
+    // Default to nothing, not everything. This used to start as `resources` (all
+    // companies) and narrow only when the user's profile listed some, so a caller
+    // with no profile - which is every newly authenticated stranger - was shown
+    // every company in the system. The catch below made it worse: a failed profile
+    // read left the full list in place.
+    //
+    // Failing closed costs a legitimate first-time user an empty screen. Failing
+    // open costs every tenant their company list.
+    let visibleCompanies: Company[] = [];
     try {
       const { resource: userProfile } = await containers
         .users()
@@ -38,8 +46,9 @@ router.get('/companies', async (req, res) => {
         const allowed = new Set(companyIds);
         visibleCompanies = resources.filter((c) => allowed.has(c.id));
       }
-    } catch {
-      // Keep compatibility when users container is not populated yet.
+    } catch (err) {
+      // A profile that cannot be read is not a profile that grants access.
+      console.error('companies: profile read failed, returning no companies', err);
     }
 
     // Backfill shortName for companies created before the field existed

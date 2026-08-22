@@ -80,7 +80,30 @@ describe("api router composition", () => {
   });
 
   it("applies company access control before company-scoped routes", () => {
-    expect(middleware.filter((name) => name === "companyAccess")).toHaveLength(2);
+    // Asserts that the guard is present, not how many times it appears. The
+    // previous version pinned the count at exactly 2, so adding the guard to a
+    // route that was missing it FAILED the test - a test that punished fixing a
+    // hole. `POST /chat` was that hole: it takes companyId from the body, matched
+    // neither /companies/:companyId nor /companies/:id, and ran unguarded in front
+    // of an agent holding post_journal_entry and record_payment.
+    expect(
+      middleware.filter((name) => name === "companyAccess").length,
+    ).toBeGreaterThanOrEqual(2);
+  });
+
+  it("guards the flat /chat route, which takes its companyId from the body", () => {
+    // The requirement: the body's companyId is surfaced as a param AND then
+    // checked. Asserting the order encodes both halves - a shim with no guard
+    // after it would leave the hole open while looking deliberate.
+    const shim = middleware.indexOf("chatCompanyIdFromBody");
+    expect(
+      shim,
+      "POST /chat must surface its body companyId for the guard to see",
+    ).toBeGreaterThan(-1);
+    expect(
+      middleware.slice(shim + 1),
+      "POST /chat must sit behind companyAccess — the agent behind it can post journal entries",
+    ).toContain("companyAccess");
   });
 
   it("leaves the public routes reachable before the auth middleware", () => {
