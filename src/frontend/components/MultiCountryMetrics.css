@@ -1,0 +1,69 @@
+.multi-country-metrics {
+  --metrics-gap: 16px;
+  display: grid;
+  gap: var(--metrics-gap);
+  margin-bottom: var(--metrics-gap);
+}
+
+.multi-country-metrics-toolbar,
+.multi-country-metrics-choices {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--metrics-gap);
+}
+
+.multi-country-metrics-hint {
+  color: var(--text-body);
+  font-size: var(--text-sm);
+}
+
+.multi-country-metrics-options {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--metrics-gap);
+}
+
+.multi-country-metrics-options legend {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.multi-country-metrics-choices {
+  margin-block: var(--metrics-gap);
+}
+
+.multi-country-metrics-choice {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--metrics-gap) / 2);
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.multi-country-metrics-choice input {
+  accent-color: var(--accent);
+}
+
+.multi-country-metrics-choice:has(input:disabled) {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.multi-country-metrics .btn-secondary {
+  min-height: 44px;
+}
+
+.multi-country-metrics .dashboard-grid {
+  margin-bottom: 0;
+}
+
+.multi-country-metrics .metric-card {
+  min-width: 0;
+  padding: var(--metrics-gap);
+}
+
+.multi-country-metrics .metric-card .label {
+  color: var(--text-body);
+}
