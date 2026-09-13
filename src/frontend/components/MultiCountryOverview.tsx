@@ -3,6 +3,7 @@ import type { PostingRule } from '@shared/types';
 import { api } from '../utils/api';
 import { useApp } from '../utils/context';
 import { formatMoney } from '../utils/format';
+import { MultiCountryMetrics } from './MultiCountryMetrics';
 import {
   buildMultiCountryDashboard,
   type MultiCountryCompany,
@@ -159,24 +160,7 @@ export function MultiCountryOverview({ companies, dateFrom, dateTo }: MultiCount
         {dashboard.summary}
       </div>
 
-      <div className="dashboard-grid" style={{ marginBottom: 16 }}>
-        <div className="metric-card" style={{ padding: 16, marginBottom: 0 }}>
-          <div className="label">Countries</div>
-          <div className="value">{dashboard.countryCount}</div>
-        </div>
-        <div className="metric-card" style={{ padding: 16, marginBottom: 0 }}>
-          <div className="label">Companies</div>
-          <div className="value">{dashboard.companyCount}</div>
-        </div>
-        <div className="metric-card" style={{ padding: 16, marginBottom: 0 }}>
-          <div className="label">Consolidated revenue</div>
-          <div className="value">{formatMoney(dashboard.totalRevenue, fmt)}</div>
-        </div>
-        <div className="metric-card" style={{ padding: 16, marginBottom: 0 }}>
-          <div className="label">Consolidated net profit</div>
-          <div className="value">{formatMoney(dashboard.netProfit, fmt)}</div>
-        </div>
-      </div>
+      <MultiCountryMetrics dashboard={dashboard} />
 
       <table className="data-table report-table">
         <thead>

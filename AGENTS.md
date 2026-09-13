@@ -95,6 +95,15 @@ ERA deliberately leaves the [NauroLabs golden path](../.github/PLATFORM.md) on a
 
 For background on the off-path policy, see [PLATFORM.md "Off-the-path projects"](../.github/PLATFORM.md#off-the-path-projects-today). When you find this list out of date — fix it in the same PR as the change.
 
+## Dashboard display preferences
+
+Multi-country metric selections are device-local presentation preferences, not
+agent memory. Only supported metric IDs are stored under
+`era_multiCountryDashboardMetrics_v1` in browser local storage, until the user
+chooses Reset to defaults or clears site data. No financial values or user
+identifiers are stored, sent to a model, or synced between accounts/devices.
+The customization panel shows every saved choice and supports deleting it.
+
 ## Country-specific accounting
 
 Latvia (LV) posting rules in [`src/shared/rules/lv.ts`](src/shared/rules/lv.ts) are based on:

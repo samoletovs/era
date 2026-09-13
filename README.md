@@ -12,6 +12,8 @@ deterministic rules apply the business logic and a person reviews the result.
 ## What it does
 
 - Manages companies, contacts, invoices, payments, ledger entries, and reports.
+- Lets users choose financial metric cards in Reports > Multi-country overview.
+  Choices persist in the current browser; Reset to defaults removes them.
 - Applies country-specific accounting and tax posting rules.
 - Exposes the same business operations through an API and a React interface.
 - Uses AI-assisted inputs where useful while keeping financial calculations and
@@ -40,6 +42,12 @@ npm test -- --run
 npm run test:integration -- --run
 npm run build
 ```
+
+Dashboard browser tests use mocked APIs (no Azure services). With the frontend
+running via `npm run dev:frontend`, run
+`npm run test:e2e -- tests/e2e/multi-country-metrics.spec.ts`.
+Set `ERA_E2E_BASE_URL` for a different local frontend URL and optionally
+`PLAYWRIGHT_CHANNEL=msedge` to use an installed Microsoft Edge browser.
 
 ## Status
 
