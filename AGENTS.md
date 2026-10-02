@@ -1,5 +1,9 @@
 # ERA — Copilot Coding Agent Instructions
 
+Feedback triage uses `gpt-6-luna` on the existing personal-agents Azure account,
+with reasoning disabled and a 300-token output ceiling. Accounting rules and
+application inference models are unchanged by this retirement migration.
+
 > This file is read by GitHub Copilot coding agent when it auto-implements issues assigned to `copilot`.
 
 ## Project
