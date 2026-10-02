@@ -120,7 +120,7 @@ jobs:
               return;
             }
 
-            const deploymentName = 'gpt-4.1-nano';
+            const deploymentName = 'gpt-6-luna';
             const apiUrl = `${endpoint}/openai/deployments/${deploymentName}/chat/completions?api-version=2025-01-01-preview`;
 
             const triagePrompt = `You are a project maintainer triaging a GitHub issue.
@@ -155,8 +155,9 @@ jobs:
               },
               body: JSON.stringify({
                 messages: [{ role: 'user', content: triagePrompt }],
-                max_tokens: 300,
-                temperature: 0.1
+                max_completion_tokens: 300,
+                reasoning_effort: 'none',
+                response_format: { type: 'json_object' }
               })
             });
 
