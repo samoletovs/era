@@ -24,17 +24,19 @@ else
     # redirection unexpected" while working fine on developer machines where
     # sh is bash. A pipe would be POSIX but puts the loop in a subshell, losing
     # LEAK_FAIL - hence the temp file.
-    LEAK_TMP=$(mktemp)
+    LEAK_TMP=$(mktemp) || {
+        echo "pre-push: cannot create leak-audit input file. Aborting." >&2
+        exit 1
+    }
     trap 'rm -f "$LEAK_TMP"' EXIT INT TERM
-    printf '%s\n' "$LEAK_INPUT" > "$LEAK_TMP"
+    if ! printf '%s\n' "$LEAK_INPUT" > "$LEAK_TMP"; then
+        echo "pre-push: cannot write leak-audit input file. Aborting." >&2
+        exit 1
+    fi
     while IFS=' ' read -r local_ref local_sha remote_ref remote_sha; do
         if [ "$local_sha" = "$LEAK_ZERO" ]; then continue; fi
-        if [ "$remote_sha" = "$LEAK_ZERO" ]; then
-            "$LEAK_PS" -NoProfile -ExecutionPolicy Bypass -File ./scripts/audit-leaks.ps1 || LEAK_FAIL=1
-        else
-            "$LEAK_PS" -NoProfile -ExecutionPolicy Bypass -File ./scripts/audit-leaks.ps1 -PrePushRange "${remote_sha}..${local_sha}" || LEAK_FAIL=1
-        fi
-    done < "$LEAK_TMP"
+        "$LEAK_PS" -NoProfile -ExecutionPolicy Bypass -File ./scripts/audit-leaks.ps1 -PrePushTip "$local_sha" -PrePushRemote "$2" || LEAK_FAIL=1
+    done < "$LEAK_TMP" || LEAK_FAIL=1
     rm -f "$LEAK_TMP"
 fi
 if [ "$LEAK_FAIL" -ne 0 ]; then exit 1; fi
