@@ -150,15 +150,35 @@ function Read-PatternFile([string]$path) {
 $repoRoot = Resolve-RepoRoot
 Push-Location $repoRoot
 try {
+    $pushTagObjects = @()
     if ($PrePushTip) {
         if ($Staged -or $PrePushRange -or $History) {
             throw '-PrePushTip cannot be combined with -Staged, -PrePushRange or -History.'
         }
-        $resolvedTip = & git rev-parse --verify "${PrePushTip}^{commit}" 2>$null
-        if ($LASTEXITCODE -ne 0 -or -not $resolvedTip) {
-            throw 'Cannot resolve the outgoing commit; push audit is incomplete.'
+        $resolvedObject = & git rev-parse --verify "${PrePushTip}^{object}" 2>$null
+        if ($LASTEXITCODE -ne 0 -or -not $resolvedObject) {
+            throw 'Cannot resolve the outgoing object; push audit is incomplete.'
         }
-        $PrePushTip = $resolvedTip.Trim()
+        $outgoingObject = $resolvedObject.Trim()
+        $visitedTags = [System.Collections.Generic.HashSet[string]]::new()
+        while ($true) {
+            $objectType = & git cat-file -t $outgoingObject 2>$null
+            if ($LASTEXITCODE -ne 0 -or -not $objectType) {
+                throw 'Cannot inspect the outgoing object; push audit is incomplete.'
+            }
+            if ($objectType -eq 'commit') { break }
+            if ($objectType -ne 'tag' -or -not $visitedTags.Add($outgoingObject)) {
+                throw 'Outgoing refs must resolve through distinct annotated tags to a commit.'
+            }
+            $pushTagObjects += $outgoingObject
+            $tagHeader = @(& git cat-file tag $outgoingObject 2>$null | Select-Object -First 1)
+            if ($LASTEXITCODE -ne 0 -or $tagHeader.Count -ne 1 -or
+                $tagHeader[0] -notmatch '^object (?<oid>[0-9a-f]{40,64})$') {
+                throw 'Cannot resolve the annotated-tag target; push audit is incomplete.'
+            }
+            $outgoingObject = $Matches.oid
+        }
+        $PrePushTip = $outgoingObject
         if (-not $PrePushRemote) {
             throw '-PrePushTip requires -PrePushRemote, the actual push destination.'
         }
@@ -209,6 +229,24 @@ try {
                 }
             }
         }
+        $publishedTagObjects = [System.Collections.Generic.HashSet[string]]::new()
+        foreach ($baselineObject in $baselineObjects) {
+            $remoteObject = $baselineObject
+            $visitedRemoteTags = [System.Collections.Generic.HashSet[string]]::new()
+            while ((& git cat-file -t $remoteObject 2>$null) -eq 'tag') {
+                if ($LASTEXITCODE -ne 0 -or -not $visitedRemoteTags.Add($remoteObject)) {
+                    throw 'Cannot walk an advertised annotated-tag chain; push audit is incomplete.'
+                }
+                [void]$publishedTagObjects.Add($remoteObject)
+                $tagHeader = @(& git cat-file tag $remoteObject 2>$null | Select-Object -First 1)
+                if ($LASTEXITCODE -ne 0 -or $tagHeader.Count -ne 1 -or
+                    $tagHeader[0] -notmatch '^object (?<oid>[0-9a-f]{40,64})$') {
+                    throw 'Cannot resolve an advertised annotated-tag target; push audit is incomplete.'
+                }
+                $remoteObject = $Matches.oid
+            }
+        }
+        $pushTagObjects = @($pushTagObjects | Where-Object { -not $publishedTagObjects.Contains($_) })
         $pushRevisions = @($PrePushTip)
         if ($remoteCommits.Count -gt 0) {
             $pushRevisions += '--not'
@@ -335,6 +373,35 @@ try {
     }
 
     $leaks = 0
+    if ($PrePushTip -and $pushTagObjects.Count -gt 0) {
+        Write-Info "Scanning $($pushTagObjects.Count) unpublished annotated tag(s)..."
+        foreach ($tagObject in $pushTagObjects) {
+            $tagText = (& git cat-file tag $tagObject 2>$null) -join "`n"
+            if ($LASTEXITCODE -ne 0) {
+                throw 'Cannot read annotated-tag metadata; push audit is incomplete.'
+            }
+            $matched = $false
+            foreach ($p in $literalPatterns) {
+                if ($tagText.IndexOf($p, [StringComparison]::OrdinalIgnoreCase) -ge 0) {
+                    $matched = $true
+                    break
+                }
+            }
+            if (-not $matched) {
+                foreach ($p in $regexPatterns) {
+                    if ($tagText -match $p) {
+                        $matched = $true
+                        break
+                    }
+                }
+            }
+            if ($matched) {
+                Write-Host "[LEAK tag-metadata] $($tagObject.Substring(0, 12)) (content redacted)" -ForegroundColor Red
+                $leaks++
+            }
+        }
+    }
+
     function Write-LeakHits([string]$label, $hits) {
         if (-not $hits) { return 0 }
         Write-Host ""
