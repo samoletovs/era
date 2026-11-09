@@ -28,6 +28,7 @@ import {
   saveIdempotency,
   IdempotencyConflictError,
 } from './idempotency.js';
+import { completionParams, resolveDeployment } from './openai-completion.js';
 import { getTracer } from '../observability.js';
 import { SpanStatusCode } from '@opentelemetry/api';
 
@@ -50,7 +51,7 @@ function getClient(): AzureOpenAI {
   return client;
 }
 
-const DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o';
+const DEPLOYMENT = resolveDeployment();
 
 // ─── System Prompt ──────────────────────────────────────────
 
@@ -463,8 +464,7 @@ async function runChat(input: ChatInput): Promise<string> {
       model: DEPLOYMENT,
       messages,
       tools: AGENT_TOOLS,
-      temperature: 0.1,
-      max_tokens: 2000,
+      ...completionParams(DEPLOYMENT, { temperature: 0.1, maxCompletionTokens: 2000 }),
     });
 
     const choice = response.choices[0];
@@ -545,8 +545,7 @@ export async function parseItemDescription(description: string): Promise<ParsedI
       { role: 'system', content: PARSE_ITEM_PROMPT },
       { role: 'user', content: description },
     ],
-    temperature: 0.1,
-    max_tokens: 500,
+    ...completionParams(DEPLOYMENT, { temperature: 0.1, maxCompletionTokens: 500 }),
   });
 
   const content = response.choices[0]?.message?.content || '{}';
@@ -616,8 +615,7 @@ export async function parseInvoiceDescription(description: string): Promise<Pars
       { role: 'system', content: PARSE_INVOICE_PROMPT },
       { role: 'user', content: description },
     ],
-    temperature: 0.1,
-    max_tokens: 800,
+    ...completionParams(DEPLOYMENT, { temperature: 0.1, maxCompletionTokens: 800 }),
   });
 
   const content = response.choices[0]?.message?.content || '{}';
@@ -689,8 +687,7 @@ export async function parseContactDescription(description: string): Promise<Pars
       { role: 'system', content: PARSE_CONTACT_PROMPT },
       { role: 'user', content: description },
     ],
-    temperature: 0.1,
-    max_tokens: 600,
+    ...completionParams(DEPLOYMENT, { temperature: 0.1, maxCompletionTokens: 600 }),
   });
 
   const content = response.choices[0]?.message?.content || '{}';
@@ -761,8 +758,7 @@ export async function parseAssetDescription(description: string): Promise<Parsed
       { role: 'system', content: PARSE_ASSET_PROMPT },
       { role: 'user', content: description },
     ],
-    temperature: 0.1,
-    max_tokens: 500,
+    ...completionParams(DEPLOYMENT, { temperature: 0.1, maxCompletionTokens: 500 }),
   });
 
   const content = response.choices[0]?.message?.content || '{}';

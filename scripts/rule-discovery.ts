@@ -36,6 +36,11 @@ import {
   renderProposalMarkdown,
 } from '../src/backend/services/rule-discovery.js';
 import { LV_POSTING_RULES } from '../src/shared/rules/lv.js';
+import {
+  LUNA_DEPLOYMENT,
+  completionParams,
+  resolveDeployment,
+} from '../src/backend/services/openai-completion.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -53,7 +58,7 @@ function parseArgs(): CliArgs {
   const a = argv.slice(2);
   const args: CliArgs = {
     label: 'Cabinet Reg 775 amendment',
-    deployment: env.AZURE_OPENAI_DEPLOYMENT ?? 'gpt-4o',
+    deployment: resolveDeployment(),
     dryRun: false,
     pr: false,
   };
@@ -95,7 +100,7 @@ Options:
   --out <path>           Output Markdown path (defaults to a timestamped path
                          under reports/rule-discovery/ when --pr is used,
                          otherwise stdout)
-  --deployment <name>    Azure OpenAI deployment (default: env AZURE_OPENAI_DEPLOYMENT or gpt-4o)
+  --deployment <name>    Azure OpenAI deployment (default: env AZURE_OPENAI_DEPLOYMENT or ${LUNA_DEPLOYMENT})
   --dry-run              Run extraction + prompt build, but skip the OpenAI call
   --pr                   After writing the report, create a branch + commit +
                          draft PR via the \`gh\` CLI (requires gh auth + clean tree)
@@ -198,8 +203,7 @@ async function main(): Promise<void> {
       { role: 'system', content: system },
       { role: 'user', content: user },
     ],
-    temperature: 0,
-    max_tokens: 4000,
+    ...completionParams(args.deployment, { temperature: 0, maxCompletionTokens: 4000 }),
   });
 
   const content = response.choices[0]?.message?.content ?? '';
