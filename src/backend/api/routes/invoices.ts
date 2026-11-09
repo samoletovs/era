@@ -84,7 +84,7 @@ router.post('/companies/:companyId/invoices/upload', async (req, res) => {
       return;
     }
 
-    // Step 1: Recognize invoice with GPT-4o vision (multi-page if provided).
+    // Step 1: Recognize invoice with the vision model (multi-page if provided).
     const recognized = hasPages
       ? await recognizeInvoiceMultiPage(
           pages!.map((p) => ({ imageBase64: p.image, mimeType: p.mimeType })),

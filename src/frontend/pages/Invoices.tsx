@@ -1098,7 +1098,7 @@ export function Invoices() {
                 <div className="drop-zone-icon">⏳</div>
                 <div className="drop-zone-title">Recognizing invoice...</div>
                 <div className="drop-zone-subtitle">
-                  GPT-4o is extracting data from your document
+                  AI is extracting data from your document
                 </div>
               </div>
             ) : (

@@ -20,7 +20,7 @@ param azureOpenAiEndpoint string
 param azureOpenAiApiKey string
 
 @description('Azure OpenAI deployment name')
-param azureOpenAiDeployment string = 'gpt-4o'
+param azureOpenAiDeployment string = 'gpt-6-luna'
 
 @description('ACR login server')
 param acrLoginServer string
