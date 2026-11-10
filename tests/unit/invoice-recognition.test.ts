@@ -2,7 +2,7 @@
 import { describe, it, expect } from "vitest";
 
 describe("invoice recognition output validation", () => {
-  // Simulate what GPT-4o returns and validate the structure
+  // Simulate what the model returns and validate the structure
 
   const sampleRecognized = {
     vendorName: 'Sabiedrība ar ierobežotu atbildību "DAIS"',

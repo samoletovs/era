@@ -1,8 +1,9 @@
-// Invoice recognition using Azure OpenAI GPT-4o vision.
+// Invoice recognition using Azure OpenAI vision (deployment from AZURE_OPENAI_DEPLOYMENT,
+// default gpt-6-luna).
 //
 // Pipeline:
 //   1. recognizeInvoiceMultiPage(pages)
-//        - Calls GPT-4o vision once per page with EXTRACTION_PROMPT.
+//        - Calls the vision model once per page with EXTRACTION_PROMPT.
 //        - Each page returns a RecognizedInvoice + per-field confidence.
 //   2. mergeRecognitions(perPage)
 //        - Pure function. Merges multi-page results: vendor info from
@@ -20,6 +21,7 @@
 // pipeline.
 
 import { AzureOpenAI } from 'openai';
+import { completionParams, resolveDeployment } from './openai-completion.js';
 
 let client: AzureOpenAI;
 
@@ -81,7 +83,7 @@ export interface RecognizedInvoice {
   bankAccount?: string;
   reference?: string;
   confidence: ConfidenceLevel;
-  /** Per-field confidence — populated by GPT-4o; merged across pages. */
+  /** Per-field confidence — populated by the model; merged across pages. */
   fieldConfidence?: FieldConfidence;
   /** Number of pages successfully extracted. */
   pageCount?: number;
@@ -294,7 +296,7 @@ async function extractFromImage(
   options: ExtractOptions = {},
   systemPrompt: string = EXTRACTION_PROMPT,
 ): Promise<RecognizedInvoice> {
-  const deployment = options.deployment ?? process.env.AZURE_OPENAI_DEPLOYMENT ?? 'gpt-4o';
+  const deployment = resolveDeployment(options.deployment);
 
   const response = await getClient().chat.completions.create({
     model: deployment,
@@ -317,8 +319,7 @@ async function extractFromImage(
         ],
       },
     ],
-    temperature: 0,
-    max_tokens: 2500,
+    ...completionParams(deployment, { temperature: 0, maxCompletionTokens: 2500 }),
   });
 
   const content = response.choices[0]?.message?.content || '';

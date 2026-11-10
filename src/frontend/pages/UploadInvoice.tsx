@@ -169,7 +169,7 @@ export function UploadInvoice() {
           <div className="drop-zone-content">
             <div className="drop-zone-icon">⏳</div>
             <div className="drop-zone-title">Recognizing invoice...</div>
-            <div className="drop-zone-subtitle">GPT-4o is extracting data from your document</div>
+            <div className="drop-zone-subtitle">AI is extracting data from your document</div>
           </div>
         ) : (
           <div className="drop-zone-content">
